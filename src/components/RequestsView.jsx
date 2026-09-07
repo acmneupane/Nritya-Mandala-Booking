@@ -12,12 +12,12 @@ function genCode(existing) {
   return code;
 }
 
-function ApproveModal({ request, levels, onClose, onApproved }) {
+function ApproveModal({ request, levels, classes, classById, onClose, onApproved }) {
   const [students, setStudents] = useState(
     (request.enrollment_request_students || [])
       .slice()
       .sort((a, b) => a.sort_order - b.sort_order)
-      .map((s) => ({ id: s.id, name: s.student_name, dob: s.student_dob || "", levelId: s.preferred_level_id || "", isSibling: s.is_sibling }))
+      .map((s) => ({ id: s.id, name: s.student_name, dob: s.student_dob || "", levelId: "", preferredClassId: s.preferred_class_id || "", isSibling: s.is_sibling }))
   );
   const [guardianName, setGuardianName] = useState(request.guardian_name);
   const [guardianPhone, setGuardianPhone] = useState(request.guardian_phone || "");
@@ -67,6 +67,10 @@ function ApproveModal({ request, levels, onClose, onApproved }) {
             student_id: created.id, guardian_id: emergencyGuardian.id, relation: "Emergency contact", emergency: true,
           });
         }
+        // Book them straight into the class they said they preferred, if any.
+        if (s.preferredClassId) {
+          await supabase.from("enrollments").insert({ student_id: created.id, class_id: s.preferredClassId });
+        }
         await supabase.from("enrollment_request_students").update({ created_student_id: created.id }).eq("id", s.id);
       }
 
@@ -84,7 +88,7 @@ function ApproveModal({ request, levels, onClose, onApproved }) {
   };
 
   return (
-    <Modal title="Approve enrolment" onClose={onClose} wide>
+    <Modal title={`Approve enrolment · ${request.reference}`} onClose={onClose} wide>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12 }}>Review and adjust before creating {students.length > 1 ? "these student records" : "this student record"}.</p>
 
       {students.map((s, i) => (
@@ -94,12 +98,23 @@ function ApproveModal({ request, levels, onClose, onApproved }) {
             <Field label="Name"><input style={inputStyle} value={s.name} onChange={(e) => updateStudent(i, "name", e.target.value)} /></Field>
             <Field label="Date of birth"><input style={inputStyle} type="date" value={s.dob} onChange={(e) => updateStudent(i, "dob", e.target.value)} /></Field>
           </div>
-          <Field label="Level">
-            <select style={inputStyle} value={s.levelId} onChange={(e) => updateStudent(i, "levelId", e.target.value)}>
-              <option value="">Unassigned</option>
-              {levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
-          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Level (optional)">
+              <select style={inputStyle} value={s.levelId} onChange={(e) => updateStudent(i, "levelId", e.target.value)}>
+                <option value="">Unassigned</option>
+                {levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Book into class">
+              <select style={inputStyle} value={s.preferredClassId} onChange={(e) => updateStudent(i, "preferredClassId", e.target.value)}>
+                <option value="">Don't book yet</option>
+                {classes.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {c.time}</option>)}
+              </select>
+            </Field>
+          </div>
+          {s.preferredClassId && classById[s.preferredClassId] && (
+            <p style={{ fontSize: 11, color: T.sage }}>Requested: {classById[s.preferredClassId].label} — {classById[s.preferredClassId].day} {classById[s.preferredClassId].time}</p>
+          )}
         </div>
       ))}
 
@@ -140,7 +155,8 @@ function ApproveModal({ request, levels, onClose, onApproved }) {
 export default function RequestsView() {
   const [requests, setRequests] = useState([]);
   const [levels, setLevels] = useState([]);
-  const [levelById, setLevelById] = useState({});
+  const [classes, setClasses] = useState([]);
+  const [classById, setClassById] = useState({});
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(null);
   const [confirmReject, setConfirmReject] = useState(null);
@@ -148,13 +164,15 @@ export default function RequestsView() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [rRes, lRes] = await Promise.all([
+    const [rRes, lRes, cRes] = await Promise.all([
       supabase.from("enrollment_requests").select("*, enrollment_request_students(*)").order("created_at", { ascending: false }),
       supabase.from("levels").select("*").order("order_num"),
+      supabase.from("classes").select("*"),
     ]);
     setRequests(rRes.data || []);
     setLevels(lRes.data || []);
-    setLevelById(Object.fromEntries((lRes.data || []).map((l) => [l.id, l])));
+    setClasses(cRes.data || []);
+    setClassById(Object.fromEntries((cRes.data || []).map((c) => [c.id, c])));
     setLoading(false);
   }, []);
 
@@ -191,10 +209,14 @@ export default function RequestsView() {
             <div key={r.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${r.status === "pending" ? T.gold : r.status === "approved" ? T.sage : T.terracotta}`, borderRadius: 8, padding: 14 }}>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
+                  <div style={{ fontSize: 11, color: T.gold, fontWeight: 700, letterSpacing: 0.5, marginBottom: 2 }}>{r.reference}</div>
                   {kids.map((k) => (
                     <div key={k.id} style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>
                       {k.student_name} {k.is_sibling && <span style={{ fontSize: 11, color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>(sibling)</span>}
                       {k.student_dob && <span style={{ fontSize: 11, color: T.inkSoft, fontFamily: "Inter, sans-serif", marginLeft: 6 }}>· DOB {k.student_dob}</span>}
+                      {k.preferred_class_id && classById[k.preferred_class_id] && (
+                        <span style={{ fontSize: 11, color: T.sage, fontFamily: "Inter, sans-serif", marginLeft: 6 }}>· wants {classById[k.preferred_class_id].label}</span>
+                      )}
                     </div>
                   ))}
                   <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 4 }}>
@@ -220,7 +242,7 @@ export default function RequestsView() {
         })}
       </div>
 
-      {approving && <ApproveModal request={approving} levels={levels} onClose={() => setApproving(null)} onApproved={() => { setApproving(null); load(); }} />}
+      {approving && <ApproveModal request={approving} levels={levels} classes={classes} classById={classById} onClose={() => setApproving(null)} onApproved={() => { setApproving(null); load(); }} />}
       {confirmReject && (
         <ConfirmModal
           title="Reject this request?"

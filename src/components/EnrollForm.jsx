@@ -17,7 +17,7 @@ function InfoSection({ title, children }) {
 
 function ImportantInfo() {
   return (
-    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 18, marginBottom: 20 }}>
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 18, marginTop: 20 }}>
       <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 12 }}>Important Information</h3>
 
       <InfoSection title="Location & Time">
@@ -37,7 +37,7 @@ function ImportantInfo() {
         Account Name: Sarita Sigdel<br />
         BSB: 082 231<br />
         Account Number: 846746850<br /><br />
-        Payment Reference: please use your full name as the payment reference.
+        Payment Reference: use the reference number you'll be given after submitting this form.
       </InfoSection>
 
       <InfoSection title="Payment Confirmation">
@@ -72,7 +72,7 @@ function ImportantInfo() {
   );
 }
 
-function SiblingCard({ sibling, index, levels, onChange, onRemove }) {
+function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
   return (
     <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 12, marginBottom: 10 }}>
       <div className="flex items-center justify-between mb-2">
@@ -83,10 +83,10 @@ function SiblingCard({ sibling, index, levels, onChange, onRemove }) {
         <Field label="Name"><input style={inputStyle} value={sibling.name} onChange={(e) => onChange({ ...sibling, name: e.target.value })} /></Field>
         <Field label="Date of birth"><input style={inputStyle} type="date" value={sibling.dob} onChange={(e) => onChange({ ...sibling, dob: e.target.value })} /></Field>
       </div>
-      <Field label="Preferred level">
-        <select style={inputStyle} value={sibling.levelId} onChange={(e) => onChange({ ...sibling, levelId: e.target.value })}>
+      <Field label="Preferred class">
+        <select style={inputStyle} value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
           <option value="">Not sure</option>
-          {levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+          {classes.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {c.time}</option>)}
         </select>
       </Field>
     </div>
@@ -94,10 +94,10 @@ function SiblingCard({ sibling, index, levels, onChange, onRemove }) {
 }
 
 export default function EnrollForm() {
-  const [levels, setLevels] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [studentName, setStudentName] = useState("");
   const [studentDob, setStudentDob] = useState("");
-  const [preferredLevelId, setPreferredLevelId] = useState("");
+  const [preferredClassId, setPreferredClassId] = useState("");
   const [guardianName, setGuardianName] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
   const [guardianEmail, setGuardianEmail] = useState("");
@@ -109,16 +109,18 @@ export default function EnrollForm() {
   const [videoConsent, setVideoConsent] = useState(false);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [reference, setReference] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    supabase.from("levels").select("id, name").order("order_num").then(({ data }) => setLevels(data || []));
+    supabase.from("classes").select("id, label, day, time").then(({ data }) => {
+      setClasses((data || []).slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
+    });
   }, []);
 
   const addSibling = () => {
     if (siblings.length >= MAX_SIBLINGS) return;
-    setSiblings((s) => [...s, { name: "", dob: "", levelId: "" }]);
+    setSiblings((s) => [...s, { name: "", dob: "", classId: "" }]);
   };
   const updateSibling = (i, val) => setSiblings((s) => s.map((sib, idx) => (idx === i ? val : sib)));
   const removeSibling = (i) => setSiblings((s) => s.filter((_, idx) => idx !== i));
@@ -149,15 +151,15 @@ export default function EnrollForm() {
       if (reqErr) throw reqErr;
 
       const studentRows = [
-        { request_id: request.id, student_name: studentName.trim(), student_dob: studentDob || null, preferred_level_id: preferredLevelId || null, is_sibling: false, sort_order: 0 },
+        { request_id: request.id, student_name: studentName.trim(), student_dob: studentDob || null, preferred_class_id: preferredClassId || null, is_sibling: false, sort_order: 0 },
         ...siblings.filter((s) => s.name.trim()).map((s, i) => ({
-          request_id: request.id, student_name: s.name.trim(), student_dob: s.dob || null, preferred_level_id: s.levelId || null, is_sibling: true, sort_order: i + 1,
+          request_id: request.id, student_name: s.name.trim(), student_dob: s.dob || null, preferred_class_id: s.classId || null, is_sibling: true, sort_order: i + 1,
         })),
       ];
       const { error: studErr } = await supabase.from("enrollment_request_students").insert(studentRows);
       if (studErr) throw studErr;
 
-      setSubmitted(true);
+      setReference(request.reference);
     } catch (e) {
       setError("Something went wrong submitting — please try again.");
     } finally {
@@ -165,15 +167,20 @@ export default function EnrollForm() {
     }
   };
 
-  if (submitted) {
+  if (reference) {
     return (
       <div style={{ minHeight: "100vh", background: T.maroon, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
         <div style={{ background: T.ivory, borderRadius: 12, padding: "40px 28px", width: "100%", maxWidth: 380, textAlign: "center", boxSizing: "border-box" }}>
           <img src={LOGO_DATA_URI} alt="" style={{ width: 60, height: 60, borderRadius: "50%", margin: "0 auto 16px", display: "block" }} />
           <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 8 }}>Thank you!</h1>
-          <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.6 }}>
-            We've received {studentName}'s enrolment request. The studio will review it and get back to you shortly.
+          <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.6, marginBottom: 16 }}>
+            We've received {studentName}'s enrolment request. We'll call you back to confirm the enrolment.
           </p>
+          <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "14px 18px", marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Your payment reference</div>
+            <div style={{ fontFamily: "Fraunces, serif", fontSize: 22, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>{reference}</div>
+          </div>
+          <p style={{ fontSize: 12, color: T.inkSoft, lineHeight: 1.5 }}>Please use this reference when making your payment, and keep it handy in case we need to follow up.</p>
         </div>
       </div>
     );
@@ -190,17 +197,15 @@ export default function EnrollForm() {
           </div>
         </div>
 
-        <ImportantInfo />
-
         <div style={{ background: T.ivory, borderRadius: 12, padding: "24px 20px", boxSizing: "border-box", fontFamily: "Inter, sans-serif" }}>
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 12 }}>Student details</h3>
           <Field label="Student's name *"><input style={inputStyle} value={studentName} onChange={(e) => setStudentName(e.target.value)} /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Date of birth"><input style={inputStyle} type="date" value={studentDob} onChange={(e) => setStudentDob(e.target.value)} /></Field>
-            <Field label="Preferred level">
-              <select style={inputStyle} value={preferredLevelId} onChange={(e) => setPreferredLevelId(e.target.value)}>
+            <Field label="Preferred class">
+              <select style={inputStyle} value={preferredClassId} onChange={(e) => setPreferredClassId(e.target.value)}>
                 <option value="">Not sure</option>
-                {levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                {classes.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {c.time}</option>)}
               </select>
             </Field>
           </div>
@@ -242,7 +247,7 @@ export default function EnrollForm() {
             <>
               <button onClick={() => setWantsSiblings(false)} style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8, textDecoration: "underline" }}>Actually, no siblings</button>
               {siblings.map((s, i) => (
-                <SiblingCard key={i} sibling={s} index={i} levels={levels} onChange={(val) => updateSibling(i, val)} onRemove={() => removeSibling(i)} />
+                <SiblingCard key={i} sibling={s} index={i} classes={classes} onChange={(val) => updateSibling(i, val)} onRemove={() => removeSibling(i)} />
               ))}
               {siblings.length < MAX_SIBLINGS && (
                 <Btn size="sm" variant="ghost" onClick={addSibling}>+ Add sibling ({siblings.length}/{MAX_SIBLINGS})</Btn>
@@ -252,16 +257,22 @@ export default function EnrollForm() {
 
           <Field label="Anything else we should know?"><textarea style={{ ...inputStyle, minHeight: 60, marginTop: 14 }} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Prior dance experience, scheduling constraints, etc." /></Field>
 
-          <label className="flex items-start gap-2 mt-3 mb-4" style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.5 }}>
+          <label className="flex items-start gap-2 mt-3 mb-2" style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.5 }}>
             <input type="checkbox" checked={videoConsent} onChange={(e) => setVideoConsent(e.target.checked)} style={{ marginTop: 2 }} />
             <span>I consent to photos/videos of my child taken during class being used by Nritya Mandala for social media.</span>
           </label>
 
-          {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 10 }}>{error}</p>}
-          <Btn onClick={submit} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+          <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 8 }}>Once submitted, we'll call you back to confirm the enrolment — you'll also be given a reference number to use for payment.</p>
+
+          {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 10 }}>{error}</p>}
+          <div style={{ marginTop: 14 }}>
+            <Btn onClick={submit} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+          </div>
           <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 14 }}>
             <a href="/parent" style={{ color: T.inkSoft, textDecoration: "underline" }}>Already enrolled? Look up bookings</a>
           </p>
+
+          <ImportantInfo />
         </div>
       </div>
     </div>

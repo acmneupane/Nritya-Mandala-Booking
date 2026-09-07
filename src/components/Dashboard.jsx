@@ -8,6 +8,7 @@ import ClassesView from "./ClassesView";
 import LevelsView from "./LevelsView";
 import HistoryView from "./HistoryView";
 import RequestsView from "./RequestsView";
+import SettingsView from "./SettingsView";
 
 const NAV = [
   { id: "calendar", label: "Calendar" },
@@ -18,14 +19,6 @@ const NAV = [
   { id: "history", label: "History" },
   { id: "settings", label: "Settings" },
 ];
-
-function ComingSoon({ label }) {
-  return (
-    <div style={{ textAlign: "center", padding: "64px 0", color: T.inkSoft }}>
-      <p>{label} — coming next.</p>
-    </div>
-  );
-}
 
 export default function Dashboard() {
   const [tab, setTab] = useState("students");
@@ -112,7 +105,7 @@ export default function Dashboard() {
         {tab === "classes" && <ClassesView />}
         {tab === "levels" && <LevelsView />}
         {tab === "history" && <HistoryView />}
-        {tab === "settings" && <ComingSoon label="Settings" />}
+        {tab === "settings" && <SettingsView />}
       </main>
     </div>
   );
