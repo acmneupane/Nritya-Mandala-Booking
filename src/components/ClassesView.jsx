@@ -33,12 +33,11 @@ function ClassModal({ initial, levels, onSave, onClose }) {
       label: label.trim(), day, time, level_id: levelId || null, capacity: Number(capacity) || 12,
       start_date: startDate || null, end_date: endDate || null,
     };
-    if (initial?.id) {
-      await supabase.from("classes").update(payload).eq("id", initial.id);
-    } else {
-      await supabase.from("classes").insert(payload);
-    }
+    const { error } = initial?.id
+      ? await supabase.from("classes").update(payload).eq("id", initial.id)
+      : await supabase.from("classes").insert(payload);
     setSaving(false);
+    if (error) { setError(error.message); return; }
     onSave();
   };
 
@@ -54,7 +53,7 @@ function ClassModal({ initial, levels, onSave, onClose }) {
         <Field label="Time"><input style={inputStyle} type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Level focus">
+        <Field label="Level focus (optional)">
           <select style={inputStyle} value={levelId} onChange={(e) => setLevelId(e.target.value)}>
             <option value="">Any level</option>
             {levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
