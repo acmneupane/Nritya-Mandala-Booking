@@ -53,9 +53,10 @@ function QrCanvas({ text, size = 220, onReady }) {
 }
 
 export default function QrModal({ student, onClose }) {
-  // The QR takes them to the parent lookup page; the code below is what actually gets
-  // them to this student's page. We use the real deployed origin, not a hash link.
-  const base = `${window.location.origin}/parent`;
+  // The QR encodes a URL with the code baked in: a parent scanning it with their own
+  // camera app lands straight on their child's page with no typing; the studio's own
+  // in-app scanner (Day view) decodes the same URL and pulls the code back out of it.
+  const base = `${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`;
   const [pngDataUrl, setPngDataUrl] = useState(null);
 
   return (

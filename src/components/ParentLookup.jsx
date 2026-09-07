@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
@@ -11,18 +11,28 @@ export default function ParentLookup() {
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const submit = async () => {
+  const lookup = async (rawCode) => {
     setError("");
     setLoading(true);
     const { data, error } = await supabase
       .from("student_public")
       .select("id, code, name, level_id")
-      .eq("code", code.trim().toUpperCase())
+      .eq("code", rawCode.trim().toUpperCase())
       .maybeSingle();
     setLoading(false);
     if (error || !data) { setError("Code not found — check with the studio."); return; }
     setStudent(data);
   };
+
+  // A QR scan lands here with ?code=XXXX already filled in — skip the typing step.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const qCode = params.get("code");
+    if (qCode) { setCode(qCode); lookup(qCode); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const submit = () => lookup(code);
 
   if (student) return <ParentView student={student} onBack={() => setStudent(null)} />;
 

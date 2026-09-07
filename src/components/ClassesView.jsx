@@ -16,12 +16,23 @@ function ClassModal({ initial, levels, onSave, onClose }) {
   const [time, setTime] = useState(initial?.time || "10:00");
   const [levelId, setLevelId] = useState(initial?.level_id || "");
   const [capacity, setCapacity] = useState(initial?.capacity || 12);
+  const [startDate, setStartDate] = useState(initial?.start_date || "");
+  const [endDate, setEndDate] = useState(initial?.end_date || "");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const save = async () => {
     if (!label.trim()) return;
+    if (startDate && endDate && endDate < startDate) {
+      setError("End date can't be before the start date.");
+      return;
+    }
     setSaving(true);
-    const payload = { label: label.trim(), day, time, level_id: levelId || null, capacity: Number(capacity) || 12 };
+    setError("");
+    const payload = {
+      label: label.trim(), day, time, level_id: levelId || null, capacity: Number(capacity) || 12,
+      start_date: startDate || null, end_date: endDate || null,
+    };
     if (initial?.id) {
       await supabase.from("classes").update(payload).eq("id", initial.id);
     } else {
@@ -51,6 +62,12 @@ function ClassModal({ initial, levels, onSave, onClose }) {
         </Field>
         <Field label="Capacity"><input style={inputStyle} type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} /></Field>
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Term starts"><input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
+        <Field label="Term ends"><input style={inputStyle} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></Field>
+      </div>
+      <p style={{ fontSize: 11, color: T.inkSoft, marginBottom: 12 }}>Leave either blank for open-ended. The class only appears on the Calendar within this range — nothing to add in the past or too far ahead.</p>
+      {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
       <div className="flex justify-end gap-2 mt-4">
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
         <Btn onClick={save} disabled={saving}>{saving ? "Saving…" : "Save class"}</Btn>
@@ -112,6 +129,11 @@ export default function ClassesView() {
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 13, color: T.ink }}>{c.label}</div>
                       <div style={{ fontSize: 12, color: T.inkSoft }}>{c.time} · {enrolled}/{c.capacity} enrolled</div>
+                      <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>
+                        {c.start_date || c.end_date
+                          ? `${c.start_date ? c.start_date : "No start"} → ${c.end_date ? c.end_date : "Ongoing"}`
+                          : "No date range set — always shows on the calendar"}
+                      </div>
                       {levelById[c.level_id] && <div style={{ marginTop: 4 }}><LevelBadge level={levelById[c.level_id]} /></div>}
                     </div>
                     <div className="flex gap-2">

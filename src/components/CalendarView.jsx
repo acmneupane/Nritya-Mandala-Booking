@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
+import { isClassActiveOn } from "../lib/scheduling";
+import QrScanner from "./QrScanner";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const VIEW_MODES = [
@@ -175,7 +177,30 @@ function SkipModal({ cls, onClose, onSaved }) {
 function DayView({ date, classes, skips, onSkip, onUnskip, onChanged }) {
   const dateStr = date.toISOString().slice(0, 10);
   const dayName = DAYS[(date.getDay() + 6) % 7];
-  const dayClasses = classes.filter((c) => c.day === dayName).sort((a, b) => a.time.localeCompare(b.time));
+  const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr)).sort((a, b) => a.time.localeCompare(b.time));
+  const [scanningClass, setScanningClass] = useState(null);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  // Looks up the scanned code, books the student into this class if they weren't
+  // already (a walk-in), and marks them attended for today — all in one scan.
+  const checkInByCode = async (cls, code) => {
+    const { data: student } = await supabase.from("students").select("id, name").eq("code", code).eq("archived", false).maybeSingle();
+    if (!student) return { ok: false, message: "Code not recognized" };
+
+    const { data: existingEnrollment } = await supabase.from("enrollments").select("id").eq("student_id", student.id).eq("class_id", cls.id).maybeSingle();
+    if (!existingEnrollment) {
+      await supabase.from("enrollments").insert({ student_id: student.id, class_id: cls.id });
+    }
+    const { data: existingAttendance } = await supabase.from("attendance").select("id, status").eq("student_id", student.id).eq("class_id", cls.id).eq("date", cls.dateStr).maybeSingle();
+    if (existingAttendance) {
+      if (existingAttendance.status !== "attended") await supabase.from("attendance").update({ status: "attended" }).eq("id", existingAttendance.id);
+    } else {
+      await supabase.from("attendance").insert({ student_id: student.id, class_id: cls.id, date: cls.dateStr, status: "attended" });
+    }
+    setRefreshTick((t) => t + 1);
+    onChanged();
+    return { ok: true, message: `Checked in: ${student.name}` };
+  };
 
   if (dayClasses.length === 0) {
     return <p style={{ color: T.inkSoft, marginTop: 12 }}>No classes scheduled on {dayName}s.</p>;
@@ -187,25 +212,35 @@ function DayView({ date, classes, skips, onSkip, onUnskip, onChanged }) {
         const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
         return (
           <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 16 }}>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <div>
                 <span style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark }}>{c.label}</span>
                 <span style={{ fontSize: 13, color: T.inkSoft, marginLeft: 8 }}>{c.time}</span>
               </div>
-              {skip ? (
-                <button onClick={() => onUnskip(skip)} style={{ fontSize: 12, color: T.terracotta }}>Skipped{skip.reason ? ` — ${skip.reason}` : ""} · Undo</button>
-              ) : (
-                <button onClick={() => onSkip({ ...c, dateStr })} style={{ fontSize: 12, color: T.terracotta }}>Skip this date</button>
-              )}
+              <div className="flex items-center gap-3">
+                {!skip && <button onClick={() => setScanningClass({ ...c, dateStr })} style={{ fontSize: 12, color: T.gold, fontWeight: 600 }}>📷 Scan to check in</button>}
+                {skip ? (
+                  <button onClick={() => onUnskip(skip)} style={{ fontSize: 12, color: T.terracotta }}>Skipped{skip.reason ? ` — ${skip.reason}` : ""} · Undo</button>
+                ) : (
+                  <button onClick={() => onSkip({ ...c, dateStr })} style={{ fontSize: 12, color: T.terracotta }}>Skip this date</button>
+                )}
+              </div>
             </div>
             {skip ? (
               <p style={{ fontSize: 13, color: T.inkSoft }}>This class is skipped for this date — no attendance can be marked.</p>
             ) : (
-              <RosterEditor cls={{ ...c, dateStr }} onChanged={onChanged} />
+              <RosterEditor key={`${c.id}-${dateStr}-${refreshTick}`} cls={{ ...c, dateStr }} onChanged={onChanged} />
             )}
           </div>
         );
       })}
+      {scanningClass && (
+        <QrScanner
+          title={`Scan for ${scanningClass.label}`}
+          onDetected={(code) => checkInByCode(scanningClass, code)}
+          onClose={() => setScanningClass(null)}
+        />
+      )}
     </div>
   );
 }
@@ -286,7 +321,7 @@ export default function CalendarView() {
             const dateStr = date.toISOString().slice(0, 10);
             const isToday = dateStr === todayStr;
             const dayName = DAYS[(date.getDay() + 6) % 7];
-            const dayClasses = classes.filter((c) => c.day === dayName);
+            const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr));
             return (
               <div key={i} style={{ background: isToday ? `${T.gold}18` : "#fff", border: `1px solid ${isToday ? T.gold : T.line}`, borderRadius: 8, padding: 10, minHeight: 90 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, marginBottom: 6 }}>
