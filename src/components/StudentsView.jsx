@@ -124,16 +124,23 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   const [age, setAge] = useState(initial?.age || "");
   const [levelId, setLevelId] = useState(initial?.level_id || "");
   const [notes, setNotes] = useState(initial?.notes || "");
-  const [links, setLinks] = useState([]); // {guardian_id, name, phone, relation, emergency}
+  const [code, setCode] = useState(initial?.code || "");
+  const [links, setLinks] = useState([]); // {guardian_id, name, phone, email, relation, emergency}
   const [guardianQuery, setGuardianQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const regenerateCode = async () => {
+    const { data } = await supabase.from("students").select("code");
+    const existing = (data || []).map((r) => r.code).filter((c) => c !== initial?.code);
+    setCode(genCode(existing));
+  };
 
   useEffect(() => {
     if (!initial?.id) return;
     supabase
       .from("student_guardians")
-      .select("id, guardian_id, relation, emergency, guardians(id, name, phone)")
+      .select("id, guardian_id, relation, emergency, guardians(id, name, phone, email)")
       .eq("student_id", initial.id)
       .then(({ data }) => {
         setLinks((data || []).map((l) => ({
@@ -141,6 +148,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
           guardianId: l.guardian_id,
           name: l.guardians?.name || "",
           phone: l.guardians?.phone || "",
+          email: l.guardians?.email || "",
           relation: l.relation,
           emergency: l.emergency,
         })));
@@ -148,11 +156,11 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   }, [initial?.id]);
 
   const addNewGuardian = () => {
-    setLinks((ls) => [...ls, { linkId: null, guardianId: null, name: "", phone: "", relation: "Parent", emergency: ls.length === 0, isNew: true }]);
+    setLinks((ls) => [...ls, { linkId: null, guardianId: null, name: "", phone: "", email: "", relation: "Parent", emergency: ls.length === 0, isNew: true }]);
   };
   const linkExistingGuardian = (g) => {
     if (links.some((l) => l.guardianId === g.id)) return;
-    setLinks((ls) => [...ls, { linkId: null, guardianId: g.id, name: g.name, phone: g.phone, relation: "Parent", emergency: ls.length === 0, isExisting: true }]);
+    setLinks((ls) => [...ls, { linkId: null, guardianId: g.id, name: g.name, phone: g.phone, email: g.email || "", relation: "Parent", emergency: ls.length === 0, isExisting: true }]);
     setGuardianQuery("");
   };
   const updateLink = (i, field, val) => setLinks((ls) => ls.map((l, idx) => (idx === i ? { ...l, [field]: val } : l)));
@@ -167,31 +175,40 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
     setSaving(true);
     setError("");
     try {
+      // Resolve the access code: use what's typed, or generate one if left blank.
+      let finalCode = code.trim().toUpperCase();
+      const { data: existingCodes } = await supabase.from("students").select("id, code");
+      if (!finalCode) {
+        finalCode = genCode((existingCodes || []).map((r) => r.code));
+      } else {
+        const clash = (existingCodes || []).find((r) => r.code === finalCode && r.id !== initial?.id);
+        if (clash) { setError(`Code "${finalCode}" is already in use by another student.`); setSaving(false); return; }
+      }
+
       let studentId = initial?.id;
       if (studentId) {
         const { error } = await supabase.from("students").update({
-          name: name.trim(), age: age ? Number(age) : null, level_id: levelId || null, notes: notes.trim(),
+          name: name.trim(), age: age ? Number(age) : null, level_id: levelId || null, notes: notes.trim(), code: finalCode,
         }).eq("id", studentId);
         if (error) throw error;
       } else {
-        const { data: existingCodes } = await supabase.from("students").select("code");
-        const code = genCode((existingCodes || []).map((r) => r.code));
         const { data, error } = await supabase.from("students").insert({
-          name: name.trim(), age: age ? Number(age) : null, level_id: levelId || null, notes: notes.trim(), code,
+          name: name.trim(), age: age ? Number(age) : null, level_id: levelId || null, notes: notes.trim(), code: finalCode,
         }).select().single();
         if (error) throw error;
         studentId = data.id;
       }
 
-      // Sync guardian links: create new guardian people as needed, upsert the relationship rows.
+      // Sync guardian links: create new guardian people as needed, keep existing ones'
+      // contact details (including email) current, and upsert the relationship rows.
       for (const l of links) {
         let guardianId = l.guardianId;
         if (!guardianId && l.name.trim()) {
-          const { data, error } = await supabase.from("guardians").insert({ name: l.name.trim(), phone: l.phone.trim() }).select().single();
+          const { data, error } = await supabase.from("guardians").insert({ name: l.name.trim(), phone: l.phone.trim(), email: l.email.trim() }).select().single();
           if (error) throw error;
           guardianId = data.id;
         } else if (guardianId && l.isExisting) {
-          // existing guardian selected from search — no edits needed to the person record here
+          await supabase.from("guardians").update({ email: l.email.trim() }).eq("id", guardianId);
         }
         if (!guardianId) continue;
         if (l.linkId) {
@@ -223,6 +240,13 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
       </Field>
       <Field label="Notes (allergies, needs, etc.)"><textarea style={{ ...inputStyle, minHeight: 60 }} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
 
+      <Field label="Access code (parent lookup & QR)">
+        <div className="flex gap-2">
+          <input style={{ ...inputStyle, letterSpacing: 2, fontWeight: 600 }} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="Auto-generated if left blank" />
+          <Btn size="sm" variant="ghost" onClick={regenerateCode}>Generate new</Btn>
+        </div>
+      </Field>
+
       {initial?.id && <PackagesSection studentId={initial.id} />}
 
       <div className="mt-2 mb-1">
@@ -234,7 +258,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
             <div style={{ position: "absolute", top: 38, left: 0, right: 90, background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, zIndex: 5, maxHeight: 140, overflowY: "auto" }}>
               {matches.map((g) => (
                 <button key={g.id} onClick={() => linkExistingGuardian(g)} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 10px", fontSize: 13 }}>
-                  {g.name} <span style={{ color: T.inkSoft, fontSize: 11 }}>· {g.phone}</span>
+                  {g.name} <span style={{ color: T.inkSoft, fontSize: 11 }}>· {g.phone}{g.email ? ` · ${g.email}` : ""}</span>
                 </button>
               ))}
             </div>
@@ -247,6 +271,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
             <input style={inputStyle} placeholder="Name" value={l.name} disabled={!!l.isExisting} onChange={(e) => updateLink(i, "name", e.target.value)} />
             <input style={inputStyle} placeholder="Phone" value={l.phone} disabled={!!l.isExisting} onChange={(e) => updateLink(i, "phone", e.target.value)} />
           </div>
+          <input style={{ ...inputStyle, marginBottom: 8 }} type="email" placeholder="Email" value={l.email} onChange={(e) => updateLink(i, "email", e.target.value)} />
           <div className="flex items-center gap-3">
             <select style={{ ...inputStyle, width: 140 }} value={l.relation} onChange={(e) => updateLink(i, "relation", e.target.value)}>
               {["Parent", "Guardian", "Grandparent", "Relative", "Other"].map((r) => <option key={r}>{r}</option>)}
@@ -256,7 +281,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
             </label>
             <button onClick={() => removeLink(i)} style={{ color: T.terracotta, marginLeft: "auto" }}>✕</button>
           </div>
-          {l.isExisting && <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>Existing guardian — also linked to other students. Edit their name/phone from any of their students.</p>}
+          {l.isExisting && <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>Existing guardian — name/phone shared across their students; edit those from any of them. Email can be updated here.</p>}
         </div>
       ))}
 
