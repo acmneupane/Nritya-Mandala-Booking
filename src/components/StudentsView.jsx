@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
+import QrModal from "./QrCode";
 
 function genCode(existing) {
   const chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -175,6 +176,7 @@ export default function StudentsView() {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirmRemove, setConfirmRemove] = useState(null);
+  const [showingQr, setShowingQr] = useState(null);
   const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
@@ -226,6 +228,7 @@ export default function StudentsView() {
               <LevelBadge level={levelById[s.level_id]} />
             </div>
             <div className="flex items-center gap-2">
+              <button onClick={() => setShowingQr(s)} style={{ color: T.gold }}>QR code</button>
               <button onClick={() => setEditing(s)} style={{ color: T.maroon }}>Edit</button>
               <button onClick={() => setConfirmRemove(s)} style={{ color: T.terracotta }}>Remove</button>
             </div>
@@ -241,6 +244,7 @@ export default function StudentsView() {
           onSaved={() => { setAdding(false); setEditing(null); load(); }}
         />
       )}
+      {showingQr && <QrModal student={showingQr} onClose={() => setShowingQr(null)} />}
       {confirmRemove && (
         <ConfirmModal
           message={`Remove ${confirmRemove.name} and all their records — bookings, attendance, level history? This can't be undone.`}
