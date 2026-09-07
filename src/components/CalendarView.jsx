@@ -4,11 +4,58 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const VIEW_MODES = [
+  { id: "day", label: "Day" },
+  { id: "week", label: "Week" },
+  { id: "fortnight", label: "Fortnight" },
+  { id: "month", label: "Month" },
+];
+
+function mondayOf(date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d;
+}
+
+// Returns the array of Date objects the current view mode should display.
+function datesForView(mode, anchor) {
+  if (mode === "day") return [anchor];
+  if (mode === "week") {
+    const start = mondayOf(anchor);
+    return Array.from({ length: 7 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
+  }
+  if (mode === "fortnight") {
+    const start = mondayOf(anchor);
+    return Array.from({ length: 14 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
+  }
+  // month: every calendar day from the 1st to the last day of anchor's month
+  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const last = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  const out = [];
+  for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) out.push(new Date(d));
+  return out;
+}
+
+function navAnchor(mode, anchor, dir) {
+  const d = new Date(anchor);
+  if (mode === "day") d.setDate(d.getDate() + dir);
+  else if (mode === "week") d.setDate(d.getDate() + dir * 7);
+  else if (mode === "fortnight") d.setDate(d.getDate() + dir * 14);
+  else d.setMonth(d.getMonth() + dir);
+  return d;
+}
+
+function rangeLabel(mode, anchor, dates) {
+  if (mode === "day") return anchor.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  if (mode === "month") return anchor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const start = dates[0], end = dates[dates.length - 1];
+  return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+}
 
 function RosterEditor({ cls, onChanged }) {
   const [students, setStudents] = useState([]);
-  const [roster, setRoster] = useState([]); // enrollments for this class
-  const [attendance, setAttendance] = useState([]); // attendance rows for this class+date
+  const [roster, setRoster] = useState([]);
+  const [attendance, setAttendance] = useState([]);
   const [remainingByStudent, setRemainingByStudent] = useState({});
   const [addingStudent, setAddingStudent] = useState("");
   const [loading, setLoading] = useState(true);
@@ -50,11 +97,10 @@ function RosterEditor({ cls, onChanged }) {
     load();
     onChanged();
   };
-  // status: 'attended' | 'missed' | 'skipped' (excused, notified in advance)
   const setStatus = async (studentId, status) => {
     const existing = attendance.find((a) => a.student_id === studentId);
     if (existing && existing.status === status) {
-      await supabase.from("attendance").delete().eq("id", existing.id); // toggle off
+      await supabase.from("attendance").delete().eq("id", existing.id);
     } else if (existing) {
       await supabase.from("attendance").update({ status }).eq("id", existing.id);
     } else {
@@ -124,8 +170,49 @@ function SkipModal({ cls, onClose, onSaved }) {
   );
 }
 
+// Full inline day view: every class scheduled that weekday, with its complete
+// roster and attendance controls right on the page — no click-through needed.
+function DayView({ date, classes, skips, onSkip, onUnskip, onChanged }) {
+  const dateStr = date.toISOString().slice(0, 10);
+  const dayName = DAYS[(date.getDay() + 6) % 7];
+  const dayClasses = classes.filter((c) => c.day === dayName).sort((a, b) => a.time.localeCompare(b.time));
+
+  if (dayClasses.length === 0) {
+    return <p style={{ color: T.inkSoft, marginTop: 12 }}>No classes scheduled on {dayName}s.</p>;
+  }
+
+  return (
+    <div className="grid gap-4 mt-2">
+      {dayClasses.map((c) => {
+        const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
+        return (
+          <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 16 }}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <span style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark }}>{c.label}</span>
+                <span style={{ fontSize: 13, color: T.inkSoft, marginLeft: 8 }}>{c.time}</span>
+              </div>
+              {skip ? (
+                <button onClick={() => onUnskip(skip)} style={{ fontSize: 12, color: T.terracotta }}>Skipped{skip.reason ? ` — ${skip.reason}` : ""} · Undo</button>
+              ) : (
+                <button onClick={() => onSkip({ ...c, dateStr })} style={{ fontSize: 12, color: T.terracotta }}>Skip this date</button>
+              )}
+            </div>
+            {skip ? (
+              <p style={{ fontSize: 13, color: T.inkSoft }}>This class is skipped for this date — no attendance can be marked.</p>
+            ) : (
+              <RosterEditor cls={{ ...c, dateStr }} onChanged={onChanged} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function CalendarView() {
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [viewMode, setViewMode] = useState("week");
+  const [anchor, setAnchor] = useState(new Date());
   const [classes, setClasses] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
   const [skips, setSkips] = useState([]);
@@ -156,62 +243,83 @@ export default function CalendarView() {
   };
 
   const today = new Date();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7) + weekOffset * 7);
-  const weekDates = DAYS.map((_, i) => { const d = new Date(monday); d.setDate(monday.getDate() + i); return d; });
-  const sunday = weekDates[6];
   const todayStr = today.toISOString().slice(0, 10);
+  const dates = datesForView(viewMode, anchor);
+  const isAnchorToday = viewMode === "day"
+    ? anchor.toISOString().slice(0, 10) === todayStr
+    : dates[0].toISOString().slice(0, 10) <= todayStr && todayStr <= dates[dates.length - 1].toISOString().slice(0, 10);
 
   if (loading) return <p style={{ color: T.inkSoft }}>Loading…</p>;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <button onClick={() => setWeekOffset((w) => w - 1)} style={{ color: T.maroon, fontSize: 16 }}>←</button>
-          <span style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>
-            {monday.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – {sunday.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-          </span>
-          <button onClick={() => setWeekOffset((w) => w + 1)} style={{ color: T.maroon, fontSize: 16 }}>→</button>
+          <button onClick={() => setAnchor((a) => navAnchor(viewMode, a, -1))} style={{ color: T.maroon, fontSize: 16 }}>←</button>
+          <span style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>{rangeLabel(viewMode, anchor, dates)}</span>
+          <button onClick={() => setAnchor((a) => navAnchor(viewMode, a, 1))} style={{ color: T.maroon, fontSize: 16 }}>→</button>
+          {!isAnchorToday && <button onClick={() => setAnchor(new Date())} style={{ fontSize: 12, color: T.inkSoft, marginLeft: 6 }}>Today</button>}
         </div>
-        {weekOffset !== 0 && <button onClick={() => setWeekOffset(0)} style={{ fontSize: 12, color: T.inkSoft }}>Back to this week</button>}
+        <div className="flex gap-1" style={{ background: T.paper, borderRadius: 8, padding: 3 }}>
+          {VIEW_MODES.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setViewMode(m.id)}
+              style={{
+                fontSize: 12, padding: "5px 12px", borderRadius: 6,
+                background: viewMode === m.id ? "#fff" : "transparent",
+                color: viewMode === m.id ? T.maroonDark : T.inkSoft,
+                fontWeight: viewMode === m.id ? 600 : 400,
+              }}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-        {weekDates.map((date, i) => {
-          const dateStr = date.toISOString().slice(0, 10);
-          const isToday = dateStr === todayStr;
-          const dayClasses = classes.filter((c) => c.day === DAYS[i]);
-          return (
-            <div key={i} style={{ background: isToday ? `${T.gold}18` : "#fff", border: `1px solid ${isToday ? T.gold : T.line}`, borderRadius: 8, padding: 10, minHeight: 90 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, marginBottom: 6 }}>{DAYS[i].slice(0, 3)} {date.getDate()}</div>
-              {dayClasses.length === 0 && <div style={{ fontSize: 11, color: `${T.inkSoft}99` }}>—</div>}
-              {dayClasses.map((c) => {
-                const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
-                const bookedCount = enrollments.filter((e) => e.class_id === c.id).length;
-                if (skip) {
+      {viewMode === "day" ? (
+        <DayView date={anchor} classes={classes} skips={skips} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} />
+      ) : (
+        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
+          {dates.map((date, i) => {
+            const dateStr = date.toISOString().slice(0, 10);
+            const isToday = dateStr === todayStr;
+            const dayName = DAYS[(date.getDay() + 6) % 7];
+            const dayClasses = classes.filter((c) => c.day === dayName);
+            return (
+              <div key={i} style={{ background: isToday ? `${T.gold}18` : "#fff", border: `1px solid ${isToday ? T.gold : T.line}`, borderRadius: 8, padding: 10, minHeight: 90 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, marginBottom: 6 }}>
+                  {viewMode === "month" ? date.getDate() : `${dayName.slice(0, 3)} ${date.getDate()}`}
+                </div>
+                {dayClasses.length === 0 && <div style={{ fontSize: 11, color: `${T.inkSoft}99` }}>—</div>}
+                {dayClasses.map((c) => {
+                  const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
+                  const bookedCount = enrollments.filter((e) => e.class_id === c.id).length;
+                  if (skip) {
+                    return (
+                      <div key={c.id} style={{ background: `${T.terracotta}12`, border: `1px dashed ${T.terracotta}55`, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: T.terracotta }}>{c.time} {c.label} — Skipped</div>
+                        {skip.reason && <div style={{ fontSize: 11, color: T.inkSoft }}>{skip.reason}</div>}
+                        <button onClick={() => setConfirmUnskip(skip)} style={{ fontSize: 11, color: T.inkSoft, textDecoration: "underline", marginTop: 2 }}>Undo skip</button>
+                      </div>
+                    );
+                  }
                   return (
-                    <div key={c.id} style={{ background: `${T.terracotta}12`, border: `1px dashed ${T.terracotta}55`, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: T.terracotta }}>{c.time} {c.label} — Skipped</div>
-                      {skip.reason && <div style={{ fontSize: 11, color: T.inkSoft }}>{skip.reason}</div>}
-                      <button onClick={() => setConfirmUnskip(skip)} style={{ fontSize: 11, color: T.inkSoft, textDecoration: "underline", marginTop: 2 }}>Undo skip</button>
+                    <div key={c.id} style={{ background: T.paper, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
+                      <button onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none" }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: T.maroonDark }}>{c.time} {c.label}</div>
+                        <div style={{ fontSize: 11, color: T.inkSoft }}>{bookedCount} booked</div>
+                      </button>
+                      <button onClick={() => setSkippingClass({ ...c, dateStr })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
                     </div>
                   );
-                }
-                return (
-                  <div key={c.id} style={{ background: T.paper, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
-                    <button onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none" }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: T.maroonDark }}>{c.time} {c.label}</div>
-                      <div style={{ fontSize: 11, color: T.inkSoft }}>{bookedCount} booked</div>
-                    </button>
-                    <button onClick={() => setSkippingClass({ ...c, dateStr })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
       {classes.length === 0 && <p style={{ color: T.inkSoft, marginTop: 16 }}>No classes set up yet — add classes under the Classes tab first.</p>}
 
       {bookingClass && (
