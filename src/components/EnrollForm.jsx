@@ -106,7 +106,8 @@ export default function EnrollForm() {
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [wantsSiblings, setWantsSiblings] = useState(false);
   const [siblings, setSiblings] = useState([]);
-  const [videoConsent, setVideoConsent] = useState(false);
+  const [videoConsent, setVideoConsent] = useState(null); // null = unanswered, true/false = Yes/No
+  const [agreedToInfo, setAgreedToInfo] = useState(false);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState(null);
@@ -132,6 +133,14 @@ export default function EnrollForm() {
     }
     if (!emergencySame && (!emergencyName.trim() || !emergencyPhone.trim())) {
       setError("Please provide an emergency contact name and phone, or mark it the same as yours.");
+      return;
+    }
+    if (videoConsent === null) {
+      setError("Please answer the photo/video consent question.");
+      return;
+    }
+    if (!agreedToInfo) {
+      setError("Please confirm you've read the Important Information above.");
       return;
     }
     setSubmitting(true);
@@ -257,22 +266,38 @@ export default function EnrollForm() {
 
           <Field label="Anything else we should know?"><textarea style={{ ...inputStyle, minHeight: 60, marginTop: 14 }} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Prior dance experience, scheduling constraints, etc." /></Field>
 
-          <label className="flex items-start gap-2 mt-3 mb-2" style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.5 }}>
-            <input type="checkbox" checked={videoConsent} onChange={(e) => setVideoConsent(e.target.checked)} style={{ marginTop: 2 }} />
-            <span>I consent to photos/videos of my child taken during class being used by Nritya Mandala for social media.</span>
+          <div style={{ marginTop: 16, marginBottom: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: T.ink, display: "block", marginBottom: 6 }}>
+              Do you consent to photos/videos of your child taken during class being used by Nritya Mandala for social media?
+            </span>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-1.5 text-sm" style={{ color: T.ink }}>
+                <input type="radio" checked={videoConsent === true} onChange={() => setVideoConsent(true)} /> Yes
+              </label>
+              <label className="flex items-center gap-1.5 text-sm" style={{ color: T.ink }}>
+                <input type="radio" checked={videoConsent === false} onChange={() => setVideoConsent(false)} /> No
+              </label>
+            </div>
+          </div>
+
+          <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 12 }}>Once submitted, we'll call you back to confirm the enrolment — you'll also be given a reference number to use for payment.</p>
+
+          <ImportantInfo />
+
+          <label className="flex items-start gap-2 mt-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
+            <input type="checkbox" checked={agreedToInfo} onChange={(e) => setAgreedToInfo(e.target.checked)} style={{ marginTop: 2 }} />
+            <span>I have read and agree to the Important Information above.</span>
           </label>
 
-          <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 8 }}>Once submitted, we'll call you back to confirm the enrolment — you'll also be given a reference number to use for payment.</p>
-
-          {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 10 }}>{error}</p>}
-          <div style={{ marginTop: 14 }}>
-            <Btn onClick={submit} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
-          </div>
+          {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
+          {agreedToInfo && (
+            <div style={{ marginTop: 10 }}>
+              <Btn onClick={submit} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+            </div>
+          )}
           <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 14 }}>
             <a href="/parent" style={{ color: T.inkSoft, textDecoration: "underline" }}>Already enrolled? Look up bookings</a>
           </p>
-
-          <ImportantInfo />
         </div>
       </div>
     </div>
