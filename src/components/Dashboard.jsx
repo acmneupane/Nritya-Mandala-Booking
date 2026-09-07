@@ -7,12 +7,14 @@ import StudentsView from "./StudentsView";
 import CalendarView from "./CalendarView";
 import ClassesView from "./ClassesView";
 import LevelsView from "./LevelsView";
+import HistoryView from "./HistoryView";
 
 const NAV = [
   { id: "calendar", label: "Calendar" },
   { id: "students", label: "Students" },
   { id: "classes", label: "Classes" },
   { id: "levels", label: "Levels" },
+  { id: "history", label: "History" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -67,6 +69,7 @@ export default function Dashboard() {
         {tab === "calendar" && <CalendarView />}
         {tab === "classes" && <ClassesView />}
         {tab === "levels" && <LevelsView />}
+        {tab === "history" && <HistoryView />}
         {tab === "settings" && <ComingSoon label="Settings" />}
       </main>
     </div>
