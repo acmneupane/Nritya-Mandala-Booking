@@ -30,11 +30,11 @@ export function Modal({ title, onClose, children, wide }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(43,33,28,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }} onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ background: T.ivory, borderRadius: 10, padding: 24, width: wide ? 560 : 420, maxHeight: "88vh", overflowY: "auto", border: `1px solid ${T.line}` }}
+        style={{ background: T.ivory, borderRadius: 10, padding: 20, width: "100%", maxWidth: wide ? 560 : 420, maxHeight: "88vh", overflowY: "auto", overflowX: "hidden", border: `1px solid ${T.line}`, boxSizing: "border-box" }}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 20, color: T.maroonDark }}>{title}</h3>
-          <button onClick={onClose} style={{ color: T.inkSoft }}>✕</button>
+          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 19, color: T.maroonDark }}>{title}</h3>
+          <button onClick={onClose} style={{ color: T.inkSoft, fontSize: 18, padding: 4 }}>✕</button>
         </div>
         {children}
       </div>

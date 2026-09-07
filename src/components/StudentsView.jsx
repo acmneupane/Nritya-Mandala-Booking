@@ -347,9 +347,9 @@ export default function StudentsView() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <input style={{ ...inputStyle, width: 240 }} placeholder="Search students…" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <input style={{ ...inputStyle, width: 220, maxWidth: "60vw" }} placeholder="Search students…" value={query} onChange={(e) => setQuery(e.target.value)} />
           <button onClick={() => setShowArchived((v) => !v)} style={{ fontSize: 12, color: showArchived ? T.maroon : T.inkSoft, fontWeight: showArchived ? 600 : 400 }}>
             {showArchived ? "← Back to active students" : "View archived students"}
           </button>
@@ -366,7 +366,7 @@ export default function StudentsView() {
           const pkg = pkgSummaryByStudent[s.id];
           const remaining = pkg ? pkg.classes_total - pkg.classes_used : 0;
           return (
-            <div key={s.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${s.archived ? T.inkSoft : T.gold}`, borderRadius: 8, padding: 14, opacity: s.archived ? 0.7 : 1 }} className="flex items-center justify-between">
+            <div key={s.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${s.archived ? T.inkSoft : T.gold}`, borderRadius: 8, padding: 14, opacity: s.archived ? 0.7 : 1 }} className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark }}>{s.name}</span>
