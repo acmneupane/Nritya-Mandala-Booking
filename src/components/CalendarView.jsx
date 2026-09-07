@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
-import { Btn, Modal } from "./ui";
+import { Btn, Field, Modal, ConfirmModal } from "./ui";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -16,7 +16,7 @@ function RosterEditor({ cls, onChanged }) {
   const load = useCallback(async () => {
     setLoading(true);
     const [sRes, eRes, aRes] = await Promise.all([
-      supabase.from("students").select("id, name"),
+      supabase.from("students").select("id, name").eq("archived", false),
       supabase.from("enrollments").select("id, student_id").eq("class_id", cls.id),
       supabase.from("attendance").select("id, student_id, status").eq("class_id", cls.id).eq("date", cls.dateStr),
     ]);
@@ -50,11 +50,11 @@ function RosterEditor({ cls, onChanged }) {
     load();
     onChanged();
   };
-  const markAttendance = async (studentId, status) => {
+  // status: 'attended' | 'missed' | 'skipped' (excused, notified in advance)
+  const setStatus = async (studentId, status) => {
     const existing = attendance.find((a) => a.student_id === studentId);
     if (existing && existing.status === status) {
-      // toggle off
-      await supabase.from("attendance").delete().eq("id", existing.id);
+      await supabase.from("attendance").delete().eq("id", existing.id); // toggle off
     } else if (existing) {
       await supabase.from("attendance").update({ status }).eq("id", existing.id);
     } else {
@@ -88,8 +88,9 @@ function RosterEditor({ cls, onChanged }) {
                 {remaining > 0 && <span style={{ fontSize: 11, color: T.sage }}>{remaining} left</span>}
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={() => markAttendance(student.id, "attended")} title="Mark attended" style={{ fontSize: 12, fontWeight: 600, color: att?.status === "attended" ? T.sage : T.inkSoft }}>✓ Attended</button>
-                <button onClick={() => markAttendance(student.id, "missed")} title="Mark missed" style={{ fontSize: 12, fontWeight: 600, color: att?.status === "missed" ? T.terracotta : T.inkSoft }}>! Missed</button>
+                <button onClick={() => setStatus(student.id, "attended")} title="Mark attended" style={{ fontSize: 12, fontWeight: 600, color: att?.status === "attended" ? T.sage : T.inkSoft }}>✓ Attended</button>
+                <button onClick={() => setStatus(student.id, "skipped")} title="Excused — notified in advance, doesn't count as missed" style={{ fontSize: 12, fontWeight: 600, color: att?.status === "skipped" ? T.gold : T.inkSoft }}>⊘ Skipped</button>
+                <button onClick={() => setStatus(student.id, "missed")} title="Missed — unexpected no-show" style={{ fontSize: 12, fontWeight: 600, color: att?.status === "missed" ? T.terracotta : T.inkSoft }}>! Missed</button>
                 <button onClick={() => unenroll(r.id)} title="Remove booking" style={{ color: T.terracotta }}>✕</button>
               </div>
             </div>
@@ -100,25 +101,59 @@ function RosterEditor({ cls, onChanged }) {
   );
 }
 
+function SkipModal({ cls, onClose, onSaved }) {
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    await supabase.from("class_skips").insert({ class_id: cls.id, date: cls.dateStr, reason: reason.trim() });
+    setSaving(false);
+    onSaved();
+  };
+  return (
+    <Modal title={`Skip ${cls.label} — ${cls.dateStr}`} onClose={onClose}>
+      <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
+        This cancels the whole class for this one date only — e.g. a festival, public holiday, or the studio being closed. It'll still run as normal every other week. No attendance can be marked for this date while it's skipped.
+      </p>
+      <Field label="Reason (optional)"><input style={inputStyle} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Diwali — studio closed" /></Field>
+      <div className="flex justify-end gap-2 mt-2">
+        <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+        <Btn variant="danger" onClick={save} disabled={saving}>{saving ? "Skipping…" : "Skip this class"}</Btn>
+      </div>
+    </Modal>
+  );
+}
+
 export default function CalendarView() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [classes, setClasses] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
+  const [skips, setSkips] = useState([]);
   const [bookingClass, setBookingClass] = useState(null);
+  const [skippingClass, setSkippingClass] = useState(null);
+  const [confirmUnskip, setConfirmUnskip] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [cRes, eRes] = await Promise.all([
+    const [cRes, eRes, skRes] = await Promise.all([
       supabase.from("classes").select("*"),
       supabase.from("enrollments").select("id, class_id"),
+      supabase.from("class_skips").select("*"),
     ]);
     setClasses(cRes.data || []);
     setEnrollments(eRes.data || []);
+    setSkips(skRes.data || []);
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const unskip = async (id) => {
+    await supabase.from("class_skips").delete().eq("id", id);
+    setConfirmUnskip(null);
+    load();
+  };
 
   const today = new Date();
   const monday = new Date(today);
@@ -152,12 +187,25 @@ export default function CalendarView() {
               <div style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, marginBottom: 6 }}>{DAYS[i].slice(0, 3)} {date.getDate()}</div>
               {dayClasses.length === 0 && <div style={{ fontSize: 11, color: `${T.inkSoft}99` }}>—</div>}
               {dayClasses.map((c) => {
+                const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
                 const bookedCount = enrollments.filter((e) => e.class_id === c.id).length;
+                if (skip) {
+                  return (
+                    <div key={c.id} style={{ background: `${T.terracotta}12`, border: `1px dashed ${T.terracotta}55`, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: T.terracotta }}>{c.time} {c.label} — Skipped</div>
+                      {skip.reason && <div style={{ fontSize: 11, color: T.inkSoft }}>{skip.reason}</div>}
+                      <button onClick={() => setConfirmUnskip(skip)} style={{ fontSize: 11, color: T.inkSoft, textDecoration: "underline", marginTop: 2 }}>Undo skip</button>
+                    </div>
+                  );
+                }
                 return (
-                  <button key={c.id} onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", width: "100%", textAlign: "left", background: T.paper, borderRadius: 6, padding: "5px 8px", marginBottom: 5, border: "none" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: T.maroonDark }}>{c.time} {c.label}</div>
-                    <div style={{ fontSize: 11, color: T.inkSoft }}>{bookedCount} booked</div>
-                  </button>
+                  <div key={c.id} style={{ background: T.paper, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
+                    <button onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none" }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: T.maroonDark }}>{c.time} {c.label}</div>
+                      <div style={{ fontSize: 11, color: T.inkSoft }}>{bookedCount} booked</div>
+                    </button>
+                    <button onClick={() => setSkippingClass({ ...c, dateStr })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
+                  </div>
                 );
               })}
             </div>
@@ -170,6 +218,18 @@ export default function CalendarView() {
         <Modal title={`${bookingClass.label} — ${bookingClass.dateStr}`} onClose={() => setBookingClass(null)} wide>
           <RosterEditor cls={bookingClass} onChanged={load} />
         </Modal>
+      )}
+      {skippingClass && (
+        <SkipModal cls={skippingClass} onClose={() => setSkippingClass(null)} onSaved={() => { setSkippingClass(null); load(); }} />
+      )}
+      {confirmUnskip && (
+        <ConfirmModal
+          title="Undo skip?"
+          message="This class will run as normal on this date again."
+          confirmLabel="Undo skip"
+          onConfirm={() => unskip(confirmUnskip.id)}
+          onCancel={() => setConfirmUnskip(null)}
+        />
       )}
     </div>
   );

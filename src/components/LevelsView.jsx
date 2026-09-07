@@ -40,7 +40,7 @@ export default function LevelsView() {
     setLoading(true);
     const [lRes, sRes] = await Promise.all([
       supabase.from("levels").select("*").order("order_num"),
-      supabase.from("students").select("id, name, level_id").order("name"),
+      supabase.from("students").select("id, name, level_id").eq("archived", false).order("name"),
     ]);
     setLevels(lRes.data || []);
     setStudents(sRes.data || []);
