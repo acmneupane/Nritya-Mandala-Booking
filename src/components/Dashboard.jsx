@@ -4,6 +4,9 @@ import { T } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn } from "./ui";
 import StudentsView from "./StudentsView";
+import CalendarView from "./CalendarView";
+import ClassesView from "./ClassesView";
+import LevelsView from "./LevelsView";
 
 const NAV = [
   { id: "calendar", label: "Calendar" },
@@ -48,7 +51,12 @@ export default function Dashboard() {
           ))}
         </nav>
         <div style={{ marginTop: 24 }}>
-          <Btn variant="ghost" size="sm" onClick={() => supabase.auth.signOut()}>Sign out</Btn>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            style={{ fontSize: 13, color: T.ivory, opacity: 0.85, background: "transparent", border: `1px solid ${T.ivory}55`, borderRadius: 6, padding: "6px 12px" }}
+          >
+            Sign out
+          </button>
         </div>
       </aside>
       <main style={{ flex: 1, padding: "28px 32px", overflowX: "auto" }}>
@@ -56,9 +64,9 @@ export default function Dashboard() {
           {NAV.find((n) => n.id === tab)?.label}
         </h2>
         {tab === "students" && <StudentsView />}
-        {tab === "calendar" && <ComingSoon label="Weekly calendar & bookings" />}
-        {tab === "classes" && <ComingSoon label="Class management" />}
-        {tab === "levels" && <ComingSoon label="Levels" />}
+        {tab === "calendar" && <CalendarView />}
+        {tab === "classes" && <ClassesView />}
+        {tab === "levels" && <LevelsView />}
         {tab === "settings" && <ComingSoon label="Settings" />}
       </main>
     </div>
