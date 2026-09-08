@@ -105,6 +105,7 @@ export default function EnrollForm() {
   const [preferredClassId, setPreferredClassId] = useState("");
   const [guardianName, setGuardianName] = useState("");
   const [guardianRelation, setGuardianRelation] = useState("");
+  const [guardianRelationOther, setGuardianRelationOther] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
   const [guardianEmail, setGuardianEmail] = useState("");
   const [emergencySame, setEmergencySame] = useState(true);
@@ -154,7 +155,7 @@ export default function EnrollForm() {
     try {
       const { data: request, error: reqErr } = await supabase.from("enrollment_requests").insert({
         guardian_name: guardianName.trim(),
-        guardian_relation: guardianRelation,
+        guardian_relation: guardianRelation === "Other" ? (guardianRelationOther.trim() || "Other") : guardianRelation,
         guardian_email: guardianEmail.trim(),
         guardian_phone: guardianPhone.trim(),
         emergency_same: emergencySame,
@@ -241,6 +242,9 @@ export default function EnrollForm() {
               {RELATION_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </Field>
+          {guardianRelation === "Other" && (
+            <Field label="Please specify"><input style={inputStyle} value={guardianRelationOther} onChange={(e) => setGuardianRelationOther(e.target.value)} /></Field>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Email"><input style={inputStyle} type="email" value={guardianEmail} onChange={(e) => setGuardianEmail(e.target.value)} /></Field>
             <Field label="Mobile"><input style={inputStyle} value={guardianPhone} onChange={(e) => setGuardianPhone(e.target.value)} /></Field>

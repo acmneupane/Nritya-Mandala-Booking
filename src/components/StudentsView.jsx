@@ -4,6 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
 import QrModal from "./QrCode";
 import { RELATION_OPTIONS } from "../lib/relations";
+import { computeAge } from "../lib/age";
 
 function genCode(existing) {
   const chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -173,7 +174,7 @@ function PendingPackagesEditor({ pendingPackages, setPendingPackages }) {
 
 function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   const [name, setName] = useState(initial?.name || "");
-  const [age, setAge] = useState(initial?.age || "");
+  const [dob, setDob] = useState(initial?.dob || "");
   const [levelId, setLevelId] = useState(initial?.level_id || "");
   const [notes, setNotes] = useState(initial?.notes || "");
   const [code, setCode] = useState(initial?.code || "");
@@ -204,18 +205,19 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
           name: l.guardians?.name || "",
           phone: l.guardians?.phone || "",
           email: l.guardians?.email || "",
-          relation: l.relation,
+          relation: RELATION_OPTIONS.includes(l.relation) ? l.relation : "Other",
+          relationOther: RELATION_OPTIONS.includes(l.relation) ? "" : l.relation,
           emergency: l.emergency,
         })));
       });
   }, [initial?.id]);
 
   const addNewGuardian = () => {
-    setLinks((ls) => [...ls, { linkId: null, guardianId: null, name: "", phone: "", email: "", relation: "", emergency: ls.length === 0, isNew: true }]);
+    setLinks((ls) => [...ls, { linkId: null, guardianId: null, name: "", phone: "", email: "", relation: "", relationOther: "", emergency: ls.length === 0, isNew: true }]);
   };
   const linkExistingGuardian = (g) => {
     if (links.some((l) => l.guardianId === g.id)) return;
-    setLinks((ls) => [...ls, { linkId: null, guardianId: g.id, name: g.name, phone: g.phone, email: g.email || "", relation: "", emergency: ls.length === 0, isExisting: true }]);
+    setLinks((ls) => [...ls, { linkId: null, guardianId: g.id, name: g.name, phone: g.phone, email: g.email || "", relation: "", relationOther: "", emergency: ls.length === 0, isExisting: true }]);
     setGuardianQuery("");
   };
   const updateLink = (i, field, val) => setLinks((ls) => ls.map((l, idx) => (idx === i ? { ...l, [field]: val } : l)));
@@ -243,12 +245,12 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
       let studentId = initial?.id;
       if (studentId) {
         const { error } = await supabase.from("students").update({
-          name: name.trim(), age: age ? Number(age) : null, level_id: levelId || null, notes: notes.trim(), code: finalCode,
+          name: name.trim(), dob: dob || null, level_id: levelId || null, notes: notes.trim(), code: finalCode,
         }).eq("id", studentId);
         if (error) throw error;
       } else {
         const { data, error } = await supabase.from("students").insert({
-          name: name.trim(), age: age ? Number(age) : null, level_id: levelId || null, notes: notes.trim(), code: finalCode,
+          name: name.trim(), dob: dob || null, level_id: levelId || null, notes: notes.trim(), code: finalCode,
         }).select().single();
         if (error) throw error;
         studentId = data.id;
@@ -262,7 +264,9 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
 
       // Sync guardian links: create new guardian people as needed, keep existing ones'
       // contact details (including email) current, and upsert the relationship rows.
+      // "Other" isn't saved literally — whatever they typed becomes the relation itself.
       for (const l of links) {
+        const finalRelation = l.relation === "Other" ? (l.relationOther || "").trim() || "Other" : l.relation;
         let guardianId = l.guardianId;
         if (!guardianId && l.name.trim()) {
           const { data, error } = await supabase.from("guardians").insert({ name: l.name.trim(), phone: l.phone.trim(), email: l.email.trim() }).select().single();
@@ -273,9 +277,9 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
         }
         if (!guardianId) continue;
         if (l.linkId) {
-          await supabase.from("student_guardians").update({ relation: l.relation, emergency: l.emergency }).eq("id", l.linkId);
+          await supabase.from("student_guardians").update({ relation: finalRelation, emergency: l.emergency }).eq("id", l.linkId);
         } else {
-          await supabase.from("student_guardians").insert({ student_id: studentId, guardian_id: guardianId, relation: l.relation, emergency: l.emergency });
+          await supabase.from("student_guardians").insert({ student_id: studentId, guardian_id: guardianId, relation: finalRelation, emergency: l.emergency });
         }
       }
 
@@ -291,7 +295,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
     <Modal title={initial ? "Edit student" : "Add a student"} onClose={onClose} wide>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Name"><input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Student's name" /></Field>
-        <Field label="Age"><input style={inputStyle} type="number" min={4} value={age} onChange={(e) => setAge(e.target.value)} placeholder="e.g. 7" /></Field>
+        <Field label="Date of birth"><input style={inputStyle} type="date" value={dob} onChange={(e) => setDob(e.target.value)} /></Field>
       </div>
       <Field label="Level">
         <select style={inputStyle} value={levelId} onChange={(e) => setLevelId(e.target.value)}>
@@ -333,11 +337,14 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
             <input style={inputStyle} placeholder="Phone" value={l.phone} disabled={!!l.isExisting} onChange={(e) => updateLink(i, "phone", e.target.value)} />
           </div>
           <input style={{ ...inputStyle, marginBottom: 8 }} type="email" placeholder="Email" value={l.email} onChange={(e) => updateLink(i, "email", e.target.value)} />
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <select style={{ ...inputStyle, width: 140 }} value={l.relation} onChange={(e) => updateLink(i, "relation", e.target.value)}>
               <option value="">Select…</option>
               {RELATION_OPTIONS.map((r) => <option key={r}>{r}</option>)}
             </select>
+            {l.relation === "Other" && (
+              <input style={{ ...inputStyle, width: 140 }} placeholder="Please specify" value={l.relationOther} onChange={(e) => updateLink(i, "relationOther", e.target.value)} />
+            )}
             <label className="flex items-center gap-1.5 text-xs" style={{ color: T.inkSoft }}>
               <input type="checkbox" checked={l.emergency} onChange={(e) => updateLink(i, "emergency", e.target.checked)} /> Emergency contact
             </label>
@@ -432,7 +439,7 @@ export default function StudentsView() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark }}>{s.name}</span>
-                  {s.age && <span style={{ fontSize: 12, color: T.inkSoft }}>· {s.age}y</span>}
+                  {s.dob && computeAge(s.dob) != null && <span style={{ fontSize: 12, color: T.inkSoft }}>· {computeAge(s.dob)}y</span>}
                   <span style={{ fontSize: 11, color: T.gold, fontWeight: 700, letterSpacing: 1 }}>· {s.code}</span>
                 </div>
                 <div className="flex items-center gap-2">
