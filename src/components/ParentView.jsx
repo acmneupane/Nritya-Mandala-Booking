@@ -6,6 +6,7 @@ import { Btn } from "./ui";
 import { localDateStr } from "../lib/dates";
 import { buildQrCardDataUrl } from "../lib/qrCard";
 import { QrCanvas } from "./QrCode";
+import { nextOccurrenceOf, formatTimeRange } from "../lib/scheduling";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -16,8 +17,10 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [levelHistory, setLevelHistory] = useState([]);
   const [pkgSummary, setPkgSummary] = useState(null);
   const [siblings, setSiblings] = useState([]);
+  const [skips, setSkips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cardDataUrl, setCardDataUrl] = useState(null);
+  const [markingBusy, setMarkingBusy] = useState(null);
 
   const today = new Date();
   const todayStr = localDateStr(today);
@@ -25,13 +28,14 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
   const load = async () => {
     setLoading(true);
-    const [levelRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes] = await Promise.all([
+    const [levelRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes] = await Promise.all([
       student.level_id ? supabase.from("levels").select("id, name").eq("id", student.level_id).maybeSingle() : Promise.resolve({ data: null }),
-      supabase.from("enrollments").select("class_id, classes(id, label, day, time)").eq("student_id", student.id),
+      supabase.from("enrollments").select("class_id, classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
       supabase.from("attendance").select("id, class_id, date, status").eq("student_id", student.id).order("date", { ascending: false }).limit(10),
       supabase.from("level_history").select("id, level_id, date, levels(name)").eq("student_id", student.id).order("date", { ascending: false }),
       supabase.from("student_package_summary").select("classes_total, classes_used").eq("student_id", student.id).maybeSingle(),
       supabase.rpc("get_family_students", { p_code: student.code }),
+      supabase.from("class_skips").select("class_id, date"),
     ]);
     setLevel(levelRes.data);
     setClasses((enrollRes.data || []).map((e) => e.classes).filter(Boolean));
@@ -39,6 +43,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     setLevelHistory(levelHistRes.data || []);
     setPkgSummary(pkgRes.data);
     setSiblings((familyRes.data || []).filter((s) => s.id !== student.id));
+    setSkips(skipsRes.data || []);
     setLoading(false);
   };
 
@@ -53,12 +58,38 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const classById = useMemo(() => Object.fromEntries(classes.map((c) => [c.id, c])), [classes]);
   const remaining = pkgSummary ? pkgSummary.classes_total - pkgSummary.classes_used : 0;
 
+  const nextOccurrences = useMemo(() => {
+    const map = {};
+    for (const c of classes) {
+      const occ = nextOccurrenceOf(c, skips, localDateStr);
+      if (occ) map[c.id] = occ;
+    }
+    return map;
+  }, [classes, skips]);
+  const overallNext = useMemo(() => {
+    const entries = Object.entries(nextOccurrences).map(([classId, occ]) => ({ cls: classById[classId], occ }));
+    entries.sort((a, b) => (a.occ.dateStr === b.occ.dateStr ? a.cls.time.localeCompare(b.cls.time) : a.occ.dateStr.localeCompare(b.occ.dateStr)));
+    return entries[0] || null;
+  }, [nextOccurrences, classById]);
+
   const checkIn = async (classId) => {
     await supabase.from("attendance").insert({ student_id: student.id, class_id: classId, date: todayStr, status: "attended" });
     load();
   };
   const undoCheckIn = async (classId) => {
     await supabase.from("attendance").delete().eq("student_id", student.id).eq("class_id", classId).eq("date", todayStr);
+    load();
+  };
+  const markAbsent = async (classId, dateStr) => {
+    setMarkingBusy(classId);
+    await supabase.rpc("mark_absence", { p_code: student.code, p_class_id: classId, p_date: dateStr });
+    setMarkingBusy(null);
+    load();
+  };
+  const undoAbsent = async (classId, dateStr) => {
+    setMarkingBusy(classId);
+    await supabase.rpc("undo_mark_absence", { p_code: student.code, p_class_id: classId, p_date: dateStr });
+    setMarkingBusy(null);
     load();
   };
 
@@ -73,6 +104,12 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
         {level && (
           <div style={{ marginBottom: 20 }}>
             <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: `${T.sage}22`, color: T.sage, fontWeight: 600 }}>{level.name}</span>
+          </div>
+        )}
+
+        {overallNext && (
+          <div style={{ background: `${T.sage}18`, border: `1px solid ${T.sage}55`, borderRadius: 8, padding: "8px 14px", marginBottom: 14, fontSize: 13, fontWeight: 600, color: T.sage }}>
+            Next class: {overallNext.cls.label} — {overallNext.occ.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}, {formatTimeRange(overallNext.cls.time, overallNext.cls.end_time)}
           </div>
         )}
 
@@ -106,7 +143,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
               return (
                 <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderTop: `1px solid ${T.line}` }}>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{c.time}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{formatTimeRange(c.time, c.end_time)}</div>
                     <div style={{ fontSize: 12, color: T.inkSoft }}>{c.label}</div>
                   </div>
                   {checkedIn ? (
@@ -123,23 +160,46 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
         <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Weekly classes</h3>
           {classes.length === 0 && <p style={{ fontSize: 13, color: T.inkSoft }}>No classes booked yet — check with the studio.</p>}
-          {classes.map((c) => (
-            <div key={c.id} style={{ padding: "8px 0", borderTop: `1px solid ${T.line}` }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{c.day} · {c.time}</div>
-              <div style={{ fontSize: 12, color: T.inkSoft }}>{c.label}</div>
-            </div>
-          ))}
+          {classes.map((c) => {
+            const occ = nextOccurrences[c.id];
+            const alreadyAbsent = occ && history.some((h) => h.class_id === c.id && h.date === occ.dateStr && h.status === "skipped");
+            return (
+              <div key={c.id} style={{ padding: "10px 0", borderTop: `1px solid ${T.line}` }}>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{c.day} · {formatTimeRange(c.time, c.end_time)}</div>
+                    <div style={{ fontSize: 12, color: T.inkSoft }}>{c.label}</div>
+                  </div>
+                  {occ && (
+                    alreadyAbsent ? (
+                      <button onClick={() => undoAbsent(c.id, occ.dateStr)} disabled={markingBusy === c.id} style={{ fontSize: 12, fontWeight: 600, color: T.gold }} title="Tap to undo">
+                        ⊘ Marked absent for {occ.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Undo
+                      </button>
+                    ) : (
+                      <button onClick={() => markAbsent(c.id, occ.dateStr)} disabled={markingBusy === c.id} style={{ fontSize: 12, fontWeight: 600, color: T.terracotta, border: `1px solid ${T.terracotta}55`, borderRadius: 999, padding: "5px 12px", background: "#fff" }}>
+                        {markingBusy === c.id ? "…" : `Mark absent for ${occ.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Recent attendance</h3>
           {history.length === 0 && <p style={{ fontSize: 13, color: T.inkSoft }}>No history yet.</p>}
-          {history.map((h) => (
-            <div key={h.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", borderTop: `1px solid ${T.line}` }}>
-              <span>{h.date}{classById[h.class_id] ? ` · ${classById[h.class_id].label}` : ""}</span>
-              <span style={{ color: h.status === "attended" ? T.sage : T.terracotta, fontWeight: 600 }}>{h.status === "attended" ? "Attended" : "Absent"}</span>
-            </div>
-          ))}
+          {history.map((h) => {
+            const label = h.status === "attended" ? "Attended" : h.status === "skipped" ? "Marked absent" : "Missed";
+            const color = h.status === "attended" ? T.sage : h.status === "skipped" ? T.gold : T.terracotta;
+            return (
+              <div key={h.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", borderTop: `1px solid ${T.line}` }}>
+                <span>{h.date}{classById[h.class_id] ? ` · ${classById[h.class_id].label}` : ""}</span>
+                <span style={{ color, fontWeight: 600 }}>{label}</span>
+              </div>
+            );
+          })}
         </div>
 
         {levelHistory.length > 0 && (
