@@ -211,6 +211,13 @@ export default function EnrollForm() {
         </div>
 
         <div style={{ background: T.ivory, borderRadius: 12, padding: "24px 20px", boxSizing: "border-box", fontFamily: "Inter, sans-serif" }}>
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 19, color: T.maroonDark, marginBottom: 6 }}>Welcome to Nritya Mandala! 🪷</h2>
+            <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
+              We're so glad you're considering joining our bharatanatyam family. Fill in a few details below and we'll be in touch to confirm everything.
+            </p>
+          </div>
+
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 12 }}>Student details</h3>
           <Field label="Student's name *"><input style={inputStyle} value={studentName} onChange={(e) => setStudentName(e.target.value)} /></Field>
           <div className="grid grid-cols-2 gap-3">
@@ -284,7 +291,7 @@ export default function EnrollForm() {
             </div>
           </div>
 
-          <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 12 }}>Once submitted, we'll call you back to confirm the enrolment — you'll also be given a reference number to use for payment.</p>
+          <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 12 }}>Once submitted, we'll contact you via email or mobile to confirm the enrolment — you'll also be given a reference number to use for payment.</p>
 
           <ImportantInfo preferredClass={classes.find((c) => c.id === preferredClassId) || null} />
 
