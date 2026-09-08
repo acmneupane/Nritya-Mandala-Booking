@@ -174,6 +174,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   // right after the student is created, since there's no student id to attach it to yet.
   const [pendingPackages, setPendingPackages] = useState([]);
   const [links, setLinks] = useState([]); // {guardian_id, name, phone, email, relation, emergency}
+  const [originalLinkIds, setOriginalLinkIds] = useState([]);
   const [guardianQuery, setGuardianQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -197,6 +198,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
       .select("id, guardian_id, relation, emergency, guardians(id, name, phone, email)")
       .eq("student_id", initial.id)
       .then(({ data }) => {
+        setOriginalLinkIds((data || []).map((l) => l.id));
         setLinks((data || []).map((l) => ({
           linkId: l.id,
           guardianId: l.guardian_id,
@@ -264,6 +266,12 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
       // Sync guardian links: create new guardian people as needed, keep existing ones'
       // contact details (including email) current, and upsert the relationship rows.
       // "Other" isn't saved literally — whatever they typed becomes the relation itself.
+      const keptLinkIds = links.map((l) => l.linkId).filter(Boolean);
+      const removedLinkIds = originalLinkIds.filter((id) => !keptLinkIds.includes(id));
+      for (const id of removedLinkIds) {
+        await supabase.from("student_guardians").delete().eq("id", id);
+      }
+
       for (const l of links) {
         const finalRelation = l.relation === "Other" ? (l.relationOther || "").trim() || "Other" : l.relation;
         let guardianId = l.guardianId;

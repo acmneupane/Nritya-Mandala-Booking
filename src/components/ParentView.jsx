@@ -6,12 +6,13 @@ import { Btn } from "./ui";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-export default function ParentView({ student, onBack }) {
+export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [level, setLevel] = useState(null);
   const [classes, setClasses] = useState([]);
   const [history, setHistory] = useState([]);
   const [levelHistory, setLevelHistory] = useState([]);
   const [pkgSummary, setPkgSummary] = useState(null);
+  const [siblings, setSiblings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const today = new Date();
@@ -20,18 +21,20 @@ export default function ParentView({ student, onBack }) {
 
   const load = async () => {
     setLoading(true);
-    const [levelRes, enrollRes, historyRes, levelHistRes, pkgRes] = await Promise.all([
+    const [levelRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes] = await Promise.all([
       student.level_id ? supabase.from("levels").select("id, name").eq("id", student.level_id).maybeSingle() : Promise.resolve({ data: null }),
       supabase.from("enrollments").select("class_id, classes(id, label, day, time)").eq("student_id", student.id),
       supabase.from("attendance").select("id, class_id, date, status").eq("student_id", student.id).order("date", { ascending: false }).limit(10),
       supabase.from("level_history").select("id, level_id, date, levels(name)").eq("student_id", student.id).order("date", { ascending: false }),
       supabase.from("student_package_summary").select("classes_total, classes_used").eq("student_id", student.id).maybeSingle(),
+      supabase.rpc("get_family_students", { p_code: student.code }),
     ]);
     setLevel(levelRes.data);
     setClasses((enrollRes.data || []).map((e) => e.classes).filter(Boolean));
     setHistory(historyRes.data || []);
     setLevelHistory(levelHistRes.data || []);
     setPkgSummary(pkgRes.data);
+    setSiblings((familyRes.data || []).filter((s) => s.id !== student.id));
     setLoading(false);
   };
 
@@ -123,6 +126,24 @@ export default function ParentView({ student, onBack }) {
                 <span style={{ color: T.inkSoft }}>{h.date}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {siblings.length > 0 && (
+          <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
+            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Your Other Children</h3>
+            <div className="grid gap-2">
+              {siblings.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => onSwitchStudent && onSwitchStudent(s)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${T.line}`, borderRadius: 6, padding: "8px 10px", textAlign: "left" }}
+                >
+                  <span style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{s.name}</span>
+                  {s.guardian_names && <span style={{ fontSize: 11, color: T.inkSoft }}>{s.guardian_names}</span>}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
