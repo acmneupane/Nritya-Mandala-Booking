@@ -3,7 +3,7 @@ import { T } from "../lib/theme";
 import { Btn, Modal } from "./ui";
 import { drawQrWithLogo, buildQrCardDataUrl } from "../lib/qrCard";
 
-function QrCanvas({ text, size = 220 }) {
+export function QrCanvas({ text, size = 220 }) {
   const canvasRef = useRef(null);
   const [failed, setFailed] = useState(false);
 

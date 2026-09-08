@@ -1,10 +1,11 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn } from "./ui";
 import { localDateStr } from "../lib/dates";
-import { drawQrWithLogo, buildQrCardDataUrl } from "../lib/qrCard";
+import { buildQrCardDataUrl } from "../lib/qrCard";
+import { QrCanvas } from "./QrCode";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -16,7 +17,6 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [pkgSummary, setPkgSummary] = useState(null);
   const [siblings, setSiblings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const qrCanvasRef = useRef(null);
   const [cardDataUrl, setCardDataUrl] = useState(null);
 
   const today = new Date();
@@ -45,9 +45,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [student.id]);
 
   useEffect(() => {
-    if (!qrCanvasRef.current) return;
     const qrText = `${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`;
-    drawQrWithLogo(qrCanvasRef.current, qrText, { size: 200 * 3, withLogo: true });
     buildQrCardDataUrl({ studentName: student.name, code: student.code, qrText }).then(setCardDataUrl);
   }, [student.id, student.code, student.name]);
 
@@ -84,22 +82,20 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           </div>
         )}
 
-        <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16, textAlign: "center" }}>
+        <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }} className="flex flex-col items-center text-center">
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Your QR code</h3>
-          <div style={{ border: `2px solid ${T.gold}`, borderRadius: 10, padding: 10, background: "#fff", display: "inline-block" }}>
-            <canvas ref={qrCanvasRef} style={{ width: 160, height: 160, display: "block" }} />
+          <div style={{ border: `2px solid ${T.gold}`, borderRadius: 10, padding: 12, background: "#fff" }}>
+            <QrCanvas text={`${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`} size={180} />
           </div>
-          <div style={{ marginTop: 12, background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "8px 16px", display: "inline-block" }}>
-            <div style={{ fontSize: 10, color: T.inkSoft, marginBottom: 2 }}>Code</div>
-            <div style={{ fontFamily: "Fraunces, serif", fontSize: 20, letterSpacing: 3, fontWeight: 700, color: T.maroonDark }}>{student.code}</div>
+          <div style={{ marginTop: 14, background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 20px" }}>
+            <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Code</div>
+            <div style={{ fontFamily: "Fraunces, serif", fontSize: 26, letterSpacing: 4, fontWeight: 700, color: T.maroonDark }}>{student.code}</div>
           </div>
-          <div style={{ marginTop: 12 }}>
-            {cardDataUrl && (
-              <a href={cardDataUrl} download={`${student.name.replace(/\s+/g, "-")}-qr-card.png`}>
-                <Btn size="sm" variant="ghost">Download QR code</Btn>
-              </a>
-            )}
-          </div>
+          {cardDataUrl && (
+            <a href={cardDataUrl} download={`${student.name.replace(/\s+/g, "-")}-qr-card.png`} className="mt-4">
+              <Btn variant="ghost">Download QR code</Btn>
+            </a>
+          )}
         </div>
 
         {todaysClasses.length > 0 && (
