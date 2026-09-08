@@ -154,30 +154,28 @@ export default function EnrollForm() {
     setSubmitting(true);
     setError("");
     try {
-      const { data: request, error: reqErr } = await supabase.from("enrollment_requests").insert({
-        guardian_name: guardianName.trim(),
-        guardian_relation: guardianRelation === "Other" ? (guardianRelationOther.trim() || "Other") : guardianRelation,
-        guardian_email: guardianEmail.trim(),
-        guardian_phone: guardianPhone.trim(),
-        emergency_same: emergencySame,
-        emergency_name: emergencySame ? "" : emergencyName.trim(),
-        emergency_phone: emergencySame ? "" : emergencyPhone.trim(),
-        video_consent: videoConsent,
-        notes: notes.trim(),
-        status: "pending",
-      }).select().single();
-      if (reqErr) throw reqErr;
-
       const studentRows = [
-        { request_id: request.id, student_name: studentName.trim(), student_dob: studentDob || null, preferred_class_id: preferredClassId || null, is_sibling: false, sort_order: 0 },
+        { name: studentName.trim(), dob: studentDob || null, preferred_class_id: preferredClassId || null, is_sibling: false, sort_order: 0 },
         ...siblings.filter((s) => s.name.trim()).map((s, i) => ({
-          request_id: request.id, student_name: s.name.trim(), student_dob: s.dob || null, preferred_class_id: s.classId || null, is_sibling: true, sort_order: i + 1,
+          name: s.name.trim(), dob: s.dob || null, preferred_class_id: s.classId || null, is_sibling: true, sort_order: i + 1,
         })),
       ];
-      const { error: studErr } = await supabase.from("enrollment_request_students").insert(studentRows);
-      if (studErr) throw studErr;
 
-      setReference(request.reference);
+      const { data, error: rpcErr } = await supabase.rpc("submit_enrollment_request", {
+        p_guardian_name: guardianName.trim(),
+        p_guardian_relation: guardianRelation === "Other" ? (guardianRelationOther.trim() || "Other") : guardianRelation,
+        p_guardian_email: guardianEmail.trim(),
+        p_guardian_phone: guardianPhone.trim(),
+        p_emergency_same: emergencySame,
+        p_emergency_name: emergencySame ? "" : emergencyName.trim(),
+        p_emergency_phone: emergencySame ? "" : emergencyPhone.trim(),
+        p_video_consent: videoConsent,
+        p_notes: notes.trim(),
+        p_students: studentRows,
+      });
+      if (rpcErr) throw rpcErr;
+
+      setReference(data.reference);
     } catch (e) {
       setError("Something went wrong submitting — please try again.");
     } finally {

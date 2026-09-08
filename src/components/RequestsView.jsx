@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
@@ -141,7 +141,7 @@ function ApproveModal({ request, levels, classes, classById, onClose, onApproved
   );
 }
 
-export default function RequestsView() {
+export default function RequestsView({ focusRequestId }) {
   const [requests, setRequests] = useState([]);
   const [levels, setLevels] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -150,6 +150,7 @@ export default function RequestsView() {
   const [approving, setApproving] = useState(null);
   const [confirmReject, setConfirmReject] = useState(null);
   const [showHandled, setShowHandled] = useState(false);
+  const focusRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -166,6 +167,20 @@ export default function RequestsView() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // A link from the notification email lands here with a specific request in mind —
+  // make sure it's actually visible (switch views if it's already been handled) and
+  // scroll it into view.
+  useEffect(() => {
+    if (!focusRequestId || requests.length === 0) return;
+    const target = requests.find((r) => r.id === focusRequestId);
+    if (target && target.status !== "pending" && !showHandled) setShowHandled(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequestId, requests]);
+
+  useEffect(() => {
+    if (focusRef.current) focusRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
 
   const reject = async (id) => {
     await supabase.from("enrollment_requests").update({ status: "rejected", reviewed_at: new Date().toISOString() }).eq("id", id);
@@ -194,8 +209,18 @@ export default function RequestsView() {
       <div className="grid gap-3">
         {filtered.map((r) => {
           const kids = (r.enrollment_request_students || []).slice().sort((a, b) => a.sort_order - b.sort_order);
+          const isFocused = r.id === focusRequestId;
           return (
-            <div key={r.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${r.status === "pending" ? T.gold : r.status === "approved" ? T.sage : T.terracotta}`, borderRadius: 8, padding: 14 }}>
+            <div
+              key={r.id}
+              ref={isFocused ? focusRef : null}
+              style={{
+                background: "#fff", borderRadius: 8, padding: 14,
+                border: isFocused ? `2px solid ${T.gold}` : `1px solid ${T.line}`,
+                borderLeft: `4px solid ${r.status === "pending" ? T.gold : r.status === "approved" ? T.sage : T.terracotta}`,
+                boxShadow: isFocused ? `0 0 0 3px ${T.gold}33` : "none",
+              }}
+            >
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <div style={{ fontSize: 11, color: T.gold, fontWeight: 700, letterSpacing: 0.5, marginBottom: 2 }}>{r.reference}</div>

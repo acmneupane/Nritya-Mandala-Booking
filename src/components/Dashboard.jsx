@@ -38,8 +38,11 @@ function NavBadge({ count, urgent }) {
 export default function Dashboard() {
   // Calendar is the "homepage" — the first thing you see, showing what's happening
   // today/this week. Pending requests get their own always-visible badge in the nav
-  // instead, so they're never missed regardless of which tab you land on.
-  const [tab, setTab] = useState("calendar");
+  // instead, so they're never missed regardless of which tab you land on. A
+  // ?request=<id> link (from the notification email) overrides this and jumps
+  // straight to that request.
+  const focusRequestId = new URLSearchParams(window.location.search).get("request");
+  const [tab, setTab] = useState(focusRequestId ? "requests" : "calendar");
   const [menuOpen, setMenuOpen] = useState(false);
   const [counts, setCounts] = useState({ students: 0, classes: 0, requests: 0 });
 
@@ -147,7 +150,7 @@ export default function Dashboard() {
         </div>
         {tab === "students" && <StudentsView />}
         {tab === "calendar" && <CalendarView />}
-        {tab === "requests" && <RequestsView />}
+        {tab === "requests" && <RequestsView focusRequestId={focusRequestId} />}
         {tab === "classes" && <ClassesView />}
         {tab === "levels" && <LevelsView />}
         {tab === "history" && <HistoryView />}
