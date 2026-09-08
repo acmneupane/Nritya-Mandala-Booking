@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
 import QrModal from "./QrCode";
+import { RELATION_OPTIONS } from "../lib/relations";
 
 function genCode(existing) {
   const chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -119,12 +120,66 @@ function PackagesSection({ studentId }) {
   );
 }
 
+// Same idea as PackagesSection but for a student that doesn't exist yet — packages are
+// held here locally and only written to the database once the student is created.
+function PendingPackagesEditor({ pendingPackages, setPendingPackages }) {
+  const [adding, setAdding] = useState(pendingPackages.length === 0);
+  const [classesTotal, setClassesTotal] = useState(10);
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+
+  const addPackage = () => {
+    if (!classesTotal || Number(classesTotal) <= 0) return;
+    setPendingPackages((ps) => [...ps, { classesTotal: Number(classesTotal), amount: amount ? Number(amount) : null, note: note.trim() }]);
+    setAdding(false);
+    setClassesTotal(10);
+    setAmount("");
+    setNote("");
+  };
+  const removePackage = (i) => setPendingPackages((ps) => ps.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="mt-2 mb-1">
+      <span className="text-xs font-medium block mb-2" style={{ color: T.inkSoft }}>Starting package (optional)</span>
+      {pendingPackages.map((p, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${T.line}`, borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 12 }}>
+          <div>
+            <span style={{ fontWeight: 600 }}>{p.classesTotal} classes</span>
+            {p.amount != null && <span style={{ color: T.inkSoft, marginLeft: 6 }}>· ${Number(p.amount).toFixed(2)}</span>}
+            {p.note && <div style={{ color: T.inkSoft, marginTop: 2 }}>{p.note}</div>}
+          </div>
+          <button onClick={() => removePackage(i)} style={{ color: T.terracotta }}>✕</button>
+        </div>
+      ))}
+      {adding ? (
+        <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 10 }}>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <Field label="Classes bought"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
+            <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 90.00" /></Field>
+          </div>
+          <Field label="Note"><input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. 5-week package" /></Field>
+          <div className="flex justify-end gap-2 mt-1">
+            {pendingPackages.length > 0 && <Btn variant="ghost" size="sm" onClick={() => setAdding(false)}>Cancel</Btn>}
+            <Btn size="sm" onClick={addPackage}>Add package</Btn>
+          </div>
+        </div>
+      ) : (
+        <Btn size="sm" variant="ghost" onClick={() => setAdding(true)}>+ Add another package</Btn>
+      )}
+      <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>You can always add more packages later as they buy them — this is just to record what they've already paid, if anything.</p>
+    </div>
+  );
+}
+
 function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   const [name, setName] = useState(initial?.name || "");
   const [age, setAge] = useState(initial?.age || "");
   const [levelId, setLevelId] = useState(initial?.level_id || "");
   const [notes, setNotes] = useState(initial?.notes || "");
   const [code, setCode] = useState(initial?.code || "");
+  // Only used when creating a brand-new student — a package entered here gets saved
+  // right after the student is created, since there's no student id to attach it to yet.
+  const [pendingPackages, setPendingPackages] = useState([]);
   const [links, setLinks] = useState([]); // {guardian_id, name, phone, email, relation, emergency}
   const [guardianQuery, setGuardianQuery] = useState("");
   const [saving, setSaving] = useState(false);
@@ -156,11 +211,11 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   }, [initial?.id]);
 
   const addNewGuardian = () => {
-    setLinks((ls) => [...ls, { linkId: null, guardianId: null, name: "", phone: "", email: "", relation: "Parent", emergency: ls.length === 0, isNew: true }]);
+    setLinks((ls) => [...ls, { linkId: null, guardianId: null, name: "", phone: "", email: "", relation: "", emergency: ls.length === 0, isNew: true }]);
   };
   const linkExistingGuardian = (g) => {
     if (links.some((l) => l.guardianId === g.id)) return;
-    setLinks((ls) => [...ls, { linkId: null, guardianId: g.id, name: g.name, phone: g.phone, email: g.email || "", relation: "Parent", emergency: ls.length === 0, isExisting: true }]);
+    setLinks((ls) => [...ls, { linkId: null, guardianId: g.id, name: g.name, phone: g.phone, email: g.email || "", relation: "", emergency: ls.length === 0, isExisting: true }]);
     setGuardianQuery("");
   };
   const updateLink = (i, field, val) => setLinks((ls) => ls.map((l, idx) => (idx === i ? { ...l, [field]: val } : l)));
@@ -197,6 +252,12 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
         }).select().single();
         if (error) throw error;
         studentId = data.id;
+
+        for (const p of pendingPackages) {
+          await supabase.from("packages").insert({
+            student_id: studentId, classes_total: p.classesTotal, amount: p.amount, notes: p.note,
+          });
+        }
       }
 
       // Sync guardian links: create new guardian people as needed, keep existing ones'
@@ -247,7 +308,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
         </div>
       </Field>
 
-      {initial?.id && <PackagesSection studentId={initial.id} />}
+      {initial?.id ? <PackagesSection studentId={initial.id} /> : <PendingPackagesEditor pendingPackages={pendingPackages} setPendingPackages={setPendingPackages} />}
 
       <div className="mt-2 mb-1">
         <span className="text-xs font-medium block mb-2" style={{ color: T.inkSoft }}>Parent / emergency contacts</span>
@@ -274,7 +335,8 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
           <input style={{ ...inputStyle, marginBottom: 8 }} type="email" placeholder="Email" value={l.email} onChange={(e) => updateLink(i, "email", e.target.value)} />
           <div className="flex items-center gap-3">
             <select style={{ ...inputStyle, width: 140 }} value={l.relation} onChange={(e) => updateLink(i, "relation", e.target.value)}>
-              {["Parent", "Guardian", "Grandparent", "Relative", "Other"].map((r) => <option key={r}>{r}</option>)}
+              <option value="">Select…</option>
+              {RELATION_OPTIONS.map((r) => <option key={r}>{r}</option>)}
             </select>
             <label className="flex items-center gap-1.5 text-xs" style={{ color: T.inkSoft }}>
               <input type="checkbox" checked={l.emergency} onChange={(e) => updateLink(i, "emergency", e.target.checked)} /> Emergency contact

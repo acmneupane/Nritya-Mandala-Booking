@@ -60,7 +60,7 @@ function ApproveModal({ request, levels, classes, classById, onClose, onApproved
         if (sErr) throw sErr;
 
         await supabase.from("student_guardians").insert({
-          student_id: created.id, guardian_id: primaryGuardian.id, relation: "Parent", emergency: emergencySame,
+          student_id: created.id, guardian_id: primaryGuardian.id, relation: request.guardian_relation || "Guardian", emergency: emergencySame,
         });
         if (emergencyGuardian) {
           await supabase.from("student_guardians").insert({
@@ -220,7 +220,7 @@ export default function RequestsView() {
                     </div>
                   ))}
                   <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 4 }}>
-                    {r.guardian_name} · {r.guardian_phone}{r.guardian_email ? ` · ${r.guardian_email}` : ""}
+                    {r.guardian_name}{r.guardian_relation ? ` (${r.guardian_relation})` : ""} · {r.guardian_phone}{r.guardian_email ? ` · ${r.guardian_email}` : ""}
                   </div>
                   <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>
                     Emergency: {r.emergency_same ? "same as guardian" : `${r.emergency_name} · ${r.emergency_phone}`}

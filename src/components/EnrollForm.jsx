@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn, Field } from "./ui";
+import { RELATION_OPTIONS } from "../lib/relations";
 
 const MAX_SIBLINGS = 2;
 
@@ -103,6 +104,7 @@ export default function EnrollForm() {
   const [studentDob, setStudentDob] = useState("");
   const [preferredClassId, setPreferredClassId] = useState("");
   const [guardianName, setGuardianName] = useState("");
+  const [guardianRelation, setGuardianRelation] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
   const [guardianEmail, setGuardianEmail] = useState("");
   const [emergencySame, setEmergencySame] = useState(true);
@@ -152,6 +154,7 @@ export default function EnrollForm() {
     try {
       const { data: request, error: reqErr } = await supabase.from("enrollment_requests").insert({
         guardian_name: guardianName.trim(),
+        guardian_relation: guardianRelation,
         guardian_email: guardianEmail.trim(),
         guardian_phone: guardianPhone.trim(),
         emergency_same: emergencySame,
@@ -214,7 +217,7 @@ export default function EnrollForm() {
           <div style={{ marginBottom: 20 }}>
             <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 19, color: T.maroonDark, marginBottom: 6 }}>Welcome to Nritya Mandala! 🪷</h2>
             <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
-              We're so glad you're considering joining our bharatanatyam family. Fill in a few details below and we'll be in touch to confirm everything.
+              We're so glad you're considering joining our dance class. Fill in a few details below and we'll be in touch to confirm everything.
             </p>
           </div>
 
@@ -232,6 +235,12 @@ export default function EnrollForm() {
 
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, margin: "18px 0 12px" }}>Who's filling this out?</h3>
           <Field label="Your name *"><input style={inputStyle} value={guardianName} onChange={(e) => setGuardianName(e.target.value)} /></Field>
+          <Field label="Your relation to the student">
+            <select style={inputStyle} value={guardianRelation} onChange={(e) => setGuardianRelation(e.target.value)}>
+              <option value="">Select…</option>
+              {RELATION_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Email"><input style={inputStyle} type="email" value={guardianEmail} onChange={(e) => setGuardianEmail(e.target.value)} /></Field>
             <Field label="Mobile"><input style={inputStyle} value={guardianPhone} onChange={(e) => setGuardianPhone(e.target.value)} /></Field>
