@@ -5,15 +5,7 @@ import { Btn, Field, Modal, ConfirmModal } from "./ui";
 import QrModal from "./QrCode";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { computeAge } from "../lib/age";
-
-function genCode(existing) {
-  const chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-  let code;
-  do {
-    code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  } while (existing.includes(code));
-  return code;
-}
+import { generateStudentCode } from "../lib/studentCode";
 
 function LevelBadge({ level }) {
   if (!level) return <span style={{ fontSize: 12, color: T.inkSoft }}>Unassigned</span>;
@@ -186,10 +178,16 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const [regenerating, setRegenerating] = useState(false);
   const regenerateCode = async () => {
-    const { data } = await supabase.from("students").select("code");
-    const existing = (data || []).map((r) => r.code).filter((c) => c !== initial?.code);
-    setCode(genCode(existing));
+    setRegenerating(true);
+    try {
+      setCode(await generateStudentCode(supabase, name, initial?.id));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setRegenerating(false);
+    }
   };
 
   useEffect(() => {
@@ -232,13 +230,14 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
     setSaving(true);
     setError("");
     try {
-      // Resolve the access code: use what's typed, or generate one if left blank.
+      // Resolve the access code: use what's typed, or generate a name-based one if left blank.
       let finalCode = code.trim().toUpperCase();
-      const { data: existingCodes } = await supabase.from("students").select("id, code");
       if (!finalCode) {
-        finalCode = genCode((existingCodes || []).map((r) => r.code));
+        finalCode = await generateStudentCode(supabase, name, initial?.id);
       } else {
-        const clash = (existingCodes || []).find((r) => r.code === finalCode && r.id !== initial?.id);
+        let clashQuery = supabase.from("students").select("id").eq("code", finalCode);
+        if (initial?.id) clashQuery = clashQuery.neq("id", initial.id);
+        const { data: clash } = await clashQuery.maybeSingle();
         if (clash) { setError(`Code "${finalCode}" is already in use by another student.`); setSaving(false); return; }
       }
 
@@ -308,7 +307,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
       <Field label="Access code (parent lookup & QR)">
         <div className="flex gap-2">
           <input style={{ ...inputStyle, letterSpacing: 2, fontWeight: 600 }} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="Auto-generated if left blank" />
-          <Btn size="sm" variant="ghost" onClick={regenerateCode}>Generate new</Btn>
+          <Btn size="sm" variant="ghost" onClick={regenerateCode} disabled={regenerating}>{regenerating ? "Generating…" : "Generate new"}</Btn>
         </div>
       </Field>
 

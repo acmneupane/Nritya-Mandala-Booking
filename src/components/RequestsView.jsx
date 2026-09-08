@@ -2,15 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
-
-function genCode(existing) {
-  const chars = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-  let code;
-  do {
-    code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  } while (existing.includes(code));
-  return code;
-}
+import { generateStudentCode } from "../lib/studentCode";
 
 function ApproveModal({ request, levels, classes, classById, onClose, onApproved }) {
   const [students, setStudents] = useState(
@@ -34,9 +26,6 @@ function ApproveModal({ request, levels, classes, classById, onClose, onApproved
     setSaving(true);
     setError("");
     try {
-      const { data: existingCodes } = await supabase.from("students").select("code");
-      const usedCodes = (existingCodes || []).map((r) => r.code);
-
       const { data: primaryGuardian, error: gErr } = await supabase.from("guardians").insert({
         name: guardianName.trim(), phone: guardianPhone.trim(), email: guardianEmail.trim(),
       }).select().single();
@@ -52,8 +41,7 @@ function ApproveModal({ request, levels, classes, classById, onClose, onApproved
       }
 
       for (const s of students) {
-        const code = genCode(usedCodes);
-        usedCodes.push(code);
+        const code = await generateStudentCode(supabase, s.name);
         const { data: created, error: sErr } = await supabase.from("students").insert({
           name: s.name.trim(), dob: s.dob || null, level_id: s.levelId || null, code, video_consent: request.video_consent,
         }).select().single();
