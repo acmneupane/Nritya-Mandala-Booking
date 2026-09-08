@@ -10,6 +10,104 @@ import { formatTimeRange } from "../lib/scheduling";
 
 const actionBtnStyle = { fontSize: 13, fontWeight: 500, padding: "5px 12px", borderRadius: 999, border: "1px solid", background: "#fff", whiteSpace: "nowrap" };
 
+// Quick read-only glance at a student — name, level, package status, emergency
+// contacts — without opening the full edit form.
+function StudentInfoModal({ student, level, onClose }) {
+  const [packages, setPackages] = useState([]);
+  const [used, setUsed] = useState(0);
+  const [emergencyContacts, setEmergencyContacts] = useState([]);
+  const [otherGuardians, setOtherGuardians] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from("packages").select("*").eq("student_id", student.id).order("purchase_date", { ascending: false }),
+      supabase.from("student_package_summary").select("classes_used").eq("student_id", student.id).maybeSingle(),
+      supabase.from("student_guardians").select("relation, emergency, guardians(name, phone, email)").eq("student_id", student.id),
+    ]).then(([pkgRes, summaryRes, guardiansRes]) => {
+      setPackages(pkgRes.data || []);
+      setUsed(summaryRes.data?.classes_used || 0);
+      const all = guardiansRes.data || [];
+      setEmergencyContacts(all.filter((g) => g.emergency));
+      setOtherGuardians(all.filter((g) => !g.emergency));
+      setLoading(false);
+    });
+  }, [student.id]);
+
+  const purchased = packages.reduce((sum, p) => sum + p.classes_total, 0);
+  const remaining = purchased - used;
+
+  return (
+    <Modal title={student.name} onClose={onClose}>
+      {loading ? (
+        <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>
+      ) : (
+        <div className="grid gap-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            {student.dob && computeAge(student.dob) != null && <span style={{ fontSize: 13, color: T.inkSoft }}>{computeAge(student.dob)} years old</span>}
+            <span style={{ fontSize: 12, color: T.gold, fontWeight: 700, letterSpacing: 1 }}>· {student.code}</span>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>LEVEL</div>
+            <LevelBadge level={level} />
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>PACKAGE</div>
+            {purchased > 0 ? (
+              <div style={{ fontSize: 13, color: T.ink }}>
+                <strong>{purchased}</strong> purchased · <strong>{used}</strong> used ·{" "}
+                <strong style={{ color: remaining > 0 ? T.sage : T.terracotta }}>{remaining}</strong> remaining
+              </div>
+            ) : (
+              <span style={{ fontSize: 12, color: T.terracotta }}>No package on file</span>
+            )}
+          </div>
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>EMERGENCY CONTACTS</div>
+            {emergencyContacts.length === 0 ? (
+              <span style={{ fontSize: 12, color: T.terracotta }}>None on file</span>
+            ) : (
+              <div className="grid gap-1">
+                {emergencyContacts.map((c, i) => (
+                  <div key={i} style={{ fontSize: 13, color: T.ink }}>
+                    <strong>{c.guardians?.name}</strong> ({c.relation}) · {c.guardians?.phone}{c.guardians?.email ? ` · ${c.guardians.email}` : ""}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {otherGuardians.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>OTHER CONTACTS</div>
+              <div className="grid gap-1">
+                {otherGuardians.map((c, i) => (
+                  <div key={i} style={{ fontSize: 13, color: T.ink }}>
+                    {c.guardians?.name} ({c.relation}) · {c.guardians?.phone}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {student.notes && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>NOTES</div>
+              <div style={{ fontSize: 13, color: T.ink }}>{student.notes}</div>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="flex justify-end mt-4">
+        <Btn variant="ghost" onClick={onClose}>Close</Btn>
+      </div>
+    </Modal>
+  );
+}
+
 function LevelBadge({ level }) {
   if (!level) return <span style={{ fontSize: 12, color: T.inkSoft }}>Unassigned</span>;
   return (
@@ -440,6 +538,7 @@ export default function StudentsView() {
   const [confirmArchive, setConfirmArchive] = useState(null);
   const [confirmRemove, setConfirmRemove] = useState(null);
   const [showingQr, setShowingQr] = useState(null);
+  const [viewingInfo, setViewingInfo] = useState(null);
   const [booking, setBooking] = useState(null);
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -538,7 +637,7 @@ export default function StudentsView() {
             <div key={s.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `5px solid ${s.archived ? T.inkSoft : T.gold}`, borderRadius: 10, padding: 18, opacity: s.archived ? 0.7 : 1 }} className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span style={{ fontFamily: "Fraunces, serif", fontSize: 19, color: T.maroonDark }}>{s.name}</span>
+                  <button onClick={() => setViewingInfo(s)} style={{ fontFamily: "Fraunces, serif", fontSize: 19, color: T.maroonDark, textDecoration: "underline", textDecorationColor: `${T.maroonDark}33`, textUnderlineOffset: 3 }}>{s.name}</button>
                   {s.dob && computeAge(s.dob) != null && <span style={{ fontSize: 13, color: T.inkSoft }}>· {computeAge(s.dob)}y</span>}
                   <span style={{ fontSize: 12, color: T.gold, fontWeight: 700, letterSpacing: 1 }}>· {s.code}</span>
                   {!s.archived && (
@@ -583,6 +682,7 @@ export default function StudentsView() {
         />
       )}
       {showingQr && <QrModal student={showingQr} onClose={() => setShowingQr(null)} />}
+      {viewingInfo && <StudentInfoModal student={viewingInfo} level={levelById[viewingInfo.level_id]} onClose={() => setViewingInfo(null)} />}
       {booking && <BookClassModal student={booking} onClose={() => setBooking(null)} onBooked={() => { setBooking(null); load(); }} />}
       {confirmArchive && (
         <TypeToConfirmModal
