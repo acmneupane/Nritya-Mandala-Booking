@@ -254,7 +254,7 @@ function DayView({ date, classes, skips, onSkip, onUnskip, onChanged }) {
 }
 
 export default function CalendarView() {
-  const [viewMode, setViewMode] = useState("week");
+  const [viewMode, setViewMode] = useState("month");
   const [anchor, setAnchor] = useState(new Date());
   const [classes, setClasses] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
@@ -332,9 +332,13 @@ export default function CalendarView() {
             const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr));
             return (
               <div key={i} style={{ background: isToday ? `${T.gold}18` : "#fff", border: `1px solid ${isToday ? T.gold : T.line}`, borderRadius: 8, padding: 10, minHeight: 90 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, marginBottom: 6 }}>
+                <button
+                  onClick={() => { setAnchor(new Date(date)); setViewMode("day"); }}
+                  style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, marginBottom: 6, display: "block", textAlign: "left" }}
+                  title="View this day"
+                >
                   {viewMode === "month" ? date.getDate() : `${dayName.slice(0, 3)} ${date.getDate()}`}
-                </div>
+                </button>
                 {dayClasses.length === 0 && <div style={{ fontSize: 11, color: `${T.inkSoft}99` }}>—</div>}
                 {dayClasses.map((c) => {
                   const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);

@@ -125,28 +125,28 @@ export default function ClassesView() {
   return (
     <div>
       <div className="flex justify-end mb-4"><Btn onClick={() => setAdding(true)}>+ Add class</Btn></div>
-      <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+      <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
         {byDay.filter((d) => d.items.length).map(({ day, items }) => (
           <div key={day}>
-            <h4 style={{ fontFamily: "Fraunces, serif", color: T.maroonDark, fontSize: 15, marginBottom: 6 }}>{day}</h4>
+            <h4 style={{ fontFamily: "Fraunces, serif", color: T.maroonDark, fontSize: 17, marginBottom: 10 }}>{day}</h4>
             {items.map((c) => {
               const enrolled = enrollments.filter((e) => e.class_id === c.id).length;
               return (
-                <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 12 }}>
                   <div className="flex justify-between items-start">
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: T.ink }}>{c.label}</div>
-                      <div style={{ fontSize: 12, color: T.inkSoft }}>{formatTimeRange(c.time, c.end_time)} · {enrolled}/{c.capacity} enrolled</div>
-                      <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>
+                      <div style={{ fontWeight: 600, fontSize: 16, color: T.ink, marginBottom: 4 }}>{c.label}</div>
+                      <div style={{ fontSize: 13.5, color: T.inkSoft, marginBottom: 3 }}>{formatTimeRange(c.time, c.end_time)} · {enrolled}/{c.capacity} enrolled</div>
+                      <div style={{ fontSize: 12, color: T.inkSoft, marginBottom: 6 }}>
                         {c.start_date || c.end_date
                           ? `${c.start_date ? c.start_date : "No start"} → ${c.end_date ? c.end_date : "Ongoing"}`
                           : "No date range set — always shows on the calendar"}
                       </div>
-                      {levelById[c.level_id] && <div style={{ marginTop: 4 }}><LevelBadge level={levelById[c.level_id]} /></div>}
+                      {levelById[c.level_id] && <div>{<LevelBadge level={levelById[c.level_id]} />}</div>}
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => setEditing(c)} style={{ color: T.maroon, fontSize: 12 }}>Edit</button>
-                      <button onClick={() => setConfirmRemove(c)} style={{ color: T.terracotta, fontSize: 12 }}>Remove</button>
+                    <div className="flex gap-3">
+                      <button onClick={() => setEditing(c)} style={{ color: T.maroon, fontSize: 13, fontWeight: 500 }}>Edit</button>
+                      <button onClick={() => setConfirmRemove(c)} style={{ color: T.terracotta, fontSize: 13, fontWeight: 500 }}>Remove</button>
                     </div>
                   </div>
                 </div>

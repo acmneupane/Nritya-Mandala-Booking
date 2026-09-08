@@ -97,47 +97,47 @@ export default function LevelsView() {
         <Btn onClick={() => setAddingLevel(true)}>+ Add level</Btn>
       </div>
       {levels.length === 0 && <p style={{ color: T.inkSoft, marginBottom: 16 }}>No levels defined yet. Add your first one — use the up/down arrows to set the order students progress through.</p>}
-      <div className="grid gap-3 mb-8">
+      <div className="grid gap-4 mb-8">
         {levels.map((l, i) => (
-          <div key={l.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.sage}`, borderRadius: 8, padding: 12 }}>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="flex flex-col" style={{ gap: 1 }}>
-                <button onClick={() => moveLevel(l.id, -1)} disabled={i === 0} style={{ color: i === 0 ? `${T.inkSoft}55` : T.maroon, lineHeight: 0.6 }} title="Move up">▲</button>
-                <button onClick={() => moveLevel(l.id, 1)} disabled={i === levels.length - 1} style={{ color: i === levels.length - 1 ? `${T.inkSoft}55` : T.maroon, lineHeight: 0.6 }} title="Move down">▼</button>
+          <div key={l.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `5px solid ${T.sage}`, borderRadius: 10, padding: 18 }}>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex flex-col" style={{ gap: 2 }}>
+                <button onClick={() => moveLevel(l.id, -1)} disabled={i === 0} style={{ color: i === 0 ? `${T.inkSoft}55` : T.maroon, lineHeight: 0.7, fontSize: 15 }} title="Move up">▲</button>
+                <button onClick={() => moveLevel(l.id, 1)} disabled={i === levels.length - 1} style={{ color: i === levels.length - 1 ? `${T.inkSoft}55` : T.maroon, lineHeight: 0.7, fontSize: 15 }} title="Move down">▼</button>
               </div>
-              <span style={{ fontSize: 12, color: T.inkSoft, width: 18 }}>{i + 1}.</span>
+              <span style={{ fontSize: 14, color: T.inkSoft, width: 22 }}>{i + 1}.</span>
               <input
-                style={{ ...inputStyle, fontFamily: "Fraunces, serif", fontSize: 15, fontWeight: 600, border: "none", padding: "2px 0", width: "auto", flex: 1 }}
+                style={{ ...inputStyle, fontFamily: "Fraunces, serif", fontSize: 19, fontWeight: 600, border: "none", padding: "2px 0", width: "auto", flex: 1 }}
                 value={l.name}
                 onChange={(e) => updateLevelField(l.id, "name", e.target.value)}
                 onBlur={(e) => persistLevelField(l.id, "name", e.target.value)}
               />
             </div>
             <input
-              style={{ ...inputStyle, fontSize: 12, border: "none", padding: "2px 0", color: T.inkSoft, marginLeft: 26 }}
+              style={{ ...inputStyle, fontSize: 13.5, border: "none", padding: "2px 0", color: T.inkSoft, marginLeft: 34 }}
               value={l.description || ""}
               onChange={(e) => updateLevelField(l.id, "description", e.target.value)}
               onBlur={(e) => persistLevelField(l.id, "description", e.target.value)}
               placeholder="What this level means…"
             />
-            <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 4, marginLeft: 26 }}>{students.filter((s) => s.level_id === l.id).length} students at this level</div>
+            <div style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 8, marginLeft: 34 }}>{students.filter((s) => s.level_id === l.id).length} students at this level</div>
           </div>
         ))}
       </div>
 
       {levels.length > 0 && (
         <>
-          <h4 style={{ fontFamily: "Fraunces, serif", color: T.maroonDark, fontSize: 16, marginBottom: 10 }}>Update a student's level</h4>
-          <div className="grid gap-2">
+          <h4 style={{ fontFamily: "Fraunces, serif", color: T.maroonDark, fontSize: 18, marginBottom: 12 }}>Update a student's level</h4>
+          <div className="grid gap-3">
             {students.map((s) => {
               const current = levels.find((l) => l.id === s.level_id);
               return (
-                <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${T.line}`, borderRadius: 6, padding: "8px 10px", background: "#fff" }}>
+                <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${T.line}`, borderRadius: 8, padding: "12px 14px", background: "#fff" }} className="flex-wrap gap-2">
                   <div>
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{s.name}</span>
-                    <span style={{ fontSize: 12, color: T.inkSoft, marginLeft: 8 }}>{current ? current.name : "Unassigned"}</span>
+                    <span style={{ fontSize: 15, fontWeight: 500 }}>{s.name}</span>
+                    <span style={{ fontSize: 13, color: T.inkSoft, marginLeft: 10 }}>{current ? current.name : "Unassigned"}</span>
                   </div>
-                  <select style={{ ...inputStyle, width: 180 }} value={s.level_id || ""} onChange={(e) => promote(s.id, e.target.value)}>
+                  <select style={{ ...inputStyle, width: 190 }} value={s.level_id || ""} onChange={(e) => promote(s.id, e.target.value)}>
                     <option value="">Unassigned</option>
                     {levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>

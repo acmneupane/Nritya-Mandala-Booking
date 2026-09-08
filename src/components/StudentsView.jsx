@@ -437,32 +437,32 @@ export default function StudentsView() {
           <p>{showArchived ? "No archived students." : "No students yet. Add the first one to get started."}</p>
         </div>
       )}
-      <div className="grid gap-3">
+      <div className="grid gap-4">
         {filtered.map((s) => {
           const pkg = pkgSummaryByStudent[s.id];
           const remaining = pkg ? pkg.classes_total - pkg.classes_used : 0;
           return (
-            <div key={s.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${s.archived ? T.inkSoft : T.gold}`, borderRadius: 8, padding: 14, opacity: s.archived ? 0.7 : 1 }} className="flex items-center justify-between flex-wrap gap-2">
+            <div key={s.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `5px solid ${s.archived ? T.inkSoft : T.gold}`, borderRadius: 10, padding: 18, opacity: s.archived ? 0.7 : 1 }} className="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark }}>{s.name}</span>
-                  {s.dob && computeAge(s.dob) != null && <span style={{ fontSize: 12, color: T.inkSoft }}>· {computeAge(s.dob)}y</span>}
-                  <span style={{ fontSize: 11, color: T.gold, fontWeight: 700, letterSpacing: 1 }}>· {s.code}</span>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span style={{ fontFamily: "Fraunces, serif", fontSize: 19, color: T.maroonDark }}>{s.name}</span>
+                  {s.dob && computeAge(s.dob) != null && <span style={{ fontSize: 13, color: T.inkSoft }}>· {computeAge(s.dob)}y</span>}
+                  <span style={{ fontSize: 12, color: T.gold, fontWeight: 700, letterSpacing: 1 }}>· {s.code}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <LevelBadge level={levelById[s.level_id]} />
                   <PackageBadge remaining={remaining} hasAny={!!pkg && pkg.classes_total > 0} />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {!s.archived && <button onClick={() => setShowingQr(s)} style={{ color: T.gold }}>QR code</button>}
-                {!s.archived && <button onClick={() => setEditing(s)} style={{ color: T.maroon }}>Edit</button>}
+              <div className="flex items-center gap-3 flex-wrap">
+                {!s.archived && <button onClick={() => setShowingQr(s)} style={{ color: T.gold, fontSize: 14, fontWeight: 500 }}>QR code</button>}
+                {!s.archived && <button onClick={() => setEditing(s)} style={{ color: T.maroon, fontSize: 14, fontWeight: 500 }}>Edit</button>}
                 {s.archived ? (
-                  <button onClick={() => doArchive(s.id, false)} style={{ color: T.sage }}>Restore</button>
+                  <button onClick={() => doArchive(s.id, false)} style={{ color: T.sage, fontSize: 14, fontWeight: 500 }}>Restore</button>
                 ) : (
-                  <button onClick={() => setConfirmArchive(s)} style={{ color: T.inkSoft }}>Archive</button>
+                  <button onClick={() => setConfirmArchive(s)} style={{ color: T.inkSoft, fontSize: 14, fontWeight: 500 }}>Archive</button>
                 )}
-                <button onClick={() => setConfirmRemove(s)} style={{ color: T.terracotta }}>Delete</button>
+                <button onClick={() => setConfirmRemove(s)} style={{ color: T.terracotta, fontSize: 14, fontWeight: 500 }}>Delete</button>
               </div>
             </div>
           );
