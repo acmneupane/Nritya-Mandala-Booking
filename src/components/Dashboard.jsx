@@ -9,6 +9,7 @@ import LevelsView from "./LevelsView";
 import HistoryView from "./HistoryView";
 import RequestsView from "./RequestsView";
 import SettingsView from "./SettingsView";
+import ShareEnrollLink from "./ShareEnrollLink";
 
 const NAV = [
   { id: "calendar", label: "Calendar" },
@@ -96,9 +97,12 @@ export default function Dashboard() {
       </aside>
 
       <main className="md:flex-1" style={{ padding: "18px 14px", overflowX: "hidden", minWidth: 0 }}>
-        <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 16 }}>
-          {NAV.find((n) => n.id === tab)?.label}
-        </h2>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark }}>
+            {NAV.find((n) => n.id === tab)?.label}
+          </h2>
+          <ShareEnrollLink compact />
+        </div>
         {tab === "students" && <StudentsView />}
         {tab === "calendar" && <CalendarView />}
         {tab === "requests" && <RequestsView />}

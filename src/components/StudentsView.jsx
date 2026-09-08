@@ -6,6 +6,7 @@ import QrModal from "./QrCode";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { computeAge } from "../lib/age";
 import { generateStudentCode } from "../lib/studentCode";
+import { formatTimeRange } from "../lib/scheduling";
 
 function LevelBadge({ level }) {
   if (!level) return <span style={{ fontSize: 12, color: T.inkSoft }}>Unassigned</span>;
@@ -370,6 +371,62 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   );
 }
 
+function BookClassModal({ student, onClose, onBooked }) {
+  const [classes, setClasses] = useState([]);
+  const [enrolledIds, setEnrolledIds] = useState([]);
+  const [selected, setSelected] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from("classes").select("*"),
+      supabase.from("enrollments").select("class_id").eq("student_id", student.id),
+    ]).then(([cRes, eRes]) => {
+      setClasses((cRes.data || []).slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
+      setEnrolledIds((eRes.data || []).map((e) => e.class_id));
+      setLoading(false);
+    });
+  }, [student.id]);
+
+  const available = classes.filter((c) => !enrolledIds.includes(c.id));
+
+  const book = async () => {
+    if (!selected) return;
+    setSaving(true);
+    setError("");
+    const { error } = await supabase.from("enrollments").insert({ student_id: student.id, class_id: selected });
+    setSaving(false);
+    if (error) { setError(error.message); return; }
+    onBooked();
+  };
+
+  return (
+    <Modal title={`Book ${student.name} into a class`} onClose={onClose}>
+      {loading ? (
+        <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>
+      ) : available.length === 0 ? (
+        <p style={{ fontSize: 13, color: T.inkSoft }}>{classes.length === 0 ? "No classes set up yet — add one under the Classes tab first." : "Already booked into every class."}</p>
+      ) : (
+        <>
+          <Field label="Class">
+            <select style={inputStyle} value={selected} onChange={(e) => setSelected(e.target.value)}>
+              <option value="">Select a class…</option>
+              {available.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+            </select>
+          </Field>
+          {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
+          <div className="flex justify-end gap-2 mt-2">
+            <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+            <Btn onClick={book} disabled={saving || !selected}>{saving ? "Booking…" : "Book"}</Btn>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
 export default function StudentsView() {
   const [students, setStudents] = useState([]);
   const [levels, setLevels] = useState([]);
@@ -381,6 +438,7 @@ export default function StudentsView() {
   const [confirmArchive, setConfirmArchive] = useState(null);
   const [confirmRemove, setConfirmRemove] = useState(null);
   const [showingQr, setShowingQr] = useState(null);
+  const [booking, setBooking] = useState(null);
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
 
@@ -456,6 +514,7 @@ export default function StudentsView() {
               </div>
               <div className="flex items-center gap-3 flex-wrap">
                 {!s.archived && <button onClick={() => setShowingQr(s)} style={{ color: T.gold, fontSize: 14, fontWeight: 500 }}>QR code</button>}
+                {!s.archived && <button onClick={() => setBooking(s)} style={{ color: T.sage, fontSize: 14, fontWeight: 500 }}>Book class</button>}
                 {!s.archived && <button onClick={() => setEditing(s)} style={{ color: T.maroon, fontSize: 14, fontWeight: 500 }}>Edit</button>}
                 {s.archived ? (
                   <button onClick={() => doArchive(s.id, false)} style={{ color: T.sage, fontSize: 14, fontWeight: 500 }}>Restore</button>
@@ -478,6 +537,7 @@ export default function StudentsView() {
         />
       )}
       {showingQr && <QrModal student={showingQr} onClose={() => setShowingQr(null)} />}
+      {booking && <BookClassModal student={booking} onClose={() => setBooking(null)} onBooked={() => { setBooking(null); load(); }} />}
       {confirmArchive && (
         <ConfirmModal
           title="Archive this student?"

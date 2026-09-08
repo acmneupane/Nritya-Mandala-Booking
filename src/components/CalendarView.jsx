@@ -5,6 +5,7 @@ import { Btn, Field, Modal, ConfirmModal } from "./ui";
 import { isClassActiveOn, formatTimeRange } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
 import QrScanner from "./QrScanner";
+import ShareEnrollLink from "./ShareEnrollLink";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const VIEW_MODES = [
@@ -315,6 +316,9 @@ export default function CalendarView() {
 
   return (
     <div>
+      <div className="flex justify-end mb-2">
+        <ShareEnrollLink compact />
+      </div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <button onClick={() => setAnchor((a) => navAnchor(viewMode, a, -1))} style={{ color: T.maroon, fontSize: 16 }}>←</button>
