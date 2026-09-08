@@ -1,7 +1,51 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field } from "./ui";
+
+function EmailTemplateEditor() {
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    supabase.from("email_templates").select("subject, body").eq("key", "enrollment_approved").maybeSingle().then(({ data }) => {
+      if (data) { setSubject(data.subject); setBody(data.body); }
+      setLoading(false);
+    });
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    await supabase.from("email_templates").update({ subject, body, updated_at: new Date().toISOString() }).eq("key", "enrollment_approved");
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  if (loading) return <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>;
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Enrolment approval email</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        Sent automatically to the parent when you approve their request. Available placeholders:{" "}
+        <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>{"{{student_name}}"}</code>{" "}
+        <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>{"{{day}}"}</code>{" "}
+        <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>{"{{start_date}}"}</code>{" "}
+        <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>{"{{qr_link}}"}</code>{" "}
+        <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>{"{{qr_code_image}}"}</code>
+      </p>
+      <Field label="Subject"><input style={inputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
+      <Field label="Body"><textarea style={{ ...inputStyle, minHeight: 220, fontFamily: "monospace", fontSize: 13 }} value={body} onChange={(e) => setBody(e.target.value)} /></Field>
+      {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
+      <Btn onClick={save} disabled={saving}>{saving ? "Saving…" : "Save template"}</Btn>
+    </div>
+  );
+}
 
 export default function SettingsView() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -53,7 +97,7 @@ export default function SettingsView() {
   };
 
   return (
-    <div style={{ maxWidth: 380 }}>
+    <div style={{ maxWidth: 460 }}>
       <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18 }}>
         <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 14 }}>Change password</h3>
         <Field label="Current password"><input style={inputStyle} type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" /></Field>
@@ -63,6 +107,7 @@ export default function SettingsView() {
         {success && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Password updated.</p>}
         <Btn onClick={changePassword} disabled={saving}>{saving ? "Updating…" : "Update password"}</Btn>
       </div>
+      <EmailTemplateEditor />
     </div>
   );
 }

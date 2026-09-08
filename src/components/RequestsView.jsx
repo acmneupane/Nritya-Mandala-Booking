@@ -41,6 +41,7 @@ function ApproveModal({ request, levels, classes, classById, onClose, onApproved
         emergencyGuardian = data;
       }
 
+      const emailStudents = [];
       for (const s of students) {
         const code = await generateStudentCode(supabase, s.name);
         const { data: created, error: sErr } = await supabase.from("students").insert({
@@ -61,12 +62,26 @@ function ApproveModal({ request, levels, classes, classById, onClose, onApproved
           await supabase.from("enrollments").insert({ student_id: created.id, class_id: s.preferredClassId });
         }
         await supabase.from("enrollment_request_students").update({ created_student_id: created.id }).eq("id", s.id);
+
+        const bookedClass = s.preferredClassId ? classById[s.preferredClassId] : null;
+        emailStudents.push({
+          name: s.name.trim(), code,
+          day: bookedClass?.day || null,
+          startDate: bookedClass?.start_date || null,
+        });
       }
 
       const { error: updErr } = await supabase.from("enrollment_requests").update({
         status: "approved", reviewed_at: new Date().toISOString(),
       }).eq("id", request.id);
       if (updErr) throw updErr;
+
+      // Best-effort — a failed confirmation email shouldn't block the approval itself.
+      if (request.guardian_email) {
+        supabase.functions.invoke("send-approval-email", {
+          body: { guardianEmail: request.guardian_email, students: emailStudents },
+        }).catch((e) => console.error("send-approval-email failed", e));
+      }
 
       onApproved();
     } catch (e) {
