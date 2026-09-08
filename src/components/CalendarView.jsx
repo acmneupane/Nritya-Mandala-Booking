@@ -351,26 +351,28 @@ export default function CalendarView() {
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <button onClick={() => setAnchor((a) => navAnchor(viewMode, a, -1))} style={{ color: T.maroon, fontSize: 16 }}>←</button>
-          <span style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>{rangeLabel(viewMode, anchor, dates)}</span>
-          <button onClick={() => setAnchor((a) => navAnchor(viewMode, a, 1))} style={{ color: T.maroon, fontSize: 16 }}>→</button>
-          {!isAnchorToday && <button onClick={() => setAnchor(new Date())} style={{ fontSize: 12, color: T.inkSoft, marginLeft: 6 }}>Today</button>}
+          <button onClick={() => setAnchor((a) => navAnchor(viewMode, a, -1))} style={{ color: T.maroon, fontSize: 16, flexShrink: 0 }}>←</button>
+          <span style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, minWidth: 190, textAlign: "center", display: "inline-block" }}>{rangeLabel(viewMode, anchor, dates)}</span>
+          <button onClick={() => setAnchor((a) => navAnchor(viewMode, a, 1))} style={{ color: T.maroon, fontSize: 16, flexShrink: 0 }}>→</button>
         </div>
-        <div className="flex gap-1" style={{ background: T.paper, borderRadius: 8, padding: 3 }}>
-          {VIEW_MODES.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => setViewMode(m.id)}
-              style={{
-                fontSize: 12, padding: "5px 12px", borderRadius: 6,
-                background: viewMode === m.id ? "#fff" : "transparent",
-                color: viewMode === m.id ? T.maroonDark : T.inkSoft,
-                fontWeight: viewMode === m.id ? 600 : 400,
-              }}
-            >
-              {m.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          {!isAnchorToday && <button onClick={() => setAnchor(new Date())} style={{ fontSize: 12, color: T.inkSoft }}>Today</button>}
+          <div className="flex gap-1" style={{ background: T.paper, borderRadius: 8, padding: 3 }}>
+            {VIEW_MODES.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setViewMode(m.id)}
+                style={{
+                  fontSize: 12, padding: "5px 12px", borderRadius: 6,
+                  background: viewMode === m.id ? "#fff" : "transparent",
+                  color: viewMode === m.id ? T.maroonDark : T.inkSoft,
+                  fontWeight: viewMode === m.id ? 600 : 400,
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
