@@ -23,6 +23,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [cardDataUrl, setCardDataUrl] = useState(null);
   const [markingBusy, setMarkingBusy] = useState(null);
   const [markAbsentOpen, setMarkAbsentOpen] = useState(false);
+  const [singleMarkAbsent, setSingleMarkAbsent] = useState(null);
 
   const today = new Date();
   const todayStr = localDateStr(today);
@@ -104,14 +105,27 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
         )}
 
         {overallNext && (
-          <div style={{ background: `${T.sage}18`, border: `1px solid ${T.sage}55`, borderRadius: 8, padding: "8px 14px", marginBottom: 14, fontSize: 13, fontWeight: 600, color: T.sage }}>
-            Next class: {overallNext.occ.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}, {formatTimeRange(overallNext.cls.time, overallNext.cls.end_time)}
+          <div style={{ background: "#fff", border: `2px solid ${T.sage}`, borderRadius: 10, padding: "18px 16px", marginBottom: 14, textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600, letterSpacing: 0.5, marginBottom: 4 }}>NEXT CLASS</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: T.sage, marginBottom: 10 }}>
+              {overallNext.occ.date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}, {formatTimeRange(overallNext.cls.time, overallNext.cls.end_time)}
+            </div>
+            <button
+              onClick={() => setSingleMarkAbsent({ classId: overallNext.cls.id, day: overallNext.cls.day, time: overallNext.cls.time, endTime: overallNext.cls.end_time, date: overallNext.occ.date, dateStr: overallNext.occ.dateStr })}
+              style={{ fontSize: 13, fontWeight: 500, color: T.terracotta, border: `1px solid ${T.terracotta}55`, borderRadius: 999, padding: "6px 14px", background: "#fff" }}
+            >
+              Mark absent for this class
+            </button>
           </div>
         )}
 
-        {pkgSummary && pkgSummary.classes_total > 0 && (
+        {pkgSummary && pkgSummary.classes_total > 0 ? (
           <div style={{ background: remaining > 0 ? `${T.sage}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 13, fontWeight: 600, color: remaining > 0 ? T.sage : T.terracotta }}>
             {remaining} class{remaining === 1 ? "" : "es"} remaining on your package
+          </div>
+        ) : (
+          <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 13, fontWeight: 600, color: T.gold }}>
+            Pending package payment and confirmation
           </div>
         )}
 
@@ -229,6 +243,16 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           remaining={pkgSummary ? pkgSummary.classes_total - pkgSummary.classes_used : null}
           onClose={() => setMarkAbsentOpen(false)}
           onDone={() => { setMarkAbsentOpen(false); load(); }}
+        />
+      )}
+      {singleMarkAbsent && (
+        <MarkAbsentModal
+          student={student}
+          classes={classes}
+          skips={skips}
+          lockTo={singleMarkAbsent}
+          onClose={() => setSingleMarkAbsent(null)}
+          onDone={() => { setSingleMarkAbsent(null); load(); }}
         />
       )}
     </div>

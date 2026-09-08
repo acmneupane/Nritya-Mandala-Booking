@@ -12,21 +12,24 @@ import { localDateStr } from "../lib/dates";
 // no point offering to mark absent for classes they haven't paid for — and, since
 // upcomingOccurrencesOf already filters out anything the studio has skipped, it never
 // shows a date the admin has cancelled.
-export default function MarkAbsentModal({ student, classes, skips, remaining, onClose, onDone }) {
+export default function MarkAbsentModal({ student, classes, skips, remaining, lockTo, onClose, onDone }) {
   const cap = typeof remaining === "number" && remaining > 0 ? remaining : 8;
   // Pull a generous pool per class, merge everything chronologically, then keep only
-  // as many as the student actually has left on their package.
-  const options = classes
-    .flatMap((c) =>
-      upcomingOccurrencesOf(c, skips, localDateStr, { count: cap }).map((occ) => ({
-        classId: c.id, day: c.day, time: c.time, endTime: c.end_time, date: occ.date, dateStr: occ.dateStr,
-        key: `${c.id}-${occ.dateStr}`,
-      }))
-    )
-    .sort((a, b) => a.dateStr.localeCompare(b.dateStr))
-    .slice(0, cap);
+  // as many as the student actually has left on their package. If lockTo is given
+  // (marking just the next class from the banner), skip all that and use it alone.
+  const options = lockTo
+    ? [{ classId: lockTo.classId, day: lockTo.day, time: lockTo.time, endTime: lockTo.endTime, date: lockTo.date, dateStr: lockTo.dateStr, key: `${lockTo.classId}-${lockTo.dateStr}` }]
+    : classes
+        .flatMap((c) =>
+          upcomingOccurrencesOf(c, skips, localDateStr, { count: cap }).map((occ) => ({
+            classId: c.id, day: c.day, time: c.time, endTime: c.end_time, date: occ.date, dateStr: occ.dateStr,
+            key: `${c.id}-${occ.dateStr}`,
+          }))
+        )
+        .sort((a, b) => a.dateStr.localeCompare(b.dateStr))
+        .slice(0, cap);
 
-  const [selected, setSelected] = useState(new Set());
+  const [selected, setSelected] = useState(new Set(lockTo ? [options[0].key] : []));
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -58,15 +61,25 @@ export default function MarkAbsentModal({ student, classes, skips, remaining, on
   };
 
   return (
-    <Modal title="Mark upcoming classes as absent" onClose={onClose} wide>
+    <Modal title={lockTo ? "Mark this class as absent" : "Mark upcoming classes as absent"} onClose={onClose} wide={!lockTo}>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
-        {typeof remaining === "number" && remaining > 0 && (
-          <>Showing {student.name}'s next {cap} class{cap === 1 ? "" : "es"}, based on the remaining package balance. </>
+        {lockTo ? (
+          <>Confirm {student.name} will miss {options[0].date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })} and add a reason.</>
+        ) : (
+          <>
+            {typeof remaining === "number" && remaining > 0 && (
+              <>Showing {student.name}'s next {cap} class{cap === 1 ? "" : "es"}, based on the remaining package balance. </>
+            )}
+            Select which ones will be missed, add a reason, and confirm.
+          </>
         )}
-        Select which ones will be missed, add a reason, and confirm.
       </p>
       {options.length === 0 ? (
         <p style={{ fontSize: 13, color: T.inkSoft }}>No upcoming classes found.</p>
+      ) : lockTo ? (
+        <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: "10px 12px", marginBottom: 12, fontSize: 14, fontWeight: 600, color: T.ink, textAlign: "center" }}>
+          {options[0].date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · {formatTimeRange(options[0].time, options[0].endTime)}
+        </div>
       ) : (
         <div className="grid gap-2 mb-4" style={{ maxHeight: 260, overflowY: "auto" }}>
           {options.map((o) => (
@@ -90,7 +103,7 @@ export default function MarkAbsentModal({ student, classes, skips, remaining, on
       <div className="flex justify-end gap-2">
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
         <Btn variant="danger" onClick={confirm} disabled={saving || selected.size === 0}>
-          {saving ? "Marking…" : `Mark absent for ${selected.size || ""} class${selected.size === 1 ? "" : "es"}`}
+          {saving ? "Marking…" : lockTo ? "Mark absent" : `Mark absent for ${selected.size || ""} class${selected.size === 1 ? "" : "es"}`}
         </Btn>
       </div>
     </Modal>
