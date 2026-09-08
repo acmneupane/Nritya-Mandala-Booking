@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
+import { localDateStr } from "../lib/dates";
 
 function AddLevelModal({ nextOrder, onClose, onSaved }) {
   const [name, setName] = useState("");
@@ -82,7 +83,7 @@ export default function LevelsView() {
   const promote = async (studentId, levelId) => {
     await supabase.from("students").update({ level_id: levelId || null }).eq("id", studentId);
     if (levelId) {
-      await supabase.from("level_history").insert({ student_id: studentId, level_id: levelId, date: new Date().toISOString().slice(0, 10) });
+      await supabase.from("level_history").insert({ student_id: studentId, level_id: levelId, date: localDateStr(new Date()) });
     }
     load();
   };

@@ -4,6 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn, Field } from "./ui";
 import { RELATION_OPTIONS } from "../lib/relations";
+import { formatTimeRange } from "../lib/scheduling";
 
 const MAX_SIBLINGS = 2;
 
@@ -24,7 +25,7 @@ function ImportantInfo({ preferredClass }) {
       <InfoSection title="Location & Time">
         72 Central Avenue, Oran Park, NSW 2570<br />
         {preferredClass ? (
-          <>Requested time: <strong>{preferredClass.time}</strong></>
+          <>Requested time: <strong>{formatTimeRange(preferredClass.time, preferredClass.end_time)}</strong></>
         ) : (
           <span style={{ color: T.inkSoft }}>Select a preferred class above to see its time here.</span>
         )}
@@ -91,7 +92,7 @@ function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
       <Field label="Preferred class">
         <select style={inputStyle} value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
           <option value="">Not sure</option>
-          {classes.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {c.time}</option>)}
+          {classes.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
         </select>
       </Field>
     </div>
@@ -121,7 +122,7 @@ export default function EnrollForm() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    supabase.from("classes").select("id, label, day, time").then(({ data }) => {
+    supabase.from("classes").select("id, label, day, time, end_time").then(({ data }) => {
       setClasses((data || []).slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
     });
   }, []);
@@ -229,7 +230,7 @@ export default function EnrollForm() {
             <Field label="Preferred class">
               <select style={inputStyle} value={preferredClassId} onChange={(e) => setPreferredClassId(e.target.value)}>
                 <option value="">Not sure</option>
-                {classes.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {c.time}</option>)}
+                {classes.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
               </select>
             </Field>
           </div>

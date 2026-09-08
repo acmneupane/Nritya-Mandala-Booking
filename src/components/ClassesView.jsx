@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
+import { formatTimeRange } from "../lib/scheduling";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -14,6 +15,7 @@ function ClassModal({ initial, levels, onSave, onClose }) {
   const [label, setLabel] = useState(initial?.label || "");
   const [day, setDay] = useState(initial?.day || "Saturday");
   const [time, setTime] = useState(initial?.time || "10:00");
+  const [endTime, setEndTime] = useState(initial?.end_time || "");
   const [levelId, setLevelId] = useState(initial?.level_id || "");
   const [capacity, setCapacity] = useState(initial?.capacity || 12);
   const [startDate, setStartDate] = useState(initial?.start_date || "");
@@ -27,10 +29,14 @@ function ClassModal({ initial, levels, onSave, onClose }) {
       setError("End date can't be before the start date.");
       return;
     }
+    if (endTime && endTime <= time) {
+      setError("End time must be after the start time.");
+      return;
+    }
     setSaving(true);
     setError("");
     const payload = {
-      label: label.trim(), day, time, level_id: levelId || null, capacity: Number(capacity) || 12,
+      label: label.trim(), day, time, end_time: endTime || null, level_id: levelId || null, capacity: Number(capacity) || 12,
       start_date: startDate || null, end_date: endDate || null,
     };
     const { error } = initial?.id
@@ -50,7 +56,11 @@ function ClassModal({ initial, levels, onSave, onClose }) {
             {DAYS.map((d) => <option key={d}>{d}</option>)}
           </select>
         </Field>
-        <Field label="Time"><input style={inputStyle} type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
+        <Field label="Start time"><input style={inputStyle} type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="End time (optional)"><input style={inputStyle} type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} /></Field>
+        <Field label="Capacity"><input style={inputStyle} type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} /></Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Level focus (optional)">
@@ -59,7 +69,6 @@ function ClassModal({ initial, levels, onSave, onClose }) {
             {levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         </Field>
-        <Field label="Capacity"><input style={inputStyle} type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} /></Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Term starts"><input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
@@ -127,7 +136,7 @@ export default function ClassesView() {
                   <div className="flex justify-between items-start">
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 13, color: T.ink }}>{c.label}</div>
-                      <div style={{ fontSize: 12, color: T.inkSoft }}>{c.time} · {enrolled}/{c.capacity} enrolled</div>
+                      <div style={{ fontSize: 12, color: T.inkSoft }}>{formatTimeRange(c.time, c.end_time)} · {enrolled}/{c.capacity} enrolled</div>
                       <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>
                         {c.start_date || c.end_date
                           ? `${c.start_date ? c.start_date : "No start"} → ${c.end_date ? c.end_date : "Ongoing"}`

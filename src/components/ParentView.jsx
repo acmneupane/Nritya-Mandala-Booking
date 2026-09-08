@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn } from "./ui";
+import { localDateStr } from "../lib/dates";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -16,7 +17,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [loading, setLoading] = useState(true);
 
   const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = localDateStr(today);
   const todayDayName = DAYS[(today.getDay() + 6) % 7];
 
   const load = async () => {

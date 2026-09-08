@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
 import { generateStudentCode } from "../lib/studentCode";
+import { formatTimeRange } from "../lib/scheduling";
 
 function ApproveModal({ request, levels, classes, classById, onClose, onApproved }) {
   const [students, setStudents] = useState(
@@ -96,12 +97,12 @@ function ApproveModal({ request, levels, classes, classById, onClose, onApproved
             <Field label="Book into class">
               <select style={inputStyle} value={s.preferredClassId} onChange={(e) => updateStudent(i, "preferredClassId", e.target.value)}>
                 <option value="">Don't book yet</option>
-                {classes.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {c.time}</option>)}
+                {classes.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
               </select>
             </Field>
           </div>
           {s.preferredClassId && classById[s.preferredClassId] && (
-            <p style={{ fontSize: 11, color: T.sage }}>Requested: {classById[s.preferredClassId].label} — {classById[s.preferredClassId].day} {classById[s.preferredClassId].time}</p>
+            <p style={{ fontSize: 11, color: T.sage }}>Requested: {classById[s.preferredClassId].label} — {classById[s.preferredClassId].day} {formatTimeRange(classById[s.preferredClassId].time, classById[s.preferredClassId].end_time)}</p>
           )}
         </div>
       ))}

@@ -6,3 +6,9 @@ export function isClassActiveOn(cls, dateStr) {
   if (cls.end_date && dateStr > cls.end_date) return false;
   return true;
 }
+
+// "10:00" + "11:00" -> "10:00 – 11:00"; falls back to just the start time if no end set.
+export function formatTimeRange(start, end) {
+  if (!start) return "";
+  return end ? `${start} – ${end}` : start;
+}

@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
-import { isClassActiveOn } from "../lib/scheduling";
+import { isClassActiveOn, formatTimeRange } from "../lib/scheduling";
+import { localDateStr } from "../lib/dates";
 import QrScanner from "./QrScanner";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -175,7 +176,7 @@ function SkipModal({ cls, onClose, onSaved }) {
 // Full inline day view: every class scheduled that weekday, with its complete
 // roster and attendance controls right on the page — no click-through needed.
 function DayView({ date, classes, skips, onSkip, onUnskip, onChanged }) {
-  const dateStr = date.toISOString().slice(0, 10);
+  const dateStr = localDateStr(date);
   const dayName = DAYS[(date.getDay() + 6) % 7];
   const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr)).sort((a, b) => a.time.localeCompare(b.time));
   const [scanningClass, setScanningClass] = useState(null);
@@ -215,7 +216,7 @@ function DayView({ date, classes, skips, onSkip, onUnskip, onChanged }) {
             <div className="flex items-center justify-between mb-2">
               <div>
                 <span style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark }}>{c.label}</span>
-                <span style={{ fontSize: 13, color: T.inkSoft, marginLeft: 8 }}>{c.time}</span>
+                <span style={{ fontSize: 13, color: T.inkSoft, marginLeft: 8 }}>{formatTimeRange(c.time, c.end_time)}</span>
               </div>
               {skip ? (
                 <button onClick={() => onUnskip(skip)} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skipped{skip.reason ? ` — ${skip.reason}` : ""} · Undo</button>
@@ -285,11 +286,11 @@ export default function CalendarView() {
   };
 
   const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = localDateStr(today);
   const dates = datesForView(viewMode, anchor);
   const isAnchorToday = viewMode === "day"
-    ? anchor.toISOString().slice(0, 10) === todayStr
-    : dates[0].toISOString().slice(0, 10) <= todayStr && todayStr <= dates[dates.length - 1].toISOString().slice(0, 10);
+    ? localDateStr(anchor) === todayStr
+    : localDateStr(dates[0]) <= todayStr && todayStr <= localDateStr(dates[dates.length - 1]);
 
   if (loading) return <p style={{ color: T.inkSoft }}>Loading…</p>;
 
@@ -325,7 +326,7 @@ export default function CalendarView() {
       ) : (
         <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
           {dates.map((date, i) => {
-            const dateStr = date.toISOString().slice(0, 10);
+            const dateStr = localDateStr(date);
             const isToday = dateStr === todayStr;
             const dayName = DAYS[(date.getDay() + 6) % 7];
             const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr));
@@ -341,7 +342,7 @@ export default function CalendarView() {
                   if (skip) {
                     return (
                       <div key={c.id} style={{ background: `${T.terracotta}12`, border: `1px dashed ${T.terracotta}55`, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: T.terracotta }}>{c.time} {c.label} — Skipped</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: T.terracotta }}>{formatTimeRange(c.time, c.end_time)} {c.label} — Skipped</div>
                         {skip.reason && <div style={{ fontSize: 11, color: T.inkSoft }}>{skip.reason}</div>}
                         <button onClick={() => setConfirmUnskip(skip)} style={{ fontSize: 11, color: T.inkSoft, textDecoration: "underline", marginTop: 2 }}>Undo skip</button>
                       </div>
@@ -350,7 +351,7 @@ export default function CalendarView() {
                   return (
                     <div key={c.id} style={{ background: T.paper, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
                       <button onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none" }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: T.maroonDark }}>{c.time} {c.label}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
                         <div style={{ fontSize: 11, color: T.inkSoft }}>{bookedCount} booked</div>
                       </button>
                       <button onClick={() => setSkippingClass({ ...c, dateStr })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
