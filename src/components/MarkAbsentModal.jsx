@@ -8,14 +8,23 @@ import { localDateStr } from "../lib/dates";
 // Lets a parent mark several upcoming weekly classes as absences in one go — e.g.
 // "we're away for the next 5 Wednesdays" — instead of one date at a time. Requires a
 // reason as a deliberate friction step so it can't be triggered by an accidental tap.
-export default function MarkAbsentModal({ student, classes, skips, onClose, onDone }) {
-  // Flatten every enrolled class's next several occurrences into one selectable list.
-  const options = classes.flatMap((c) =>
-    upcomingOccurrencesOf(c, skips, localDateStr, { count: 10 }).map((occ) => ({
-      classId: c.id, day: c.day, time: c.time, endTime: c.end_time, date: occ.date, dateStr: occ.dateStr,
-      key: `${c.id}-${occ.dateStr}`,
-    }))
-  ).sort((a, b) => a.dateStr.localeCompare(b.dateStr));
+// The list is capped to their remaining package balance (not an arbitrary lookahead) —
+// no point offering to mark absent for classes they haven't paid for — and, since
+// upcomingOccurrencesOf already filters out anything the studio has skipped, it never
+// shows a date the admin has cancelled.
+export default function MarkAbsentModal({ student, classes, skips, remaining, onClose, onDone }) {
+  const cap = typeof remaining === "number" && remaining > 0 ? remaining : 8;
+  // Pull a generous pool per class, merge everything chronologically, then keep only
+  // as many as the student actually has left on their package.
+  const options = classes
+    .flatMap((c) =>
+      upcomingOccurrencesOf(c, skips, localDateStr, { count: cap }).map((occ) => ({
+        classId: c.id, day: c.day, time: c.time, endTime: c.end_time, date: occ.date, dateStr: occ.dateStr,
+        key: `${c.id}-${occ.dateStr}`,
+      }))
+    )
+    .sort((a, b) => a.dateStr.localeCompare(b.dateStr))
+    .slice(0, cap);
 
   const [selected, setSelected] = useState(new Set());
   const [reason, setReason] = useState("");
@@ -51,7 +60,10 @@ export default function MarkAbsentModal({ student, classes, skips, onClose, onDo
   return (
     <Modal title="Mark upcoming classes as absent" onClose={onClose} wide>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
-        Select every class {student.name} will miss, add a reason, and confirm.
+        {typeof remaining === "number" && remaining > 0 && (
+          <>Showing {student.name}'s next {cap} class{cap === 1 ? "" : "es"}, based on the remaining package balance. </>
+        )}
+        Select which ones will be missed, add a reason, and confirm.
       </p>
       {options.length === 0 ? (
         <p style={{ fontSize: 13, color: T.inkSoft }}>No upcoming classes found.</p>

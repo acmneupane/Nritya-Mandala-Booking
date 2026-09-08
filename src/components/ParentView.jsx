@@ -226,6 +226,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           student={student}
           classes={classes}
           skips={skips}
+          remaining={pkgSummary ? pkgSummary.classes_total - pkgSummary.classes_used : null}
           onClose={() => setMarkAbsentOpen(false)}
           onDone={() => { setMarkAbsentOpen(false); load(); }}
         />
