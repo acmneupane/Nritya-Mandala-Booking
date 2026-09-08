@@ -197,6 +197,12 @@ export default function RequestsView({ focusRequestId }) {
     if (focusRef.current) focusRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 
+  const viewScreenshot = async (path) => {
+    const { data, error } = await supabase.storage.from("payment-screenshots").createSignedUrl(path, 300);
+    if (error || !data) { alert("Couldn't load the screenshot."); return; }
+    window.open(data.signedUrl, "_blank");
+  };
+
   const reject = async (id) => {
     await supabase.from("enrollment_requests").update({ status: "rejected", reviewed_at: new Date().toISOString() }).eq("id", id);
     setConfirmReject(null);
@@ -254,6 +260,13 @@ export default function RequestsView({ focusRequestId }) {
                   <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>
                     Emergency: {r.emergency_same ? "same as guardian" : `${r.emergency_name} · ${r.emergency_phone}`}
                     {" · "}Video consent: <span style={{ color: r.video_consent ? T.sage : T.terracotta, fontWeight: 600 }}>{r.video_consent ? "Yes" : "No"}</span>
+                    {" · "}Payment: <span style={{ color: r.payment_claimed ? T.sage : T.inkSoft, fontWeight: 600 }}>{r.payment_claimed ? "Claimed paid" : "Not marked paid"}</span>
+                    {r.payment_screenshot_path && (
+                      <>
+                        {" · "}
+                        <button onClick={() => viewScreenshot(r.payment_screenshot_path)} style={{ color: T.gold, textDecoration: "underline" }}>View screenshot</button>
+                      </>
+                    )}
                   </div>
                   {r.notes && <div style={{ fontSize: 12, color: T.ink, marginTop: 4 }}>{r.notes}</div>}
                 </div>

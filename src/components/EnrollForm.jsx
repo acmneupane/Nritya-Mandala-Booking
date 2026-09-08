@@ -117,6 +117,8 @@ export default function EnrollForm() {
   const [videoConsent, setVideoConsent] = useState(null); // null = unanswered, true/false = Yes/No
   const [agreedToInfo, setAgreedToInfo] = useState(false);
   const [notes, setNotes] = useState("");
+  const [paymentClaimed, setPaymentClaimed] = useState(false);
+  const [paymentFile, setPaymentFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState(null);
   const [error, setError] = useState("");
@@ -154,6 +156,14 @@ export default function EnrollForm() {
     setSubmitting(true);
     setError("");
     try {
+      let screenshotPath = null;
+      if (paymentClaimed && paymentFile) {
+        const ext = paymentFile.name.split(".").pop() || "png";
+        screenshotPath = `${crypto.randomUUID()}.${ext}`;
+        const { error: uploadErr } = await supabase.storage.from("payment-screenshots").upload(screenshotPath, paymentFile);
+        if (uploadErr) throw new Error("Couldn't upload the payment screenshot — please try again.");
+      }
+
       const studentRows = [
         { name: studentName.trim(), dob: studentDob || null, preferred_class_id: preferredClassId || null, is_sibling: false, sort_order: 0 },
         ...siblings.filter((s) => s.name.trim()).map((s, i) => ({
@@ -171,13 +181,15 @@ export default function EnrollForm() {
         p_emergency_phone: emergencySame ? "" : emergencyPhone.trim(),
         p_video_consent: videoConsent,
         p_notes: notes.trim(),
+        p_payment_claimed: paymentClaimed,
+        p_payment_screenshot_path: screenshotPath,
         p_students: studentRows,
       });
       if (rpcErr) throw rpcErr;
 
       setReference(data.reference);
     } catch (e) {
-      setError("Something went wrong submitting — please try again.");
+      setError(e.message && e.message.startsWith("Couldn't upload") ? e.message : "Something went wrong submitting — please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -306,6 +318,28 @@ export default function EnrollForm() {
           <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 12 }}>Once submitted, we'll contact you via email or mobile to confirm the enrolment — you'll also be given a reference number to use for payment.</p>
 
           <ImportantInfo preferredClass={classes.find((c) => c.id === preferredClassId) || null} />
+
+          <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 18, marginTop: 16 }}>
+            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 8 }}>Payment</h3>
+            <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
+              Your payment reference will be given to you on the confirmation screen right after you submit this form — use it when transferring payment using the bank details above.
+              If you've already paid, tick the box below and attach your payment screenshot so we can confirm it faster.
+            </p>
+            <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
+              <input type="checkbox" checked={paymentClaimed} onChange={(e) => { setPaymentClaimed(e.target.checked); if (!e.target.checked) setPaymentFile(null); }} />
+              I have already paid
+            </label>
+            {paymentClaimed && (
+              <Field label="Payment screenshot">
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setPaymentFile(e.target.files?.[0] || null)}
+                  style={{ fontSize: 13 }}
+                />
+              </Field>
+            )}
+          </div>
 
           <label className="flex items-start gap-2 mt-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
             <input type="checkbox" checked={agreedToInfo} onChange={(e) => setAgreedToInfo(e.target.checked)} style={{ marginTop: 2 }} />
