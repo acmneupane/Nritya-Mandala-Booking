@@ -15,14 +15,18 @@ function InfoSection({ title, children }) {
   );
 }
 
-function ImportantInfo() {
+function ImportantInfo({ preferredClass }) {
   return (
     <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 18, marginTop: 20 }}>
       <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 12 }}>Important Information</h3>
 
       <InfoSection title="Location & Time">
         72 Central Avenue, Oran Park, NSW 2570<br />
-        6:00 PM – 7:00 PM
+        {preferredClass ? (
+          <>Requested time: <strong>{preferredClass.time}</strong></>
+        ) : (
+          <span style={{ color: T.inkSoft }}>Select a preferred class above to see its time here.</span>
+        )}
       </InfoSection>
 
       <InfoSection title="Fees">
@@ -282,7 +286,7 @@ export default function EnrollForm() {
 
           <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 12 }}>Once submitted, we'll call you back to confirm the enrolment — you'll also be given a reference number to use for payment.</p>
 
-          <ImportantInfo />
+          <ImportantInfo preferredClass={classes.find((c) => c.id === preferredClassId) || null} />
 
           <label className="flex items-start gap-2 mt-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
             <input type="checkbox" checked={agreedToInfo} onChange={(e) => setAgreedToInfo(e.target.checked)} style={{ marginTop: 2 }} />
