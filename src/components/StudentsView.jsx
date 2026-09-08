@@ -474,7 +474,22 @@ export default function StudentsView() {
     load();
   };
   const doRemove = async (id) => {
+    // Before deleting, find which guardians are linked to this student — if any of
+    // them turn out to have no other students once this one's gone, their record is
+    // just clutter and gets removed too.
+    const { data: links } = await supabase.from("student_guardians").select("guardian_id").eq("student_id", id);
+    const guardianIds = [...new Set((links || []).map((l) => l.guardian_id))];
+
+    await supabase.from("student_guardians").delete().eq("student_id", id);
     await supabase.from("students").delete().eq("id", id);
+
+    for (const guardianId of guardianIds) {
+      const { count } = await supabase.from("student_guardians").select("id", { count: "exact", head: true }).eq("guardian_id", guardianId);
+      if (!count) {
+        await supabase.from("guardians").delete().eq("id", guardianId);
+      }
+    }
+
     setConfirmRemove(null);
     load();
   };
