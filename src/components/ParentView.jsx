@@ -58,13 +58,11 @@ export default function ParentView({ student, onBack }) {
         <img src={LOGO_DATA_URI} alt="" style={{ width: 40, height: 40, borderRadius: "50%", marginBottom: 8 }} />
         <p style={{ fontSize: 12, color: T.gold, fontWeight: 600, marginBottom: 4 }}>Nritya Mandala</p>
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, color: T.maroonDark, marginBottom: 4 }}>{student.name}</h1>
-        <div style={{ marginBottom: 20 }}>
-          {level ? (
+        {level && (
+          <div style={{ marginBottom: 20 }}>
             <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: `${T.sage}22`, color: T.sage, fontWeight: 600 }}>{level.name}</span>
-          ) : (
-            <span style={{ fontSize: 12, color: T.inkSoft }}>Unassigned</span>
-          )}
-        </div>
+          </div>
+        )}
 
         {pkgSummary && pkgSummary.classes_total > 0 && (
           <div style={{ background: remaining > 0 ? `${T.sage}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 13, fontWeight: 600, color: remaining > 0 ? T.sage : T.terracotta }}>

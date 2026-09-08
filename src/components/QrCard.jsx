@@ -21,7 +21,7 @@ export default function QrCard() {
   useEffect(() => {
     if (!student || !canvasRef.current) return;
     const qrText = `${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`;
-    drawQrWithLogo(canvasRef.current, qrText, { size: 240, withLogo: true });
+    drawQrWithLogo(canvasRef.current, qrText, { size: 240 * 3, withLogo: true });
     buildQrCardDataUrl({ studentName: student.name, code: student.code, qrText }).then(setCardDataUrl);
   }, [student]);
 

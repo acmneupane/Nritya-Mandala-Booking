@@ -9,7 +9,9 @@ function QrCanvas({ text, size = 220 }) {
 
   useEffect(() => {
     if (!canvasRef.current) return;
-    drawQrWithLogo(canvasRef.current, text, { size, withLogo: true }).catch(() => setFailed(true));
+    // Render at a higher pixel density than the CSS display size so the browser
+    // downsamples (crisp) instead of upsampling a low-res buffer (blurry).
+    drawQrWithLogo(canvasRef.current, text, { size: size * 3, withLogo: true }).catch(() => setFailed(true));
   }, [text, size]);
 
   if (failed) return <div style={{ width: size, height: size, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: T.terracotta, textAlign: "center", padding: 12 }}>Couldn't generate a QR code.</div>;

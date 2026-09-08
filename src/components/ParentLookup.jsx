@@ -52,9 +52,6 @@ export default function ParentLookup() {
         />
         {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 12 }}>{error}</p>}
         <Btn onClick={submit} size="lg" disabled={loading}>{loading ? "Looking up…" : "View"}</Btn>
-        <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 18 }}>
-          <a href="/" style={{ color: T.inkSoft, textDecoration: "underline" }}>Studio sign-in instead</a>
-        </p>
       </div>
     </div>
   );

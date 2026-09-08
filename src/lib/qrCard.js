@@ -59,6 +59,8 @@ export async function drawQrWithLogo(canvas, text, { size = 260, withLogo = true
       ctx.arc(px / 2, px / 2, logoSize / 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, logoX, logoY, logoSize, logoSize);
       ctx.restore();
     } catch {
@@ -98,9 +100,11 @@ export async function buildQrCardDataUrl({ studentName, code, qrText }) {
 
   const qrCanvas = document.createElement("canvas");
   const qrSize = 300;
-  await drawQrWithLogo(qrCanvas, qrText, { size: qrSize, withLogo: true });
+  await drawQrWithLogo(qrCanvas, qrText, { size: qrSize * 2, withLogo: true });
   const qrX = (cardW - qrSize) / 2;
   const qrY = 150;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
 
   const codeBoxY = qrY + qrSize + 24;
