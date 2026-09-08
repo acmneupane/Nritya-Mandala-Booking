@@ -443,6 +443,8 @@ export default function StudentsView() {
   const [booking, setBooking] = useState(null);
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 5;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -467,6 +469,13 @@ export default function StudentsView() {
   const filtered = students
     .filter((s) => !!s.archived === showArchived)
     .filter((s) => s.name.toLowerCase().includes(query.toLowerCase()));
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const clampedPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE);
+
+  const setQueryAndResetPage = (val) => { setQuery(val); setPage(1); };
+  const toggleArchivedAndResetPage = () => { setShowArchived((v) => !v); setPage(1); };
 
   const doArchive = async (id, archived) => {
     await supabase.from("students").update({ archived }).eq("id", id);
@@ -500,8 +509,8 @@ export default function StudentsView() {
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <input style={{ ...inputStyle, width: 220, maxWidth: "60vw" }} placeholder="Search students…" value={query} onChange={(e) => setQuery(e.target.value)} />
-          <button onClick={() => setShowArchived((v) => !v)} style={{ fontSize: 12, color: showArchived ? T.maroon : T.inkSoft, fontWeight: showArchived ? 600 : 400 }}>
+          <input style={{ ...inputStyle, width: 220, maxWidth: "60vw" }} placeholder="Search students…" value={query} onChange={(e) => setQueryAndResetPage(e.target.value)} />
+          <button onClick={toggleArchivedAndResetPage} style={{ fontSize: 12, color: showArchived ? T.maroon : T.inkSoft, fontWeight: showArchived ? 600 : 400 }}>
             {showArchived ? "← Back to active students" : "View archived students"}
           </button>
         </div>
@@ -512,8 +521,17 @@ export default function StudentsView() {
           <p>{showArchived ? "No archived students." : "No students yet. Add the first one to get started."}</p>
         </div>
       )}
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <span style={{ fontSize: 12, color: T.inkSoft }}>{filtered.length} student{filtered.length === 1 ? "" : "s"} · Page {clampedPage} of {totalPages}</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={clampedPage === 1} style={{ fontSize: 12, color: clampedPage === 1 ? `${T.inkSoft}66` : T.maroon, fontWeight: 500 }}>← Prev</button>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={clampedPage === totalPages} style={{ fontSize: 12, color: clampedPage === totalPages ? `${T.inkSoft}66` : T.maroon, fontWeight: 500 }}>Next →</button>
+          </div>
+        </div>
+      )}
       <div className="grid gap-4">
-        {filtered.map((s) => {
+        {paginated.map((s) => {
           const pkg = pkgSummaryByStudent[s.id];
           const remaining = pkg ? pkg.classes_total - pkg.classes_used : 0;
           return (
@@ -546,6 +564,15 @@ export default function StudentsView() {
           );
         })}
       </div>
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between flex-wrap gap-2 mt-4">
+          <span style={{ fontSize: 12, color: T.inkSoft }}>{filtered.length} student{filtered.length === 1 ? "" : "s"} · Page {clampedPage} of {totalPages}</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={clampedPage === 1} style={{ fontSize: 12, color: clampedPage === 1 ? `${T.inkSoft}66` : T.maroon, fontWeight: 500 }}>← Prev</button>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={clampedPage === totalPages} style={{ fontSize: 12, color: clampedPage === totalPages ? `${T.inkSoft}66` : T.maroon, fontWeight: 500 }}>Next →</button>
+          </div>
+        </div>
+      )}
       {(adding || editing) && (
         <StudentModal
           initial={editing}
