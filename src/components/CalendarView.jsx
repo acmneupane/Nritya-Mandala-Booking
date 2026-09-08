@@ -20,22 +20,41 @@ function mondayOf(date) {
   return d;
 }
 
-// Returns the array of Date objects the current view mode should display.
+function saturdayOnOrAfter(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sun ... 6 = Sat
+  d.setDate(d.getDate() + ((6 - day + 7) % 7));
+  return d;
+}
+
+// Returns the array of { date, inMonth } entries the current view mode should
+// display — Monday through Saturday only (the studio doesn't run Sunday classes),
+// so every row is a clean 6-column week.
 function datesForView(mode, anchor) {
-  if (mode === "day") return [anchor];
+  if (mode === "day") return [{ date: anchor, inMonth: true }];
   if (mode === "week") {
     const start = mondayOf(anchor);
-    return Array.from({ length: 7 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
+    return Array.from({ length: 6 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return { date: d, inMonth: true }; });
   }
   if (mode === "fortnight") {
     const start = mondayOf(anchor);
-    return Array.from({ length: 14 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
+    const out = [];
+    for (let w = 0; w < 2; w++) {
+      for (let i = 0; i < 6; i++) { const d = new Date(start); d.setDate(start.getDate() + w * 7 + i); out.push({ date: d, inMonth: true }); }
+    }
+    return out;
   }
-  // month: every calendar day from the 1st to the last day of anchor's month
+  // month: a proper Mon-Sat calendar grid, padded with the trailing/leading days of
+  // adjacent months (dimmed) so every week lines up into exactly 6 columns.
   const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
   const last = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  const gridStart = mondayOf(first);
+  const gridEnd = saturdayOnOrAfter(last);
   const out = [];
-  for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) out.push(new Date(d));
+  for (let d = new Date(gridStart); d <= gridEnd; d.setDate(d.getDate() + 1)) {
+    if (d.getDay() === 0) continue; // skip Sundays
+    out.push({ date: new Date(d), inMonth: d.getMonth() === anchor.getMonth() });
+  }
   return out;
 }
 
@@ -51,7 +70,7 @@ function navAnchor(mode, anchor, dir) {
 function rangeLabel(mode, anchor, dates) {
   if (mode === "day") return anchor.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
   if (mode === "month") return anchor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-  const start = dates[0], end = dates[dates.length - 1];
+  const start = dates[0].date, end = dates[dates.length - 1].date;
   return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 }
 
@@ -290,7 +309,7 @@ export default function CalendarView() {
   const dates = datesForView(viewMode, anchor);
   const isAnchorToday = viewMode === "day"
     ? localDateStr(anchor) === todayStr
-    : localDateStr(dates[0]) <= todayStr && todayStr <= localDateStr(dates[dates.length - 1]);
+    : localDateStr(dates[0].date) <= todayStr && todayStr <= localDateStr(dates[dates.length - 1].date);
 
   if (loading) return <p style={{ color: T.inkSoft }}>Loading…</p>;
 
@@ -324,17 +343,19 @@ export default function CalendarView() {
       {viewMode === "day" ? (
         <DayView date={anchor} classes={classes} skips={skips} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} />
       ) : (
-        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-          {dates.map((date, i) => {
+        <div className="grid gap-2 grid-cols-3 md:grid-cols-6">
+          {dates.map(({ date, inMonth }, i) => {
             const dateStr = localDateStr(date);
             const isToday = dateStr === todayStr;
             const dayName = DAYS[(date.getDay() + 6) % 7];
             const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr));
+            const dimmed = viewMode === "month" && !inMonth;
             return (
-              <div key={i} style={{ background: isToday ? `${T.gold}18` : "#fff", border: `1px solid ${isToday ? T.gold : T.line}`, borderRadius: 8, padding: 10, minHeight: 90 }}>
+              <div key={i} style={{ background: isToday ? `${T.gold}18` : "#fff", border: `1px solid ${isToday ? T.gold : T.line}`, borderRadius: 8, padding: 8, minHeight: 80, opacity: dimmed ? 0.4 : 1 }}>
                 <button
+                  type="button"
                   onClick={() => { setAnchor(new Date(date)); setViewMode("day"); }}
-                  style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, marginBottom: 6, display: "block", textAlign: "left" }}
+                  style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, marginBottom: 6, display: "block", textAlign: "left", background: "transparent", border: "none", padding: 0, cursor: "pointer", width: "100%" }}
                   title="View this day"
                 >
                   {viewMode === "month" ? date.getDate() : `${dayName.slice(0, 3)} ${date.getDate()}`}
@@ -346,19 +367,19 @@ export default function CalendarView() {
                   if (skip) {
                     return (
                       <div key={c.id} style={{ background: `${T.terracotta}12`, border: `1px dashed ${T.terracotta}55`, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: T.terracotta }}>{formatTimeRange(c.time, c.end_time)} {c.label} — Skipped</div>
-                        {skip.reason && <div style={{ fontSize: 11, color: T.inkSoft }}>{skip.reason}</div>}
-                        <button onClick={() => setConfirmUnskip(skip)} style={{ fontSize: 11, color: T.inkSoft, textDecoration: "underline", marginTop: 2 }}>Undo skip</button>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: T.terracotta }}>{formatTimeRange(c.time, c.end_time)} {c.label} — Skipped</div>
+                        {skip.reason && <div style={{ fontSize: 10, color: T.inkSoft }}>{skip.reason}</div>}
+                        <button type="button" onClick={() => setConfirmUnskip(skip)} style={{ fontSize: 10, color: T.inkSoft, textDecoration: "underline", marginTop: 2 }}>Undo skip</button>
                       </div>
                     );
                   }
                   return (
                     <div key={c.id} style={{ background: T.paper, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
-                      <button onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none" }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
-                        <div style={{ fontSize: 11, color: T.inkSoft }}>{bookedCount} booked</div>
+                      <button type="button" onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none", cursor: "pointer" }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
+                        <div style={{ fontSize: 10, color: T.inkSoft }}>{bookedCount} booked</div>
                       </button>
-                      <button onClick={() => setSkippingClass({ ...c, dateStr })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
+                      <button type="button" onClick={() => setSkippingClass({ ...c, dateStr })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
                     </div>
                   );
                 })}
