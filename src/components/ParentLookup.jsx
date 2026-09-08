@@ -4,11 +4,13 @@ import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn } from "./ui";
 import ParentView from "./ParentView";
+import FamilyView from "./FamilyView";
 
 export default function ParentLookup() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [student, setStudent] = useState(null);
+  const [family, setFamily] = useState(null); // the sibling list, kept around even while viewing one child
   const [loading, setLoading] = useState(false);
 
   const lookup = async (rawCode) => {
@@ -19,9 +21,21 @@ export default function ParentLookup() {
       .select("id, code, name, level_id")
       .eq("code", rawCode.trim().toUpperCase())
       .maybeSingle();
+    if (error || !data) {
+      setLoading(false);
+      setError("Code not found — check with the studio.");
+      return;
+    }
+
+    // Check for siblings sharing a guardian — if there are any, let the parent pick
+    // which child to view instead of dropping straight into just this one.
+    const { data: familyData } = await supabase.rpc("get_family_students", { p_code: data.code });
     setLoading(false);
-    if (error || !data) { setError("Code not found — check with the studio."); return; }
-    setStudent(data);
+    if (familyData && familyData.length > 1) {
+      setFamily(familyData);
+    } else {
+      setStudent(data);
+    }
   };
 
   // A QR scan lands here with ?code=XXXX already filled in — skip the typing step.
@@ -33,8 +47,11 @@ export default function ParentLookup() {
   }, []);
 
   const submit = () => lookup(code);
+  const reset = () => { setStudent(null); setFamily(null); };
+  const backFromChild = () => setStudent(null); // if family is set, this lands back on the sibling list
 
-  if (student) return <ParentView student={student} onBack={() => setStudent(null)} />;
+  if (student) return <ParentView student={student} onBack={family ? backFromChild : reset} />;
+  if (family) return <FamilyView children={family} onPick={setStudent} onBack={reset} />;
 
   return (
     <div style={{ minHeight: "100vh", background: T.maroon, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif" }}>
