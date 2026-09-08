@@ -7,6 +7,7 @@ import { localDateStr } from "../lib/dates";
 import { buildQrCardDataUrl } from "../lib/qrCard";
 import { QrCanvas } from "./QrCode";
 import { nextOccurrenceOf, formatTimeRange } from "../lib/scheduling";
+import MarkAbsentModal from "./MarkAbsentModal";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -21,6 +22,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [loading, setLoading] = useState(true);
   const [cardDataUrl, setCardDataUrl] = useState(null);
   const [markingBusy, setMarkingBusy] = useState(null);
+  const [markAbsentOpen, setMarkAbsentOpen] = useState(false);
 
   const today = new Date();
   const todayStr = localDateStr(today);
@@ -80,12 +82,6 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     await supabase.from("attendance").delete().eq("student_id", student.id).eq("class_id", classId).eq("date", todayStr);
     load();
   };
-  const markAbsent = async (classId, dateStr) => {
-    setMarkingBusy(classId);
-    await supabase.rpc("mark_absence", { p_code: student.code, p_class_id: classId, p_date: dateStr });
-    setMarkingBusy(null);
-    load();
-  };
   const undoAbsent = async (classId, dateStr) => {
     setMarkingBusy(classId);
     await supabase.rpc("undo_mark_absence", { p_code: student.code, p_class_id: classId, p_date: dateStr });
@@ -109,7 +105,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
         {overallNext && (
           <div style={{ background: `${T.sage}18`, border: `1px solid ${T.sage}55`, borderRadius: 8, padding: "8px 14px", marginBottom: 14, fontSize: 13, fontWeight: 600, color: T.sage }}>
-            Next class: {overallNext.cls.label} — {overallNext.occ.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}, {formatTimeRange(overallNext.cls.time, overallNext.cls.end_time)}
+            Next class: {overallNext.occ.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}, {formatTimeRange(overallNext.cls.time, overallNext.cls.end_time)}
           </div>
         )}
 
@@ -142,10 +138,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
               const checkedIn = history.some((h) => h.class_id === c.id && h.date === todayStr && h.status === "attended");
               return (
                 <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderTop: `1px solid ${T.line}` }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{formatTimeRange(c.time, c.end_time)}</div>
-                    <div style={{ fontSize: 12, color: T.inkSoft }}>{c.label}</div>
-                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{formatTimeRange(c.time, c.end_time)}</div>
                   {checkedIn ? (
                     <button onClick={() => undoCheckIn(c.id)} style={{ fontSize: 12, fontWeight: 600, color: T.sage }} title="Tap to undo">✓ Checked in</button>
                   ) : (
@@ -158,7 +151,10 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
         )}
 
         <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Weekly classes</h3>
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>Weekly classes</h3>
+            {classes.length > 0 && <Btn size="sm" variant="ghost" onClick={() => setMarkAbsentOpen(true)}>Mark upcoming absences</Btn>}
+          </div>
           {classes.length === 0 && <p style={{ fontSize: 13, color: T.inkSoft }}>No classes booked yet — check with the studio.</p>}
           {classes.map((c) => {
             const occ = nextOccurrences[c.id];
@@ -166,20 +162,11 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             return (
               <div key={c.id} style={{ padding: "10px 0", borderTop: `1px solid ${T.line}` }}>
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{c.day} · {formatTimeRange(c.time, c.end_time)}</div>
-                    <div style={{ fontSize: 12, color: T.inkSoft }}>{c.label}</div>
-                  </div>
-                  {occ && (
-                    alreadyAbsent ? (
-                      <button onClick={() => undoAbsent(c.id, occ.dateStr)} disabled={markingBusy === c.id} style={{ fontSize: 12, fontWeight: 600, color: T.gold }} title="Tap to undo">
-                        ⊘ Marked absent for {occ.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Undo
-                      </button>
-                    ) : (
-                      <button onClick={() => markAbsent(c.id, occ.dateStr)} disabled={markingBusy === c.id} style={{ fontSize: 12, fontWeight: 600, color: T.terracotta, border: `1px solid ${T.terracotta}55`, borderRadius: 999, padding: "5px 12px", background: "#fff" }}>
-                        {markingBusy === c.id ? "…" : `Mark absent for ${occ.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}
-                      </button>
-                    )
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{c.day} · {formatTimeRange(c.time, c.end_time)}</div>
+                  {alreadyAbsent && (
+                    <button onClick={() => undoAbsent(c.id, occ.dateStr)} disabled={markingBusy === c.id} style={{ fontSize: 12, fontWeight: 600, color: T.gold }} title="Tap to undo">
+                      ⊘ Marked absent for {occ.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Undo
+                    </button>
                   )}
                 </div>
               </div>
@@ -195,7 +182,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             const color = h.status === "attended" ? T.sage : h.status === "skipped" ? T.gold : T.terracotta;
             return (
               <div key={h.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", borderTop: `1px solid ${T.line}` }}>
-                <span>{h.date}{classById[h.class_id] ? ` · ${classById[h.class_id].label}` : ""}</span>
+                <span>{h.date}</span>
                 <span style={{ color, fontWeight: 600 }}>{label}</span>
               </div>
             );
@@ -234,6 +221,15 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
         <button onClick={onBack} style={{ fontSize: 12, color: T.inkSoft, textDecoration: "underline" }}>← Look up a different code</button>
       </div>
+      {markAbsentOpen && (
+        <MarkAbsentModal
+          student={student}
+          classes={classes}
+          skips={skips}
+          onClose={() => setMarkAbsentOpen(false)}
+          onDone={() => { setMarkAbsentOpen(false); load(); }}
+        />
+      )}
     </div>
   );
 }

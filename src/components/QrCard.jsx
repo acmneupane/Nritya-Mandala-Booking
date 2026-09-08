@@ -6,13 +6,16 @@ import { Btn } from "./ui";
 import { drawQrWithLogo, buildQrCardDataUrl } from "../lib/qrCard";
 import { nextOccurrenceOf, formatTimeRange } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
+import MarkAbsentModal from "./MarkAbsentModal";
 
 export default function QrCard() {
   const canvasRef = useRef(null);
   const [student, setStudent] = useState(undefined); // undefined = loading, null = not found
   const [cardDataUrl, setCardDataUrl] = useState(null);
   const [pkgSummary, setPkgSummary] = useState(null);
-  const [nextClass, setNextClass] = useState(null);
+  const [classes, setClasses] = useState([]);
+  const [skips, setSkips] = useState([]);
+  const [markAbsentOpen, setMarkAbsentOpen] = useState(false);
 
   const code = new URLSearchParams(window.location.search).get("code") || "";
 
@@ -22,6 +25,17 @@ export default function QrCard() {
       .then(({ data }) => setStudent(data || null));
   }, [code]);
 
+  const loadSchedule = () => {
+    if (!student) return;
+    Promise.all([
+      supabase.from("enrollments").select("classes(id, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
+      supabase.from("class_skips").select("class_id, date"),
+    ]).then(([enrollRes, skipRes]) => {
+      setClasses((enrollRes.data || []).map((e) => e.classes).filter(Boolean));
+      setSkips(skipRes.data || []);
+    });
+  };
+
   useEffect(() => {
     if (!student || !canvasRef.current) return;
     const qrText = `${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`;
@@ -29,20 +43,15 @@ export default function QrCard() {
     buildQrCardDataUrl({ studentName: student.name, code: student.code, qrText }).then(setCardDataUrl);
     supabase.from("student_package_summary").select("classes_total, classes_used").eq("student_id", student.id).maybeSingle()
       .then(({ data }) => setPkgSummary(data));
-
-    Promise.all([
-      supabase.from("enrollments").select("classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
-      supabase.from("class_skips").select("class_id, date"),
-    ]).then(([enrollRes, skipRes]) => {
-      const classes = (enrollRes.data || []).map((e) => e.classes).filter(Boolean);
-      const skips = skipRes.data || [];
-      const candidates = classes
-        .map((c) => ({ cls: c, occ: nextOccurrenceOf(c, skips, localDateStr) }))
-        .filter((x) => x.occ);
-      candidates.sort((a, b) => (a.occ.dateStr === b.occ.dateStr ? a.cls.time.localeCompare(b.cls.time) : a.occ.dateStr.localeCompare(b.occ.dateStr)));
-      setNextClass(candidates[0] || null);
-    });
+    loadSchedule();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [student]);
+
+  const candidates = classes
+    .map((c) => ({ cls: c, occ: nextOccurrenceOf(c, skips, localDateStr) }))
+    .filter((x) => x.occ)
+    .sort((a, b) => (a.occ.dateStr === b.occ.dateStr ? a.cls.time.localeCompare(b.cls.time) : a.occ.dateStr.localeCompare(b.occ.dateStr)));
+  const nextClass = candidates[0] || null;
 
   if (student === undefined) {
     return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>Loading…</div>;
@@ -69,7 +78,7 @@ export default function QrCard() {
           <div style={{ background: `${T.sage}18`, border: `1px solid ${T.sage}55`, borderRadius: 8, padding: "8px 14px", marginBottom: 14 }}>
             <div style={{ fontSize: 10, color: T.inkSoft, marginBottom: 2 }}>Next class</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: T.sage }}>
-              {nextClass.cls.label} — {nextClass.occ.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}, {formatTimeRange(nextClass.cls.time, nextClass.cls.end_time)}
+              {nextClass.occ.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}, {formatTimeRange(nextClass.cls.time, nextClass.cls.end_time)}
             </div>
           </div>
         )}
@@ -95,6 +104,7 @@ export default function QrCard() {
         })()}
 
         <div className="flex flex-col gap-2 mt-5">
+          {classes.length > 0 && <Btn variant="ghost" size="lg" onClick={() => setMarkAbsentOpen(true)}>Mark upcoming absences</Btn>}
           {cardDataUrl && (
             <a href={cardDataUrl} download={`${student.name.replace(/\s+/g, "-")}-qr-card.png`}>
               <Btn size="lg">Download QR code</Btn>
@@ -105,6 +115,15 @@ export default function QrCard() {
           </a>
         </div>
       </div>
+      {markAbsentOpen && (
+        <MarkAbsentModal
+          student={student}
+          classes={classes}
+          skips={skips}
+          onClose={() => setMarkAbsentOpen(false)}
+          onDone={() => { setMarkAbsentOpen(false); loadSchedule(); }}
+        />
+      )}
     </div>
   );
 }

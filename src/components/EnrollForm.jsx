@@ -92,7 +92,7 @@ function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
       <Field label="Preferred class">
         <select style={inputStyle} value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
           <option value="">Not sure</option>
-          {classes.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+          {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
         </select>
       </Field>
     </div>
@@ -230,7 +230,7 @@ export default function EnrollForm() {
             <Field label="Preferred class">
               <select style={inputStyle} value={preferredClassId} onChange={(e) => setPreferredClassId(e.target.value)}>
                 <option value="">Not sure</option>
-                {classes.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+                {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
               </select>
             </Field>
           </div>
