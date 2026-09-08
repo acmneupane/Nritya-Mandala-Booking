@@ -5,7 +5,6 @@ import { Btn, Field, Modal, ConfirmModal } from "./ui";
 import { isClassActiveOn, formatTimeRange } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
 import QrScanner from "./QrScanner";
-import ShareEnrollLink from "./ShareEnrollLink";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const VIEW_MODES = [
@@ -81,6 +80,7 @@ function RosterEditor({ cls, onChanged }) {
   const [attendance, setAttendance] = useState([]);
   const [remainingByStudent, setRemainingByStudent] = useState({});
   const [addingStudent, setAddingStudent] = useState("");
+  const [addingModalOpen, setAddingModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -112,6 +112,7 @@ function RosterEditor({ cls, onChanged }) {
     if (!addingStudent) return;
     await supabase.from("enrollments").insert({ student_id: addingStudent, class_id: cls.id });
     setAddingStudent("");
+    setAddingModalOpen(false);
     load();
     onChanged();
   };
@@ -134,14 +135,20 @@ function RosterEditor({ cls, onChanged }) {
 
   if (loading) return <p style={{ color: T.inkSoft, fontSize: 13 }}>Loading…</p>;
 
+  const attendedCount = attendance.filter((a) => a.status === "attended").length;
+  const missedCount = attendance.filter((a) => a.status === "missed").length;
+  const skippedCount = attendance.filter((a) => a.status === "skipped").length;
+
   return (
     <div>
-      <div className="flex gap-2 mb-4">
-        <select style={inputStyle} value={addingStudent} onChange={(e) => setAddingStudent(e.target.value)}>
-          <option value="">Book a student into this class…</option>
-          {availableStudents.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <Btn onClick={enroll}>+ Book</Btn>
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <div style={{ fontSize: 12, color: T.inkSoft }}>
+          <strong style={{ color: T.ink }}>{roster.length}</strong> booked
+          {attendedCount > 0 && <> · <strong style={{ color: T.sage }}>{attendedCount}</strong> attended</>}
+          {skippedCount > 0 && <> · <strong style={{ color: T.gold }}>{skippedCount}</strong> excused</>}
+          {missedCount > 0 && <> · <strong style={{ color: T.terracotta }}>{missedCount}</strong> missed</>}
+        </div>
+        <Btn size="sm" onClick={() => setAddingModalOpen(true)}>+ Add student</Btn>
       </div>
       {roster.length === 0 && <p style={{ color: T.inkSoft, fontSize: 13 }}>No one booked into this class yet.</p>}
       <div className="grid gap-2">
@@ -166,6 +173,26 @@ function RosterEditor({ cls, onChanged }) {
           );
         })}
       </div>
+      {addingModalOpen && (
+        <Modal title={`Add a student to ${cls.label}`} onClose={() => setAddingModalOpen(false)}>
+          {availableStudents.length === 0 ? (
+            <p style={{ fontSize: 13, color: T.inkSoft }}>Everyone's already booked into this class.</p>
+          ) : (
+            <>
+              <Field label="Student">
+                <select style={inputStyle} value={addingStudent} onChange={(e) => setAddingStudent(e.target.value)}>
+                  <option value="">Select a student…</option>
+                  {availableStudents.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </Field>
+              <div className="flex justify-end gap-2 mt-2">
+                <Btn variant="ghost" onClick={() => { setAddingModalOpen(false); setAddingStudent(""); }}>Cancel</Btn>
+                <Btn onClick={enroll} disabled={!addingStudent}>Book</Btn>
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
@@ -173,6 +200,7 @@ function RosterEditor({ cls, onChanged }) {
 function SkipModal({ cls, onClose, onSaved }) {
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const bookedCount = cls.bookedCount || 0;
   const save = async () => {
     setSaving(true);
     await supabase.from("class_skips").insert({ class_id: cls.id, date: cls.dateStr, reason: reason.trim() });
@@ -184,6 +212,11 @@ function SkipModal({ cls, onClose, onSaved }) {
       <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
         This cancels the whole class for this one date only — e.g. a festival, public holiday, or the studio being closed. It'll still run as normal every other week. No attendance can be marked for this date while it's skipped.
       </p>
+      {bookedCount > 0 && (
+        <div style={{ background: `${T.terracotta}18`, border: `1px solid ${T.terracotta}55`, borderRadius: 8, padding: "10px 12px", marginBottom: 12, fontSize: 13, color: T.terracotta, fontWeight: 600 }}>
+          ⚠ {bookedCount} student{bookedCount === 1 ? " is" : "s are"} already booked into this class on this date. Consider letting them know before skipping it.
+        </div>
+      )}
       <Field label="Reason (optional)"><input style={inputStyle} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Diwali — studio closed" /></Field>
       <div className="flex justify-end gap-2 mt-2">
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
@@ -195,7 +228,7 @@ function SkipModal({ cls, onClose, onSaved }) {
 
 // Full inline day view: every class scheduled that weekday, with its complete
 // roster and attendance controls right on the page — no click-through needed.
-function DayView({ date, classes, skips, onSkip, onUnskip, onChanged }) {
+function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged }) {
   const dateStr = localDateStr(date);
   const dayName = DAYS[(date.getDay() + 6) % 7];
   const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr)).sort((a, b) => a.time.localeCompare(b.time));
@@ -241,7 +274,7 @@ function DayView({ date, classes, skips, onSkip, onUnskip, onChanged }) {
               {skip ? (
                 <button onClick={() => onUnskip(skip)} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skipped{skip.reason ? ` — ${skip.reason}` : ""} · Undo</button>
               ) : (
-                <button onClick={() => onSkip({ ...c, dateStr })} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skip this date</button>
+                <button onClick={() => onSkip({ ...c, dateStr, bookedCount: enrollments.filter((e) => e.class_id === c.id).length })} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skip this date</button>
               )}
             </div>
             {!skip && (
@@ -316,9 +349,6 @@ export default function CalendarView() {
 
   return (
     <div>
-      <div className="flex justify-end mb-2">
-        <ShareEnrollLink compact />
-      </div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <button onClick={() => setAnchor((a) => navAnchor(viewMode, a, -1))} style={{ color: T.maroon, fontSize: 16 }}>←</button>
@@ -345,7 +375,7 @@ export default function CalendarView() {
       </div>
 
       {viewMode === "day" ? (
-        <DayView date={anchor} classes={classes} skips={skips} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} />
+        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} />
       ) : (
         <div className="grid gap-2 grid-cols-3 md:grid-cols-6">
           {dates.map(({ date, inMonth }, i) => {
@@ -383,7 +413,7 @@ export default function CalendarView() {
                         <div style={{ fontSize: 11, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
                         <div style={{ fontSize: 10, color: T.inkSoft }}>{bookedCount} booked</div>
                       </button>
-                      <button type="button" onClick={() => setSkippingClass({ ...c, dateStr })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
+                      <button type="button" onClick={() => setSkippingClass({ ...c, dateStr, bookedCount })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
                     </div>
                   );
                 })}
