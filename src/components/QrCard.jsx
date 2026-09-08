@@ -4,12 +4,15 @@ import { T } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn } from "./ui";
 import { drawQrWithLogo, buildQrCardDataUrl } from "../lib/qrCard";
+import { nextOccurrenceOf, formatTimeRange } from "../lib/scheduling";
+import { localDateStr } from "../lib/dates";
 
 export default function QrCard() {
   const canvasRef = useRef(null);
   const [student, setStudent] = useState(undefined); // undefined = loading, null = not found
   const [cardDataUrl, setCardDataUrl] = useState(null);
   const [pkgSummary, setPkgSummary] = useState(null);
+  const [nextClass, setNextClass] = useState(null);
 
   const code = new URLSearchParams(window.location.search).get("code") || "";
 
@@ -26,6 +29,19 @@ export default function QrCard() {
     buildQrCardDataUrl({ studentName: student.name, code: student.code, qrText }).then(setCardDataUrl);
     supabase.from("student_package_summary").select("classes_total, classes_used").eq("student_id", student.id).maybeSingle()
       .then(({ data }) => setPkgSummary(data));
+
+    Promise.all([
+      supabase.from("enrollments").select("classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
+      supabase.from("class_skips").select("class_id, date"),
+    ]).then(([enrollRes, skipRes]) => {
+      const classes = (enrollRes.data || []).map((e) => e.classes).filter(Boolean);
+      const skips = skipRes.data || [];
+      const candidates = classes
+        .map((c) => ({ cls: c, occ: nextOccurrenceOf(c, skips, localDateStr) }))
+        .filter((x) => x.occ);
+      candidates.sort((a, b) => (a.occ.dateStr === b.occ.dateStr ? a.cls.time.localeCompare(b.cls.time) : a.occ.dateStr.localeCompare(b.occ.dateStr)));
+      setNextClass(candidates[0] || null);
+    });
   }, [student]);
 
   if (student === undefined) {
@@ -48,6 +64,16 @@ export default function QrCard() {
         <img src={LOGO_DATA_URI} alt="" style={{ width: 48, height: 48, borderRadius: "50%", margin: "0 auto 10px", display: "block" }} />
         <p style={{ fontSize: 12, color: T.gold, fontWeight: 600, marginBottom: 4 }}>NRITYA MANDALA</p>
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: T.maroonDark, marginBottom: 6 }}>{student.name}</h1>
+
+        {nextClass && (
+          <div style={{ background: `${T.sage}18`, border: `1px solid ${T.sage}55`, borderRadius: 8, padding: "8px 14px", marginBottom: 14 }}>
+            <div style={{ fontSize: 10, color: T.inkSoft, marginBottom: 2 }}>Next class</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: T.sage }}>
+              {nextClass.cls.label} — {nextClass.occ.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}, {formatTimeRange(nextClass.cls.time, nextClass.cls.end_time)}
+            </div>
+          </div>
+        )}
+
         <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 18 }}>Scan this to see bookings & attendance history</p>
 
         <div style={{ border: `2px solid ${T.gold}`, borderRadius: 10, padding: 12, background: "#fff", display: "inline-block" }}>
