@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
-import { Btn, Field, Modal, ConfirmModal } from "./ui";
+import { Btn, Field, Modal, TypeToConfirmModal } from "./ui";
 import QrModal from "./QrCode";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { computeAge } from "../lib/age";
 import { generateStudentCode } from "../lib/studentCode";
 import { formatTimeRange } from "../lib/scheduling";
+
+const actionBtnStyle = { fontSize: 13, fontWeight: 500, padding: "5px 12px", borderRadius: 999, border: "1px solid", background: "#fff", whiteSpace: "nowrap" };
 
 function LevelBadge({ level }) {
   if (!level) return <span style={{ fontSize: 12, color: T.inkSoft }}>Unassigned</span>;
@@ -506,22 +508,24 @@ export default function StudentsView() {
                   <span style={{ fontFamily: "Fraunces, serif", fontSize: 19, color: T.maroonDark }}>{s.name}</span>
                   {s.dob && computeAge(s.dob) != null && <span style={{ fontSize: 13, color: T.inkSoft }}>· {computeAge(s.dob)}y</span>}
                   <span style={{ fontSize: 12, color: T.gold, fontWeight: 700, letterSpacing: 1 }}>· {s.code}</span>
+                  {!s.archived && (
+                    <button onClick={() => setShowingQr(s)} style={{ ...actionBtnStyle, color: T.gold, borderColor: `${T.gold}55`, fontSize: 12, padding: "3px 9px" }}>QR code</button>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <LevelBadge level={levelById[s.level_id]} />
                   <PackageBadge remaining={remaining} hasAny={!!pkg && pkg.classes_total > 0} />
                 </div>
               </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                {!s.archived && <button onClick={() => setShowingQr(s)} style={{ color: T.gold, fontSize: 14, fontWeight: 500 }}>QR code</button>}
-                {!s.archived && <button onClick={() => setBooking(s)} style={{ color: T.sage, fontSize: 14, fontWeight: 500 }}>Book class</button>}
-                {!s.archived && <button onClick={() => setEditing(s)} style={{ color: T.maroon, fontSize: 14, fontWeight: 500 }}>Edit</button>}
+              <div className="flex items-center gap-2 flex-wrap">
+                {!s.archived && <button onClick={() => setBooking(s)} style={{ ...actionBtnStyle, color: T.sage, borderColor: `${T.sage}55` }}>Book class</button>}
+                {!s.archived && <button onClick={() => setEditing(s)} style={{ ...actionBtnStyle, color: T.maroon, borderColor: `${T.maroon}55` }}>Edit</button>}
                 {s.archived ? (
-                  <button onClick={() => doArchive(s.id, false)} style={{ color: T.sage, fontSize: 14, fontWeight: 500 }}>Restore</button>
+                  <button onClick={() => doArchive(s.id, false)} style={{ ...actionBtnStyle, color: T.sage, borderColor: `${T.sage}55` }}>Restore</button>
                 ) : (
-                  <button onClick={() => setConfirmArchive(s)} style={{ color: T.inkSoft, fontSize: 14, fontWeight: 500 }}>Archive</button>
+                  <button onClick={() => setConfirmArchive(s)} style={{ ...actionBtnStyle, color: T.inkSoft, borderColor: T.line }}>Archive</button>
                 )}
-                <button onClick={() => setConfirmRemove(s)} style={{ color: T.terracotta, fontSize: 14, fontWeight: 500 }}>Delete</button>
+                <button onClick={() => setConfirmRemove(s)} style={{ ...actionBtnStyle, color: T.terracotta, borderColor: `${T.terracotta}55` }}>Delete</button>
               </div>
             </div>
           );
@@ -539,18 +543,20 @@ export default function StudentsView() {
       {showingQr && <QrModal student={showingQr} onClose={() => setShowingQr(null)} />}
       {booking && <BookClassModal student={booking} onClose={() => setBooking(null)} onBooked={() => { setBooking(null); load(); }} />}
       {confirmArchive && (
-        <ConfirmModal
+        <TypeToConfirmModal
           title="Archive this student?"
           message={`${confirmArchive.name} will be hidden from the active roster, but their attendance, packages and level history are all kept. You can restore them anytime.`}
+          confirmString={confirmArchive.code}
           confirmLabel="Archive"
           onConfirm={() => doArchive(confirmArchive.id, true)}
           onCancel={() => setConfirmArchive(null)}
         />
       )}
       {confirmRemove && (
-        <ConfirmModal
+        <TypeToConfirmModal
           title="Delete permanently?"
           message={`This permanently deletes ${confirmRemove.name} and all their records — bookings, attendance, packages, level history. This can't be undone. If you just want them off the active list, use Archive instead.`}
+          confirmString={confirmRemove.code}
           confirmLabel="Delete permanently"
           onConfirm={() => doRemove(confirmRemove.id)}
           onCancel={() => setConfirmRemove(null)}

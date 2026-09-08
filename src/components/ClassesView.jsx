@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
-import { Btn, Field, Modal, ConfirmModal } from "./ui";
+import { Btn, Field, Modal, TypeToConfirmModal } from "./ui";
 import { formatTimeRange } from "../lib/scheduling";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -145,8 +145,8 @@ export default function ClassesView() {
                       {levelById[c.level_id] && <div>{<LevelBadge level={levelById[c.level_id]} />}</div>}
                     </div>
                     <div className="flex gap-3">
-                      <button onClick={() => setEditing(c)} style={{ color: T.maroon, fontSize: 13, fontWeight: 500 }}>Edit</button>
-                      <button onClick={() => setConfirmRemove(c)} style={{ color: T.terracotta, fontSize: 13, fontWeight: 500 }}>Remove</button>
+                      <button onClick={() => setEditing(c)} style={{ color: T.maroon, fontSize: 13, fontWeight: 500, padding: "5px 12px", borderRadius: 999, border: `1px solid ${T.maroon}55`, background: "#fff" }}>Edit</button>
+                      <button onClick={() => setConfirmRemove(c)} style={{ color: T.terracotta, fontSize: 13, fontWeight: 500, padding: "5px 12px", borderRadius: 999, border: `1px solid ${T.terracotta}55`, background: "#fff" }}>Remove</button>
                     </div>
                   </div>
                 </div>
@@ -165,8 +165,11 @@ export default function ClassesView() {
         />
       )}
       {confirmRemove && (
-        <ConfirmModal
-          message="Remove this class? Bookings and attendance for it will also be removed."
+        <TypeToConfirmModal
+          title="Remove this class?"
+          message={`Removing "${confirmRemove.label}" also removes its bookings and attendance history. This can't be undone.`}
+          confirmString={confirmRemove.label}
+          confirmLabel="Remove"
           onConfirm={() => doRemove(confirmRemove.id)}
           onCancel={() => setConfirmRemove(null)}
         />

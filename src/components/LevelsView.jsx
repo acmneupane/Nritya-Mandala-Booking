@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
-import { Btn, Field, Modal, ConfirmModal } from "./ui";
+import { Btn, Field, Modal, TypeToConfirmModal } from "./ui";
 import { localDateStr } from "../lib/dates";
 
 function AddLevelModal({ nextOrder, onClose, onSaved }) {
@@ -150,9 +150,10 @@ export default function LevelsView() {
 
       {addingLevel && <AddLevelModal nextOrder={levels.length + 1} onClose={() => setAddingLevel(false)} onSaved={() => { setAddingLevel(false); load(); }} />}
       {confirmReset && (
-        <ConfirmModal
+        <TypeToConfirmModal
           title="Reset all levels?"
           message="This clears every level and unassigns every student's level. Their attendance and packages are kept."
+          confirmString="RESET"
           confirmLabel="Reset levels"
           onConfirm={doResetLevels}
           onCancel={() => setConfirmReset(false)}

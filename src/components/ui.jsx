@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { T } from "../lib/theme";
 
 export function Btn({ children, onClick, variant = "primary", size = "md", type = "button", disabled }) {
@@ -49,6 +50,31 @@ export function ConfirmModal({ title = "Are you sure?", message, confirmLabel = 
       <div className="flex justify-end gap-2">
         <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
         <Btn variant="danger" onClick={onConfirm}>{confirmLabel}</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+// Extra guard for genuinely destructive, hard-to-undo actions: requires typing an
+// exact confirmation string (e.g. the student's code) before the button unlocks.
+export function TypeToConfirmModal({ title = "Are you sure?", message, confirmString, confirmLabel = "Confirm", onConfirm, onCancel }) {
+  const [typed, setTyped] = useState("");
+  const matches = typed.trim().toUpperCase() === confirmString.toUpperCase();
+  return (
+    <Modal title={title} onClose={onCancel}>
+      <p style={{ fontSize: 13, color: T.ink, marginBottom: 14, lineHeight: 1.5 }}>{message}</p>
+      <Field label={`Type "${confirmString}" to confirm`}>
+        <input
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: `1px solid ${T.line}`, background: "#fff", color: T.ink, fontSize: 14, fontFamily: "Inter, sans-serif", letterSpacing: 1 }}
+          placeholder={confirmString}
+          autoFocus
+        />
+      </Field>
+      <div className="flex justify-end gap-2">
+        <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
+        <Btn variant="danger" onClick={onConfirm} disabled={!matches}>{confirmLabel}</Btn>
       </div>
     </Modal>
   );
