@@ -9,6 +9,7 @@ export default function QrCard() {
   const canvasRef = useRef(null);
   const [student, setStudent] = useState(undefined); // undefined = loading, null = not found
   const [cardDataUrl, setCardDataUrl] = useState(null);
+  const [pkgSummary, setPkgSummary] = useState(null);
 
   const code = new URLSearchParams(window.location.search).get("code") || "";
 
@@ -23,6 +24,8 @@ export default function QrCard() {
     const qrText = `${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`;
     drawQrWithLogo(canvasRef.current, qrText, { size: 240 * 3, withLogo: true });
     buildQrCardDataUrl({ studentName: student.name, code: student.code, qrText }).then(setCardDataUrl);
+    supabase.from("student_package_summary").select("classes_total, classes_used").eq("student_id", student.id).maybeSingle()
+      .then(({ data }) => setPkgSummary(data));
   }, [student]);
 
   if (student === undefined) {
@@ -55,6 +58,15 @@ export default function QrCard() {
           <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Code</div>
           <div style={{ fontFamily: "Fraunces, serif", fontSize: 26, letterSpacing: 4, fontWeight: 700, color: T.maroonDark }}>{student.code}</div>
         </div>
+
+        {pkgSummary && pkgSummary.classes_total > 0 && (() => {
+          const remaining = pkgSummary.classes_total - pkgSummary.classes_used;
+          return (
+            <div style={{ marginTop: 10, background: remaining > 0 ? `${T.sage}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: remaining > 0 ? T.sage : T.terracotta }}>
+              {remaining} class{remaining === 1 ? "" : "es"} remaining on package
+            </div>
+          );
+        })()}
 
         <div className="flex flex-col gap-2 mt-5">
           {cardDataUrl && (
