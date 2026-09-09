@@ -4,6 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
 import { generateStudentCode } from "../lib/studentCode";
 import { formatTimeRange } from "../lib/scheduling";
+import EmailPreviewModal from "./EmailPreviewModal";
 
 function ApproveModal({ request, levels, classes, classById, onClose, onApproved }) {
   const [students, setStudents] = useState(
@@ -76,14 +77,7 @@ function ApproveModal({ request, levels, classes, classById, onClose, onApproved
       }).eq("id", request.id);
       if (updErr) throw updErr;
 
-      // Best-effort — a failed confirmation email shouldn't block the approval itself.
-      if (request.guardian_email) {
-        supabase.functions.invoke("send-approval-email", {
-          body: { guardianEmail: request.guardian_email, students: emailStudents },
-        }).catch((e) => console.error("send-approval-email failed", e));
-      }
-
-      onApproved();
+      onApproved({ guardianEmail: request.guardian_email, emailStudents });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -165,6 +159,7 @@ export default function RequestsView({ focusRequestId }) {
   const [approving, setApproving] = useState(null);
   const [confirmReject, setConfirmReject] = useState(null);
   const [showHandled, setShowHandled] = useState(false);
+  const [emailPreview, setEmailPreview] = useState(null);
   const focusRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -284,7 +279,28 @@ export default function RequestsView({ focusRequestId }) {
         })}
       </div>
 
-      {approving && <ApproveModal request={approving} levels={levels} classes={classes} classById={classById} onClose={() => setApproving(null)} onApproved={() => { setApproving(null); load(); }} />}
+      {approving && (
+        <ApproveModal
+          request={approving}
+          levels={levels}
+          classes={classes}
+          classById={classById}
+          onClose={() => setApproving(null)}
+          onApproved={({ guardianEmail, emailStudents }) => {
+            setApproving(null);
+            load();
+            setEmailPreview({ guardianEmail, students: emailStudents });
+          }}
+        />
+      )}
+      {emailPreview && (
+        <EmailPreviewModal
+          guardianEmail={emailPreview.guardianEmail}
+          students={emailPreview.students}
+          onCancel={() => setEmailPreview(null)}
+          onSent={() => setEmailPreview(null)}
+        />
+      )}
       {confirmReject && (
         <ConfirmModal
           title="Reject this request?"
