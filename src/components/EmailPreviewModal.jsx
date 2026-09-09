@@ -101,6 +101,7 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
               day: s.day,
               time: formatTimeRange(s.time, s.endTime),
               start_date: formatDate(s.startDate),
+              access_code: s.code,
               qr_link: qrLink,
               qr_code_image: "",
             };
