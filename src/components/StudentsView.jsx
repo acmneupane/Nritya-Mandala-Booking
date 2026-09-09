@@ -7,6 +7,7 @@ import { RELATION_OPTIONS } from "../lib/relations";
 import { computeAge } from "../lib/age";
 import { generateStudentCode } from "../lib/studentCode";
 import { formatTimeRange } from "../lib/scheduling";
+import EmailPreviewModal from "./EmailPreviewModal";
 
 const actionBtnStyle = { fontSize: 13, fontWeight: 500, padding: "5px 12px", borderRadius: 999, border: "1px solid", background: "#fff", whiteSpace: "nowrap" };
 
@@ -499,7 +500,15 @@ function BookClassModal({ student, onClose, onBooked }) {
     const { error } = await supabase.from("enrollments").insert({ student_id: student.id, class_id: selected });
     setSaving(false);
     if (error) { setError(error.message); return; }
-    onBooked();
+
+    const bookedClass = classes.find((c) => c.id === selected);
+    const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", student.id);
+    const guardianEmail = (guardianLinks || []).map((g) => g.guardians?.email).find((e) => e) || null;
+
+    onBooked({
+      guardianEmail,
+      emailStudents: [{ name: student.name, code: student.code, day: bookedClass?.day || null, startDate: bookedClass?.start_date || null }],
+    });
   };
 
   return (
@@ -540,6 +549,7 @@ export default function StudentsView() {
   const [showingQr, setShowingQr] = useState(null);
   const [viewingInfo, setViewingInfo] = useState(null);
   const [booking, setBooking] = useState(null);
+  const [emailPreview, setEmailPreview] = useState(null);
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(1);
@@ -683,7 +693,25 @@ export default function StudentsView() {
       )}
       {showingQr && <QrModal student={showingQr} onClose={() => setShowingQr(null)} />}
       {viewingInfo && <StudentInfoModal student={viewingInfo} level={levelById[viewingInfo.level_id]} onClose={() => setViewingInfo(null)} />}
-      {booking && <BookClassModal student={booking} onClose={() => setBooking(null)} onBooked={() => { setBooking(null); load(); }} />}
+      {booking && (
+        <BookClassModal
+          student={booking}
+          onClose={() => setBooking(null)}
+          onBooked={({ guardianEmail, emailStudents }) => {
+            setBooking(null);
+            load();
+            setEmailPreview({ guardianEmail, students: emailStudents });
+          }}
+        />
+      )}
+      {emailPreview && (
+        <EmailPreviewModal
+          guardianEmail={emailPreview.guardianEmail}
+          students={emailPreview.students}
+          onCancel={() => setEmailPreview(null)}
+          onSent={() => setEmailPreview(null)}
+        />
+      )}
       {confirmArchive && (
         <TypeToConfirmModal
           title="Archive this student?"
