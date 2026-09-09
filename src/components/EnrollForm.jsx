@@ -224,7 +224,7 @@ export default function EnrollForm() {
           <img src={LOGO_DATA_URI} alt="" style={{ width: 60, height: 60, borderRadius: "50%", margin: "0 auto 16px", display: "block" }} />
           <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 8 }}>Thank you!</h1>
           <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.6, marginBottom: 16 }}>
-            We've received {studentName}'s enrolment request. We'll call you back to confirm the enrolment.
+            We've received {studentName}'s enrolment request. We will contact you to confirm the enrolment.
           </p>
           <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "14px 18px", marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Your payment reference</div>
