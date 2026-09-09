@@ -512,7 +512,7 @@ function BookClassModal({ student, onClose, onBooked }) {
 
     onBooked({
       guardianEmail,
-      emailStudents: [{ name: student.name, code: student.code, day: bookedClass?.day || null, startDate: nextOcc?.dateStr || bookedClass?.start_date || null, time: bookedClass?.time || null, endTime: bookedClass?.end_time || null }],
+      emailStudents: [{ id: student.id, name: student.name, code: student.code, day: bookedClass?.day || null, startDate: nextOcc?.dateStr || bookedClass?.start_date || null, time: bookedClass?.time || null, endTime: bookedClass?.end_time || null }],
     });
   };
 
@@ -541,6 +541,70 @@ function BookClassModal({ student, onClose, onBooked }) {
   );
 }
 
+// For a student who's already booked but never got a confirmation email (e.g. booked
+// then the preview was cancelled). Doesn't create a new booking — just picks which of
+// their current classes to confirm, then hands off to the same preview/send flow.
+function SendConfirmationModal({ student, onClose, onReady }) {
+  const [options, setOptions] = useState([]); // {classId, day, time, endTime, startDate}
+  const [selected, setSelected] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from("enrollments").select("classes(id, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
+      supabase.from("class_skips").select("class_id, date"),
+    ]).then(([eRes, skRes]) => {
+      const skips = skRes.data || [];
+      const opts = (eRes.data || [])
+        .map((e) => e.classes)
+        .filter(Boolean)
+        .map((c) => {
+          const nextOcc = nextOccurrenceOf(c, skips, localDateStr);
+          return { classId: c.id, day: c.day, time: c.time, endTime: c.end_time, startDate: nextOcc?.dateStr || c.start_date || null };
+        });
+      setOptions(opts);
+      if (opts.length === 1) setSelected(opts[0].classId);
+      setLoading(false);
+    });
+  }, [student.id]);
+
+  const proceed = async () => {
+    const opt = options.find((o) => o.classId === selected);
+    if (!opt) return;
+    const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", student.id);
+    const guardianEmail = (guardianLinks || []).map((g) => g.guardians?.email).find((e) => e) || null;
+    onReady({
+      guardianEmail,
+      emailStudents: [{ id: student.id, name: student.name, code: student.code, day: opt.day, startDate: opt.startDate, time: opt.time, endTime: opt.endTime }],
+    });
+  };
+
+  return (
+    <Modal title={`Send confirmation to ${student.name}'s parent`} onClose={onClose}>
+      {loading ? (
+        <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>
+      ) : options.length === 0 ? (
+        <p style={{ fontSize: 13, color: T.inkSoft }}>Not booked into any class yet — book them first, then a confirmation can be sent.</p>
+      ) : (
+        <>
+          {options.length > 1 && (
+            <Field label="Which class?">
+              <select style={inputStyle} value={selected} onChange={(e) => setSelected(e.target.value)}>
+                <option value="">Select…</option>
+                {options.map((o) => <option key={o.classId} value={o.classId}>{o.day} {formatTimeRange(o.time, o.endTime)}</option>)}
+              </select>
+            </Field>
+          )}
+          <div className="flex justify-end gap-2 mt-2">
+            <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+            <Btn onClick={proceed} disabled={!selected}>Continue</Btn>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
 export default function StudentsView() {
   const [students, setStudents] = useState([]);
   const [levels, setLevels] = useState([]);
@@ -554,6 +618,7 @@ export default function StudentsView() {
   const [showingQr, setShowingQr] = useState(null);
   const [viewingInfo, setViewingInfo] = useState(null);
   const [booking, setBooking] = useState(null);
+  const [sendingConfirmation, setSendingConfirmation] = useState(null);
   const [emailPreview, setEmailPreview] = useState(null);
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -666,6 +731,9 @@ export default function StudentsView() {
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {!s.archived && <button onClick={() => setBooking(s)} style={{ ...actionBtnStyle, color: T.sage, borderColor: `${T.sage}55` }}>Book class</button>}
+                {!s.archived && !s.confirmation_email_sent && (
+                  <button onClick={() => setSendingConfirmation(s)} style={{ ...actionBtnStyle, color: T.gold, borderColor: `${T.gold}55` }}>⚠ Send confirmation</button>
+                )}
                 {!s.archived && <button onClick={() => setEditing(s)} style={{ ...actionBtnStyle, color: T.maroon, borderColor: `${T.maroon}55` }}>Edit</button>}
                 {s.archived ? (
                   <button onClick={() => doArchive(s.id, false)} style={{ ...actionBtnStyle, color: T.sage, borderColor: `${T.sage}55` }}>Restore</button>
@@ -709,12 +777,22 @@ export default function StudentsView() {
           }}
         />
       )}
+      {sendingConfirmation && (
+        <SendConfirmationModal
+          student={sendingConfirmation}
+          onClose={() => setSendingConfirmation(null)}
+          onReady={({ guardianEmail, emailStudents }) => {
+            setSendingConfirmation(null);
+            setEmailPreview({ guardianEmail, students: emailStudents });
+          }}
+        />
+      )}
       {emailPreview && (
         <EmailPreviewModal
           guardianEmail={emailPreview.guardianEmail}
           students={emailPreview.students}
           onCancel={() => setEmailPreview(null)}
-          onSent={() => setEmailPreview(null)}
+          onSent={() => { setEmailPreview(null); load(); }}
         />
       )}
       {confirmArchive && (

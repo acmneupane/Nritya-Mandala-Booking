@@ -68,6 +68,7 @@ function ApproveModal({ request, levels, classes, classById, skips, onClose, onA
         const bookedClass = s.preferredClassId ? classById[s.preferredClassId] : null;
         const nextOcc = bookedClass ? nextOccurrenceOf(bookedClass, skips, localDateStr) : null;
         emailStudents.push({
+          id: created.id,
           name: s.name.trim(), code,
           day: bookedClass?.day || null,
           startDate: nextOcc?.dateStr || bookedClass?.start_date || null,
@@ -306,7 +307,7 @@ export default function RequestsView({ focusRequestId }) {
           guardianEmail={emailPreview.guardianEmail}
           students={emailPreview.students}
           onCancel={() => setEmailPreview(null)}
-          onSent={() => setEmailPreview(null)}
+          onSent={() => { setEmailPreview(null); load(); }}
         />
       )}
       {confirmReject && (
