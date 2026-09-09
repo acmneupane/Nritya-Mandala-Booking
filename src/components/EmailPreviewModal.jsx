@@ -24,6 +24,7 @@ function fillTemplate(template, vars) {
 // testing, or for a request where no email was actually given).
 export default function EmailPreviewModal({ guardianEmail, students, onCancel, onSent }) {
   const [template, setTemplate] = useState(null);
+  const [bccEmail, setBccEmail] = useState(null);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -31,6 +32,9 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
   useEffect(() => {
     supabase.from("email_templates").select("subject, body").eq("key", "enrollment_approved").maybeSingle()
       .then(({ data }) => setTemplate(data));
+    supabase.functions.invoke("send-approval-email", { method: "GET" })
+      .then(({ data }) => setBccEmail(data?.bccEmail || null))
+      .catch(() => setBccEmail(null));
   }, []);
 
   const eligible = students.filter((s) => s.day && s.startDate && s.code);
@@ -98,6 +102,7 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
               <div key={s.code} style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 14 }}>
                 <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 6 }}>
                   <div><strong>To:</strong> {guardianEmail}</div>
+                  {bccEmail && <div><strong>Bcc:</strong> {bccEmail}</div>}
                   <div><strong>Subject:</strong> {subject}</div>
                 </div>
                 <div style={{ fontSize: 13, color: T.ink, whiteSpace: "pre-wrap", lineHeight: 1.6, marginBottom: 10, background: T.paper, borderRadius: 6, padding: 10 }}>
