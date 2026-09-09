@@ -25,6 +25,7 @@ function fillTemplate(template, vars) {
 export default function EmailPreviewModal({ guardianEmail, students, onCancel, onSent }) {
   const [template, setTemplate] = useState(null);
   const [bccEmail, setBccEmail] = useState(null);
+  const [bccChecked, setBccChecked] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -44,7 +45,7 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
     setSending(true);
     setError("");
     const { error: fnErr } = await supabase.functions.invoke("send-approval-email", {
-      body: { guardianEmail, students: eligible },
+      body: { guardianEmail, students: eligible, includeBcc: bccChecked },
     });
     setSending(false);
     if (fnErr) { setError("Something went wrong sending — you can try again, or check with the parent directly."); return; }
@@ -82,6 +83,13 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
         </p>
       )}
 
+      {bccEmail && (
+        <label className="flex items-center gap-2 mb-3" style={{ fontSize: 12.5, color: T.ink }}>
+          <input type="checkbox" checked={bccChecked} onChange={(e) => setBccChecked(e.target.checked)} />
+          Bcc {bccEmail} on {eligible.length > 1 ? "these emails" : "this email"}
+        </label>
+      )}
+
       {!template ? (
         <p style={{ fontSize: 13, color: T.inkSoft }}>Loading template…</p>
       ) : (
@@ -102,7 +110,7 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
               <div key={s.code} style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 14 }}>
                 <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 6 }}>
                   <div><strong>To:</strong> {guardianEmail}</div>
-                  {bccEmail && <div><strong>Bcc:</strong> {bccEmail}</div>}
+                  {bccChecked && bccEmail && <div><strong>Bcc:</strong> {bccEmail}</div>}
                   <div><strong>Subject:</strong> {subject}</div>
                 </div>
                 <div
