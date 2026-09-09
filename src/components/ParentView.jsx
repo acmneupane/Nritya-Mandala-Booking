@@ -6,7 +6,7 @@ import { Btn } from "./ui";
 import { localDateStr } from "../lib/dates";
 import { buildQrCardDataUrl } from "../lib/qrCard";
 import { QrCanvas } from "./QrCode";
-import { nextOccurrenceOf, formatTimeRange } from "../lib/scheduling";
+import { nextOccurrenceOf, formatTimeRange, isClassActiveOn } from "../lib/scheduling";
 import MarkAbsentModal from "./MarkAbsentModal";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -57,7 +57,10 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     buildQrCardDataUrl({ studentName: student.name, code: student.code, qrText }).then(setCardDataUrl);
   }, [student.id, student.code, student.name]);
 
-  const todaysClasses = useMemo(() => classes.filter((c) => c.day === todayDayName), [classes, todayDayName]);
+  const todaysClasses = useMemo(
+    () => classes.filter((c) => c.day === todayDayName && isClassActiveOn(c, todayStr) && !skips.some((s) => s.class_id === c.id && s.date === todayStr)),
+    [classes, todayDayName, todayStr, skips]
+  );
   const classById = useMemo(() => Object.fromEntries(classes.map((c) => [c.id, c])), [classes]);
   const remaining = pkgSummary ? pkgSummary.classes_total - pkgSummary.classes_used : 0;
 
@@ -75,14 +78,6 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     return entries[0] || null;
   }, [nextOccurrences, classById]);
 
-  const checkIn = async (classId) => {
-    await supabase.from("attendance").insert({ student_id: student.id, class_id: classId, date: todayStr, status: "attended" });
-    load();
-  };
-  const undoCheckIn = async (classId) => {
-    await supabase.from("attendance").delete().eq("student_id", student.id).eq("class_id", classId).eq("date", todayStr);
-    load();
-  };
   const undoAbsent = async (classId, dateStr) => {
     setMarkingBusy(classId);
     await supabase.rpc("undo_mark_absence", { p_code: student.code, p_class_id: classId, p_date: dateStr });
@@ -153,11 +148,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
               return (
                 <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderTop: `1px solid ${T.line}` }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{formatTimeRange(c.time, c.end_time)}</div>
-                  {checkedIn ? (
-                    <button onClick={() => undoCheckIn(c.id)} style={{ fontSize: 12, fontWeight: 600, color: T.sage }} title="Tap to undo">✓ Checked in</button>
-                  ) : (
-                    <Btn size="sm" onClick={() => checkIn(c.id)}>Check in</Btn>
-                  )}
+                  {checkedIn && <span style={{ fontSize: 12, fontWeight: 600, color: T.sage }}>✓ Checked in</span>}
                 </div>
               );
             })}
