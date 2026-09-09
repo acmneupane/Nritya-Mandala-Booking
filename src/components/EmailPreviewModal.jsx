@@ -105,9 +105,10 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
                   {bccEmail && <div><strong>Bcc:</strong> {bccEmail}</div>}
                   <div><strong>Subject:</strong> {subject}</div>
                 </div>
-                <div style={{ fontSize: 13, color: T.ink, whiteSpace: "pre-wrap", lineHeight: 1.6, marginBottom: 10, background: T.paper, borderRadius: 6, padding: 10 }}>
-                  {body.replace("{{qr_link}}", qrLink)}
-                </div>
+                <div
+                  style={{ fontSize: 13, color: T.ink, lineHeight: 1.6, marginBottom: 10, background: T.paper, borderRadius: 6, padding: 10 }}
+                  dangerouslySetInnerHTML={{ __html: body.replace("{{qr_link}}", qrLink).replace(/\n/g, "<br/>") }}
+                />
                 <div className="flex items-center gap-2">
                   <div style={{ border: `1px solid ${T.line}`, borderRadius: 6, padding: 4 }}>
                     <QrCanvas text={qrLink} size={80} />
