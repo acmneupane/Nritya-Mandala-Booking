@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
 import { Btn, Modal } from "./ui";
 import { QrCanvas } from "./QrCode";
+import { formatTimeRange } from "../lib/scheduling";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 function ordinal(n) {
@@ -86,6 +87,7 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
             const vars = {
               student_name: s.name,
               day: s.day,
+              time: formatTimeRange(s.time, s.endTime),
               start_date: formatDate(s.startDate),
               qr_link: qrLink,
               qr_code_image: "",

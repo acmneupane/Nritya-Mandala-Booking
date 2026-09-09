@@ -69,6 +69,8 @@ function ApproveModal({ request, levels, classes, classById, onClose, onApproved
           name: s.name.trim(), code,
           day: bookedClass?.day || null,
           startDate: bookedClass?.start_date || null,
+          time: bookedClass?.time || null,
+          endTime: bookedClass?.end_time || null,
         });
       }
 

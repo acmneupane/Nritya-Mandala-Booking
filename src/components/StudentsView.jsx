@@ -507,7 +507,7 @@ function BookClassModal({ student, onClose, onBooked }) {
 
     onBooked({
       guardianEmail,
-      emailStudents: [{ name: student.name, code: student.code, day: bookedClass?.day || null, startDate: bookedClass?.start_date || null }],
+      emailStudents: [{ name: student.name, code: student.code, day: bookedClass?.day || null, startDate: bookedClass?.start_date || null, time: bookedClass?.time || null, endTime: bookedClass?.end_time || null }],
     });
   };
 
