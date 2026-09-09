@@ -3,10 +3,11 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
 import { generateStudentCode } from "../lib/studentCode";
-import { formatTimeRange } from "../lib/scheduling";
+import { formatTimeRange, nextOccurrenceOf } from "../lib/scheduling";
+import { localDateStr } from "../lib/dates";
 import EmailPreviewModal from "./EmailPreviewModal";
 
-function ApproveModal({ request, levels, classes, classById, onClose, onApproved }) {
+function ApproveModal({ request, levels, classes, classById, skips, onClose, onApproved }) {
   const [students, setStudents] = useState(
     (request.enrollment_request_students || [])
       .slice()
@@ -65,10 +66,11 @@ function ApproveModal({ request, levels, classes, classById, onClose, onApproved
         await supabase.from("enrollment_request_students").update({ created_student_id: created.id }).eq("id", s.id);
 
         const bookedClass = s.preferredClassId ? classById[s.preferredClassId] : null;
+        const nextOcc = bookedClass ? nextOccurrenceOf(bookedClass, skips, localDateStr) : null;
         emailStudents.push({
           name: s.name.trim(), code,
           day: bookedClass?.day || null,
-          startDate: bookedClass?.start_date || null,
+          startDate: nextOcc?.dateStr || bookedClass?.start_date || null,
           time: bookedClass?.time || null,
           endTime: bookedClass?.end_time || null,
         });
@@ -157,6 +159,7 @@ export default function RequestsView({ focusRequestId }) {
   const [levels, setLevels] = useState([]);
   const [classes, setClasses] = useState([]);
   const [classById, setClassById] = useState({});
+  const [skips, setSkips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(null);
   const [confirmReject, setConfirmReject] = useState(null);
@@ -166,15 +169,17 @@ export default function RequestsView({ focusRequestId }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [rRes, lRes, cRes] = await Promise.all([
+    const [rRes, lRes, cRes, skRes] = await Promise.all([
       supabase.from("enrollment_requests").select("*, enrollment_request_students(*)").order("created_at", { ascending: false }),
       supabase.from("levels").select("*").order("order_num"),
       supabase.from("classes").select("*"),
+      supabase.from("class_skips").select("class_id, date"),
     ]);
     setRequests(rRes.data || []);
     setLevels(lRes.data || []);
     setClasses(cRes.data || []);
     setClassById(Object.fromEntries((cRes.data || []).map((c) => [c.id, c])));
+    setSkips(skRes.data || []);
     setLoading(false);
   }, []);
 
@@ -287,6 +292,7 @@ export default function RequestsView({ focusRequestId }) {
           levels={levels}
           classes={classes}
           classById={classById}
+          skips={skips}
           onClose={() => setApproving(null)}
           onApproved={({ guardianEmail, emailStudents }) => {
             setApproving(null);

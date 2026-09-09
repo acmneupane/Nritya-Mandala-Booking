@@ -6,7 +6,8 @@ import QrModal from "./QrCode";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { computeAge } from "../lib/age";
 import { generateStudentCode } from "../lib/studentCode";
-import { formatTimeRange } from "../lib/scheduling";
+import { formatTimeRange, nextOccurrenceOf } from "../lib/scheduling";
+import { localDateStr } from "../lib/dates";
 import EmailPreviewModal from "./EmailPreviewModal";
 
 const actionBtnStyle = { fontSize: 13, fontWeight: 500, padding: "5px 12px", borderRadius: 999, border: "1px solid", background: "#fff", whiteSpace: "nowrap" };
@@ -475,6 +476,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
 function BookClassModal({ student, onClose, onBooked }) {
   const [classes, setClasses] = useState([]);
   const [enrolledIds, setEnrolledIds] = useState([]);
+  const [skips, setSkips] = useState([]);
   const [selected, setSelected] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -484,9 +486,11 @@ function BookClassModal({ student, onClose, onBooked }) {
     Promise.all([
       supabase.from("classes").select("*"),
       supabase.from("enrollments").select("class_id").eq("student_id", student.id),
-    ]).then(([cRes, eRes]) => {
+      supabase.from("class_skips").select("class_id, date"),
+    ]).then(([cRes, eRes, skRes]) => {
       setClasses((cRes.data || []).slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
       setEnrolledIds((eRes.data || []).map((e) => e.class_id));
+      setSkips(skRes.data || []);
       setLoading(false);
     });
   }, [student.id]);
@@ -502,12 +506,13 @@ function BookClassModal({ student, onClose, onBooked }) {
     if (error) { setError(error.message); return; }
 
     const bookedClass = classes.find((c) => c.id === selected);
+    const nextOcc = bookedClass ? nextOccurrenceOf(bookedClass, skips, localDateStr) : null;
     const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", student.id);
     const guardianEmail = (guardianLinks || []).map((g) => g.guardians?.email).find((e) => e) || null;
 
     onBooked({
       guardianEmail,
-      emailStudents: [{ name: student.name, code: student.code, day: bookedClass?.day || null, startDate: bookedClass?.start_date || null, time: bookedClass?.time || null, endTime: bookedClass?.end_time || null }],
+      emailStudents: [{ name: student.name, code: student.code, day: bookedClass?.day || null, startDate: nextOcc?.dateStr || bookedClass?.start_date || null, time: bookedClass?.time || null, endTime: bookedClass?.end_time || null }],
     });
   };
 
