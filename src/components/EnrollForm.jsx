@@ -43,7 +43,7 @@ function ImportantInfo({ preferredClass }) {
         Account Name: Sarita Sigdel<br />
         BSB: 082 231<br />
         Account Number: 846746850<br /><br />
-        Payment Reference: use the reference number you'll be given after submitting this form.
+        Payment Reference: use the reference number shown in the Payment section below.
       </InfoSection>
 
       <InfoSection title="Payment Confirmation">
@@ -126,8 +126,22 @@ export default function EnrollForm() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    supabase.from("classes").select("id, label, day, time, end_time").then(({ data }) => {
-      setClasses((data || []).slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
+    Promise.all([
+      supabase.from("classes").select("id, label, day, time, end_time, capacity"),
+      supabase.from("enrollments").select("class_id"),
+    ]).then(([cRes, eRes]) => {
+      const counts = {};
+      (eRes.data || []).forEach((e) => { counts[e.class_id] = (counts[e.class_id] || 0) + 1; });
+      const open = (cRes.data || []).filter((c) => (counts[c.id] || 0) < c.capacity);
+      setClasses(open.slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
+    });
+    // The reference is shown up front — it's what they need to actually make the
+    // payment with, not just a receipt after the fact — so generate it immediately
+    // rather than waiting for "I have paid" to be ticked.
+    setGeneratingReference(true);
+    supabase.rpc("peek_enrollment_reference").then(({ data, error }) => {
+      setGeneratingReference(false);
+      if (!error) setPaymentReference(data);
     });
   }, []);
 
@@ -138,14 +152,9 @@ export default function EnrollForm() {
   const updateSibling = (i, val) => setSiblings((s) => s.map((sib, idx) => (idx === i ? val : sib)));
   const removeSibling = (i) => setSiblings((s) => s.filter((_, idx) => idx !== i));
 
-  const togglePaymentClaimed = async (checked) => {
+  const togglePaymentClaimed = (checked) => {
     setPaymentClaimed(checked);
-    if (!checked) { setPaymentFile(null); return; }
-    if (paymentReference) return; // already generated this session, reuse it
-    setGeneratingReference(true);
-    const { data, error } = await supabase.rpc("peek_enrollment_reference");
-    setGeneratingReference(false);
-    if (!error) setPaymentReference(data);
+    if (!checked) setPaymentFile(null);
   };
 
   const submit = async () => {
@@ -328,37 +337,34 @@ export default function EnrollForm() {
             </div>
           </div>
 
-          <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 12 }}>Once submitted, we'll contact you via email or mobile to confirm the enrolment — you'll also be given a reference number to use for payment.</p>
+          <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 12 }}>Once submitted, we'll contact you via email or mobile to confirm the enrolment.</p>
 
           <ImportantInfo preferredClass={classes.find((c) => c.id === preferredClassId) || null} />
 
           <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 18, marginTop: 16 }}>
             <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 8 }}>Payment</h3>
             <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
-              If you haven't paid yet, you'll get your payment reference on the confirmation screen after submitting — use it when transferring payment using the bank details above.
-              If you've already paid, tick the box below to get your reference now and attach your payment screenshot so we can confirm it faster.
+              Please pay using the bank details above, with the reference below — this is what tells us the payment is for {studentName || "your child"}'s enrolment.
             </p>
+            <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Pay with this reference</div>
+              <div style={{ fontFamily: "Fraunces, serif", fontSize: 22, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>
+                {generatingReference ? "Generating…" : paymentReference || "—"}
+              </div>
+            </div>
             <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
               <input type="checkbox" checked={paymentClaimed} onChange={(e) => togglePaymentClaimed(e.target.checked)} />
               I have already paid
             </label>
             {paymentClaimed && (
-              <>
-                <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Your payment reference</div>
-                  <div style={{ fontFamily: "Fraunces, serif", fontSize: 22, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>
-                    {generatingReference ? "Generating…" : paymentReference || "—"}
-                  </div>
-                </div>
-                <Field label="Payment screenshot">
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={(e) => setPaymentFile(e.target.files?.[0] || null)}
-                    style={{ fontSize: 13 }}
-                  />
-                </Field>
-              </>
+              <Field label="Payment screenshot">
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setPaymentFile(e.target.files?.[0] || null)}
+                  style={{ fontSize: 13 }}
+                />
+              </Field>
             )}
           </div>
 
