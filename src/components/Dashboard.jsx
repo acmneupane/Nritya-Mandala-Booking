@@ -8,7 +8,8 @@ import ClassesView from "./ClassesView";
 import LevelsView from "./LevelsView";
 import HistoryView from "./HistoryView";
 import RequestsView from "./RequestsView";
-import SettingsView from "./SettingsView";
+import AccountView from "./AccountView";
+import StudioSettingsView from "./StudioSettingsView";
 import ShareEnrollLink from "./ShareEnrollLink";
 import PackageTiersView from "./PackageTiersView";
 import RenewalsView from "./RenewalsView";
@@ -22,7 +23,8 @@ const NAV = [
   { id: "levels", label: "Levels" },
   { id: "packages", label: "Packages" },
   { id: "history", label: "History" },
-  { id: "settings", label: "Settings" },
+  { id: "studio-settings", label: "Studio Settings" },
+  { id: "account", label: "Account" },
 ];
 
 function NavBadge({ count, urgent }) {
@@ -171,7 +173,8 @@ export default function Dashboard() {
         {tab === "levels" && <LevelsView />}
         {tab === "packages" && <PackageTiersView />}
         {tab === "history" && <HistoryView />}
-        {tab === "settings" && <SettingsView />}
+        {tab === "studio-settings" && <StudioSettingsView />}
+        {tab === "account" && <AccountView />}
       </main>
     </div>
   );
