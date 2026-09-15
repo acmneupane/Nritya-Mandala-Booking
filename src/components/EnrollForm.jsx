@@ -123,7 +123,7 @@ function PackageTierPicker({ tiers, selectedId, onSelect, sibling }) {
           >
             <div className="flex items-center gap-2">
               <input type="radio" checked={checked} onChange={() => onSelect(t.id)} />
-              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({t.classes_count} classes){sibling && t.sibling_price != null ? " — family discount" : ""}</span>
+              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({t.classes_count} classes){sibling && t.sibling_price != null && t.sibling_price_label ? ` — ${t.sibling_price_label}` : ""}</span>
             </div>
             <span style={{ fontSize: 14, fontWeight: 700, color: T.maroonDark }}>${price.toFixed(2)}</span>
           </label>
@@ -386,19 +386,19 @@ export default function EnrollForm() {
             </div>
           )}
 
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, margin: "18px 0 8px" }}>Siblings</h3>
+          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, margin: "18px 0 8px" }}>Additional Students</h3>
           {!wantsSiblings ? (
             <div className="flex gap-4 mb-2">
               <label className="flex items-center gap-1.5 text-sm" style={{ color: T.ink }}>
-                <input type="radio" checked={!wantsSiblings} onChange={() => setWantsSiblings(false)} /> No siblings to add
+                <input type="radio" checked={!wantsSiblings} onChange={() => setWantsSiblings(false)} /> No additional students to add
               </label>
               <label className="flex items-center gap-1.5 text-sm" style={{ color: T.ink }}>
-                <input type="radio" checked={wantsSiblings} onChange={() => setWantsSiblings(true)} /> Yes, add siblings
+                <input type="radio" checked={wantsSiblings} onChange={() => setWantsSiblings(true)} /> Yes, add additional students
               </label>
             </div>
           ) : (
             <>
-              <button onClick={() => setWantsSiblings(false)} style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8, textDecoration: "underline" }}>Actually, no siblings</button>
+              <button onClick={() => setWantsSiblings(false)} style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8, textDecoration: "underline" }}>Actually, no additional students</button>
               {siblings.map((s, i) => (
                 <SiblingCard key={i} sibling={s} index={i} classes={classes} onChange={(val) => updateSibling(i, val)} onRemove={() => removeSibling(i)} />
               ))}
@@ -459,7 +459,7 @@ export default function EnrollForm() {
                     <div key={i}>
                       {fees.enabled && (
                         <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
-                          <span style={{ fontSize: 13, color: T.ink }}>{s.name} — {fees.label} (family discount)</span>
+                          <span style={{ fontSize: 13, color: T.ink }}>{s.name} — {fees.label} (Additional Student)</span>
                           <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>${fees.sibling.toFixed(2)}</span>
                         </div>
                       )}

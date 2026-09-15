@@ -162,7 +162,7 @@ export default function RenewForm() {
                           >
                             <div className="flex items-center gap-2">
                               <input type="radio" name={`tier-${s.id}`} checked={checked} onChange={() => setSiblingTierIds((m) => ({ ...m, [s.id]: t.id }))} />
-                              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({t.classes_count} classes){t.sibling_price != null ? " — family discount" : ""}</span>
+                              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({t.classes_count} classes){t.sibling_price != null && t.sibling_price_label ? ` — ${t.sibling_price_label}` : ""}</span>
                             </div>
                             <span style={{ fontSize: 14, fontWeight: 700, color: T.maroonDark }}>${p.toFixed(2)}</span>
                           </label>
