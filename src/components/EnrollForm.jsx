@@ -31,13 +31,6 @@ function ImportantInfo({ preferredClass }) {
         )}
       </InfoSection>
 
-      <InfoSection title="Fees">
-        Enrolment Fee: $20 per person<br />
-        Siblings Fee: $15 per sibling<br />
-        5-Week Package: $90 per person<br /><br />
-        Fees are payable in advance to secure your child's place in the class.
-      </InfoSection>
-
       <InfoSection title="Bank Account Details">
         Bank: NAB<br />
         Account Name: Sarita Sigdel<br />
@@ -78,7 +71,7 @@ function ImportantInfo({ preferredClass }) {
   );
 }
 
-function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
+function SiblingCard({ sibling, index, classes, packageTiers, onChange, onRemove }) {
   return (
     <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 12, marginBottom: 10 }}>
       <div className="flex items-center justify-between mb-2">
@@ -90,12 +83,20 @@ function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
         <Field label="Date of birth"><input style={inputStyle} type="date" value={sibling.dob} onChange={(e) => onChange({ ...sibling, dob: e.target.value })} /></Field>
       </div>
       {classes.length > 0 ? (
-        <Field label="Preferred class">
-          <select style={inputStyle} value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
-            <option value="">Not sure</option>
-            {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
-          </select>
-        </Field>
+        <>
+          <Field label="Preferred class">
+            <select style={inputStyle} value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
+              <option value="">Not sure</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+            </select>
+          </Field>
+          <Field label="Package *">
+            <select style={inputStyle} value={sibling.packageTierId || ""} onChange={(e) => onChange({ ...sibling, packageTierId: e.target.value })}>
+              <option value="">Select a package…</option>
+              {packageTiers.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.classes_count} classes — ${Number(t.price).toFixed(2)}</option>)}
+            </select>
+          </Field>
+        </>
       ) : (
         <Field label="Preferred day/time (optional)">
           <input style={inputStyle} value={sibling.classText || ""} onChange={(e) => onChange({ ...sibling, classText: e.target.value })} placeholder="e.g. Saturday mornings, Tuesday evenings" />
@@ -111,6 +112,9 @@ export default function EnrollForm() {
   const [studentDob, setStudentDob] = useState("");
   const [preferredClassId, setPreferredClassId] = useState("");
   const [preferredClassText, setPreferredClassText] = useState("");
+  const [packageTierId, setPackageTierId] = useState("");
+  const [packageTiers, setPackageTiers] = useState([]);
+  const [fees, setFees] = useState({ primary: 20, sibling: 15 });
   const [guardianName, setGuardianName] = useState("");
   const [guardianRelation, setGuardianRelation] = useState("");
   const [guardianRelationOther, setGuardianRelationOther] = useState("");
@@ -142,6 +146,10 @@ export default function EnrollForm() {
       const open = (cRes.data || []).filter((c) => (counts[c.id] || 0) < c.capacity);
       setClasses(open.slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
     });
+    supabase.from("package_tiers").select("*").order("sort_order").then(({ data }) => setPackageTiers(data || []));
+    supabase.from("settings").select("enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setFees({ primary: Number(data.enrolment_fee_primary), sibling: Number(data.enrolment_fee_sibling) });
+    });
     // The reference is shown up front — it's what they need to actually make the
     // payment with, not just a receipt after the fact — so generate it immediately
     // rather than waiting for "I have paid" to be ticked.
@@ -154,7 +162,7 @@ export default function EnrollForm() {
 
   const addSibling = () => {
     if (siblings.length >= MAX_SIBLINGS) return;
-    setSiblings((s) => [...s, { name: "", dob: "", classId: "", classText: "" }]);
+    setSiblings((s) => [...s, { name: "", dob: "", classId: "", classText: "", packageTierId: "" }]);
   };
   const updateSibling = (i, val) => setSiblings((s) => s.map((sib, idx) => (idx === i ? val : sib)));
   const removeSibling = (i) => setSiblings((s) => s.filter((_, idx) => idx !== i));
@@ -163,6 +171,13 @@ export default function EnrollForm() {
     setPaymentClaimed(checked);
     if (!checked) setPaymentFile(null);
   };
+
+  const namedSiblings = siblings.filter((s) => s.name.trim());
+  const tierById = Object.fromEntries(packageTiers.map((t) => [t.id, t]));
+  const primaryTierPrice = packageTierId && tierById[packageTierId] ? Number(tierById[packageTierId].price) : 0;
+  const total = classes.length > 0
+    ? fees.primary + primaryTierPrice + namedSiblings.reduce((sum, s) => sum + fees.sibling + (s.packageTierId && tierById[s.packageTierId] ? Number(tierById[s.packageTierId].price) : 0), 0)
+    : 0;
 
   const submit = async () => {
     if (!studentName.trim() || !guardianName.trim()) {
@@ -181,6 +196,11 @@ export default function EnrollForm() {
       setError("Please confirm you've read the Important Information above.");
       return;
     }
+    if (classes.length > 0) {
+      if (!packageTierId) { setError("Please select a package for " + (studentName || "the student") + "."); return; }
+      const missingSiblingPackage = namedSiblings.find((s) => !s.packageTierId);
+      if (missingSiblingPackage) { setError(`Please select a package for ${missingSiblingPackage.name}.`); return; }
+    }
     setSubmitting(true);
     setError("");
     try {
@@ -193,9 +213,9 @@ export default function EnrollForm() {
       }
 
       const studentRows = [
-        { name: studentName.trim(), dob: studentDob || null, preferred_class_id: preferredClassId || null, preferred_class_text: preferredClassText.trim() || null, is_sibling: false, sort_order: 0 },
-        ...siblings.filter((s) => s.name.trim()).map((s, i) => ({
-          name: s.name.trim(), dob: s.dob || null, preferred_class_id: s.classId || null, preferred_class_text: (s.classText || "").trim() || null, is_sibling: true, sort_order: i + 1,
+        { name: studentName.trim(), dob: studentDob || null, preferred_class_id: preferredClassId || null, preferred_class_text: preferredClassText.trim() || null, selected_package_tier_id: packageTierId || null, is_sibling: false, sort_order: 0 },
+        ...namedSiblings.map((s, i) => ({
+          name: s.name.trim(), dob: s.dob || null, preferred_class_id: s.classId || null, preferred_class_text: (s.classText || "").trim() || null, selected_package_tier_id: s.packageTierId || null, is_sibling: true, sort_order: i + 1,
         })),
       ];
 
@@ -273,6 +293,12 @@ export default function EnrollForm() {
                   {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
                 </select>
               </Field>
+              <Field label="Package *">
+                <select style={inputStyle} value={packageTierId} onChange={(e) => setPackageTierId(e.target.value)}>
+                  <option value="">Select a package…</option>
+                  {packageTiers.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.classes_count} classes — ${Number(t.price).toFixed(2)}</option>)}
+                </select>
+              </Field>
             </div>
           ) : (
             <>
@@ -332,7 +358,7 @@ export default function EnrollForm() {
             <>
               <button onClick={() => setWantsSiblings(false)} style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8, textDecoration: "underline" }}>Actually, no siblings</button>
               {siblings.map((s, i) => (
-                <SiblingCard key={i} sibling={s} index={i} classes={classes} onChange={(val) => updateSibling(i, val)} onRemove={() => removeSibling(i)} />
+                <SiblingCard key={i} sibling={s} index={i} classes={classes} packageTiers={packageTiers} onChange={(val) => updateSibling(i, val)} onRemove={() => removeSibling(i)} />
               ))}
               {siblings.length < MAX_SIBLINGS && (
                 <Btn size="sm" variant="ghost" onClick={addSibling}>+ Add sibling ({siblings.length}/{MAX_SIBLINGS})</Btn>
@@ -364,6 +390,33 @@ export default function EnrollForm() {
             <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 8 }}>Payment</h3>
             {classes.length > 0 ? (
               <>
+                <div style={{ marginBottom: 14 }}>
+                  <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
+                    <span style={{ fontSize: 13, color: T.ink }}>{studentName || "Student"} — One-off Enrolment fee</span>
+                    <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>${fees.primary.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
+                    <span style={{ fontSize: 13, color: T.ink }}>{studentName || "Student"} — Package{packageTierId && tierById[packageTierId] ? ` (${tierById[packageTierId].name})` : ""}</span>
+                    <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{packageTierId && tierById[packageTierId] ? `$${primaryTierPrice.toFixed(2)}` : "—"}</span>
+                  </div>
+                  {namedSiblings.map((s, i) => (
+                    <div key={i}>
+                      <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
+                        <span style={{ fontSize: 13, color: T.ink }}>{s.name} — One-off Enrolment fee (sibling)</span>
+                        <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>${fees.sibling.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
+                        <span style={{ fontSize: 13, color: T.ink }}>{s.name} — Package{s.packageTierId && tierById[s.packageTierId] ? ` (${tierById[s.packageTierId].name})` : ""}</span>
+                        <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{s.packageTierId && tierById[s.packageTierId] ? `$${Number(tierById[s.packageTierId].price).toFixed(2)}` : "—"}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between" style={{ padding: "10px 0 2px" }}>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>Total</span>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>${total.toFixed(2)}</span>
+                  </div>
+                </div>
+
                 <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
                   Please pay using the bank details above, with the reference below — this is what tells us the payment is for {studentName || "your child"}'s enrolment.
                 </p>

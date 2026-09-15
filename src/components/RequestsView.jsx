@@ -8,12 +8,18 @@ import { localDateStr } from "../lib/dates";
 import EmailPreviewModal from "./EmailPreviewModal";
 import PendingPackagesEditor from "./PendingPackagesEditor";
 
-function ApproveModal({ request, levels, classes, classById, skips, onClose, onApproved }) {
+function ApproveModal({ request, levels, classes, classById, skips, tierById, onClose, onApproved }) {
   const [students, setStudents] = useState(
     (request.enrollment_request_students || [])
       .slice()
       .sort((a, b) => a.sort_order - b.sort_order)
-      .map((s) => ({ id: s.id, name: s.student_name, dob: s.student_dob || "", levelId: "", preferredClassId: s.preferred_class_id || "", isSibling: s.is_sibling, pendingPackages: [] }))
+      .map((s) => {
+        const selectedTier = s.selected_package_tier_id ? tierById[s.selected_package_tier_id] : null;
+        return {
+          id: s.id, name: s.student_name, dob: s.student_dob || "", levelId: "", preferredClassId: s.preferred_class_id || "", isSibling: s.is_sibling,
+          pendingPackages: selectedTier ? [{ classesTotal: selectedTier.classes_count, amount: Number(selectedTier.price), note: `Requested at enrolment: ${selectedTier.name}` }] : [],
+        };
+      })
   );
   const [guardianName, setGuardianName] = useState(request.guardian_name);
   const [guardianPhone, setGuardianPhone] = useState(request.guardian_phone || "");
@@ -176,6 +182,8 @@ export default function RequestsView({ focusRequestId }) {
   const [classes, setClasses] = useState([]);
   const [classById, setClassById] = useState({});
   const [skips, setSkips] = useState([]);
+  const [tiers, setTiers] = useState([]);
+  const [tierById, setTierById] = useState({});
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(null);
   const [confirmReject, setConfirmReject] = useState(null);
@@ -185,17 +193,20 @@ export default function RequestsView({ focusRequestId }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [rRes, lRes, cRes, skRes] = await Promise.all([
+    const [rRes, lRes, cRes, skRes, tRes] = await Promise.all([
       supabase.from("enrollment_requests").select("*, enrollment_request_students(*)").order("created_at", { ascending: false }),
       supabase.from("levels").select("*").order("order_num"),
       supabase.from("classes").select("*"),
       supabase.from("class_skips").select("class_id, date"),
+      supabase.from("package_tiers").select("*"),
     ]);
     setRequests(rRes.data || []);
     setLevels(lRes.data || []);
     setClasses(cRes.data || []);
     setClassById(Object.fromEntries((cRes.data || []).map((c) => [c.id, c])));
     setSkips(skRes.data || []);
+    setTiers(tRes.data || []);
+    setTierById(Object.fromEntries((tRes.data || []).map((t) => [t.id, t])));
     setLoading(false);
   }, []);
 
@@ -272,6 +283,9 @@ export default function RequestsView({ focusRequestId }) {
                       ) : k.preferred_class_text ? (
                         <span style={{ fontSize: 11, color: T.gold, fontFamily: "Inter, sans-serif", marginLeft: 6 }}>· preferred: {k.preferred_class_text}</span>
                       ) : null}
+                      {k.selected_package_tier_id && tierById[k.selected_package_tier_id] && (
+                        <span style={{ fontSize: 11, color: T.maroon, fontFamily: "Inter, sans-serif", marginLeft: 6 }}>· package: {tierById[k.selected_package_tier_id].name} (${Number(tierById[k.selected_package_tier_id].price).toFixed(2)})</span>
+                      )}
                     </div>
                   ))}
                   <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 4 }}>
@@ -311,6 +325,7 @@ export default function RequestsView({ focusRequestId }) {
           classes={classes}
           classById={classById}
           skips={skips}
+          tierById={tierById}
           onClose={() => setApproving(null)}
           onApproved={({ guardianEmail, emailStudents }) => {
             setApproving(null);
