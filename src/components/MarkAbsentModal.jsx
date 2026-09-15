@@ -94,7 +94,7 @@ export default function MarkAbsentModal({ student, classes, skips, remaining, lo
           {options[0].date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · {formatTimeRange(options[0].time, options[0].endTime)}
           {options[0].lateNotice && (
             <div style={{ fontSize: 11, fontWeight: 500, color: T.terracotta, marginTop: 6 }}>
-              ⚠ Less than 24 hours away — this won't be excused and will still count toward the package, same as a missed class.
+              ⚠ This is less than 24 hours away, so it'll still count as one of your package classes — we may not have time to fill the spot.
             </div>
           )}
         </div>
@@ -105,7 +105,7 @@ export default function MarkAbsentModal({ student, classes, skips, remaining, lo
               <input type="checkbox" checked={selected.has(o.key)} onChange={() => toggle(o.key)} />
               <span>
                 {o.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · {formatTimeRange(o.time, o.endTime)}
-                {o.lateNotice && <span style={{ display: "block", fontSize: 11, color: T.terracotta, marginTop: 2 }}>⚠ Less than 24 hours away — will still count toward the package</span>}
+                {o.lateNotice && <span style={{ display: "block", fontSize: 11, color: T.terracotta, marginTop: 2 }}>⚠ Less than 24 hours away — this will still count as one of your package classes</span>}
               </span>
             </label>
           ))}

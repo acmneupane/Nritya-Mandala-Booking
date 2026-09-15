@@ -5,9 +5,9 @@ export function Btn({ children, onClick, variant = "primary", size = "md", type 
   const base = "inline-flex items-center gap-2 font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
   const sizes = { sm: "px-3 py-1.5 text-sm rounded-md", md: "px-4 py-2 text-sm rounded-md", lg: "px-5 py-2.5 text-base rounded-md" };
   const variants = {
-    primary: { backgroundColor: T.maroon, color: T.ivory },
+    primary: { backgroundColor: T.sage, color: "#fff" },
     gold: { backgroundColor: T.gold, color: T.maroonDark },
-    success: { backgroundColor: T.sage, color: "#fff" },
+    success: { backgroundColor: T.maroon, color: T.ivory },
     ghost: { backgroundColor: "transparent", color: T.maroon, border: `1px solid ${T.line}` },
     danger: { backgroundColor: "transparent", color: T.terracotta, border: `1px solid ${T.terracotta}55` },
   };
