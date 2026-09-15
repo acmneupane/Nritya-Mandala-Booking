@@ -13,6 +13,7 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 
 export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [level, setLevel] = useState(null);
+  const [allLevels, setAllLevels] = useState([]);
   const [classes, setClasses] = useState([]);
   const [history, setHistory] = useState([]);
   const [levelHistory, setLevelHistory] = useState([]);
@@ -31,8 +32,9 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
   const load = async () => {
     setLoading(true);
-    const [levelRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes] = await Promise.all([
+    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes] = await Promise.all([
       student.level_id ? supabase.from("levels").select("id, name").eq("id", student.level_id).maybeSingle() : Promise.resolve({ data: null }),
+      supabase.from("levels").select("id, name, order_num").order("order_num"),
       supabase.from("enrollments").select("class_id, classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
       supabase.from("attendance").select("id, class_id, date, status").eq("student_id", student.id).order("date", { ascending: false }).limit(10),
       supabase.from("level_history").select("id, level_id, date, levels(name)").eq("student_id", student.id).order("date", { ascending: false }),
@@ -41,6 +43,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
       supabase.from("class_skips").select("class_id, date"),
     ]);
     setLevel(levelRes.data);
+    setAllLevels(allLevelsRes.data || []);
     setClasses((enrollRes.data || []).map((e) => e.classes).filter(Boolean));
     setHistory(historyRes.data || []);
     setLevelHistory(levelHistRes.data || []);
@@ -93,9 +96,25 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
         <img src={LOGO_DATA_URI} alt="" style={{ width: 40, height: 40, borderRadius: "50%", marginBottom: 8 }} />
         <p style={{ fontSize: 12, color: T.gold, fontWeight: 600, marginBottom: 4 }}>Nritya Mandala</p>
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, color: T.maroonDark, marginBottom: 4 }}>{student.name}</h1>
-        {level && (
-          <div style={{ marginBottom: 20 }}>
-            <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: `${T.sage}22`, color: T.sage, fontWeight: 600 }}>{level.name}</span>
+        {allLevels.length > 0 && (
+          <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 14 }}>
+            <div className="flex items-center justify-between mb-2">
+              <span style={{ fontSize: 13, fontWeight: 600, color: T.maroonDark }}>{level ? level.name : "Unassigned"}</span>
+              {level && (
+                <span style={{ fontSize: 11, color: T.inkSoft }}>
+                  Level {allLevels.findIndex((l) => l.id === level.id) + 1} of {allLevels.length}
+                </span>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {allLevels.map((l, i) => {
+                const currentIdx = level ? allLevels.findIndex((x) => x.id === level.id) : -1;
+                const reached = currentIdx >= 0 && i <= currentIdx;
+                return (
+                  <div key={l.id} title={l.name} style={{ flex: 1, height: 8, borderRadius: 4, background: reached ? T.sage : T.line }} />
+                );
+              })}
+            </div>
           </div>
         )}
 
