@@ -7,6 +7,7 @@ export function Btn({ children, onClick, variant = "primary", size = "md", type 
   const variants = {
     primary: { backgroundColor: T.maroon, color: T.ivory },
     gold: { backgroundColor: T.gold, color: T.maroonDark },
+    success: { backgroundColor: T.sage, color: "#fff" },
     ghost: { backgroundColor: "transparent", color: T.maroon, border: `1px solid ${T.line}` },
     danger: { backgroundColor: "transparent", color: T.terracotta, border: `1px solid ${T.terracotta}55` },
   };

@@ -92,7 +92,7 @@ export default function PackageReminderModal({ student, guardianEmail, packageSi
       {sent && <p style={{ color: T.sage, fontSize: 13, marginTop: 10, fontWeight: 600 }}>Sent.</p>}
       <div className="flex justify-end gap-2 mt-4">
         <Btn variant="ghost" onClick={onCancel} disabled={sending}>Cancel — don't send</Btn>
-        <Btn onClick={send} disabled={sending || sent || !template}>{sending ? "Sending…" : "Send email"}</Btn>
+        <Btn variant="success" onClick={send} disabled={sending || sent || !template}>{sending ? "Sending…" : "Send email"}</Btn>
       </div>
     </Modal>
   );

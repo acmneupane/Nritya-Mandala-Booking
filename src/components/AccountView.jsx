@@ -61,7 +61,7 @@ export default function AccountView() {
         <Field label="Confirm new password"><input style={inputStyle} type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" /></Field>
         {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 10 }}>{error}</p>}
         {success && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Password updated.</p>}
-        <Btn onClick={changePassword} disabled={saving}>{saving ? "Updating…" : "Update password"}</Btn>
+        <Btn variant="success" onClick={changePassword} disabled={saving}>{saving ? "Updating…" : "Update password"}</Btn>
       </div>
     </div>
   );

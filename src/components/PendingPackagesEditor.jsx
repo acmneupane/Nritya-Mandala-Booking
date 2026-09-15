@@ -44,7 +44,7 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
           <Field label="Note"><input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. 5-week package" /></Field>
           <div className="flex justify-end gap-2 mt-1">
             {pendingPackages.length > 0 && <Btn variant="ghost" size="sm" onClick={() => setAdding(false)}>Cancel</Btn>}
-            <Btn size="sm" onClick={addPackage}>Add package</Btn>
+            <Btn variant="success" size="sm" onClick={addPackage}>Add package</Btn>
           </div>
         </div>
       ) : (

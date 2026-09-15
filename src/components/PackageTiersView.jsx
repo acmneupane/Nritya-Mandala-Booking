@@ -42,7 +42,7 @@ function TierModal({ initial, onClose, onSaved }) {
       {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
       <div className="flex justify-end gap-2 mt-2">
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-        <Btn onClick={save} disabled={saving}>{saving ? "Saving…" : "Save package"}</Btn>
+        <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save package"}</Btn>
       </div>
     </Modal>
   );

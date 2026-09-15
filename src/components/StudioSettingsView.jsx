@@ -40,7 +40,7 @@ function EmailTemplateEditor({ templateKey, title, description, placeholders }) 
       <Field label="Subject"><input style={inputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
       <Field label="Body"><textarea style={{ ...inputStyle, minHeight: 220, fontFamily: "monospace", fontSize: 13 }} value={body} onChange={(e) => setBody(e.target.value)} /></Field>
       {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
-      <Btn onClick={save} disabled={saving}>{saving ? "Saving…" : "Save template"}</Btn>
+      <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save template"}</Btn>
     </div>
   );
 }
@@ -96,7 +96,7 @@ function EnrolmentFeesEditor() {
         <Field label="Each sibling ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={sibling} onChange={(e) => setSibling(e.target.value)} /></Field>
       </div>
       {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
-      <Btn onClick={save} disabled={saving}>{saving ? "Saving…" : "Save fees"}</Btn>
+      <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save fees"}</Btn>
     </div>
   );
 }

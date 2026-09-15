@@ -187,7 +187,7 @@ function RosterEditor({ cls, onChanged }) {
               </Field>
               <div className="flex justify-end gap-2 mt-2">
                 <Btn variant="ghost" onClick={() => { setAddingModalOpen(false); setAddingStudent(""); }}>Cancel</Btn>
-                <Btn onClick={enroll} disabled={!addingStudent}>Book</Btn>
+                <Btn variant="success" onClick={enroll} disabled={!addingStudent}>Book</Btn>
               </div>
             </>
           )}

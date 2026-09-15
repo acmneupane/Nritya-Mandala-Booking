@@ -206,7 +206,7 @@ export default function RenewForm() {
 
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 10 }}>{error}</p>}
           <div style={{ marginTop: 14 }}>
-            <Btn onClick={submit} size="lg" disabled={submitting || tiers.length === 0}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+            <Btn variant="success" onClick={submit} size="lg" disabled={submitting || tiers.length === 0}>{submitting ? "Submitting…" : "Submit request"}</Btn>
           </div>
         </div>
       </div>

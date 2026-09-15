@@ -521,7 +521,7 @@ export default function EnrollForm() {
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
           {agreedToInfo && (
             <div style={{ marginTop: 10, textAlign: "right" }}>
-              <Btn onClick={handleSubmitClick} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+              <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
             </div>
           )}
           <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 14 }}>

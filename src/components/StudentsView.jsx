@@ -119,6 +119,45 @@ function LevelBadge({ level }) {
   );
 }
 
+// Defaults to the next level up in the ordered list, but lets the admin pick any
+// level instead — e.g. skipping ahead, or correcting a mistake. Same effect as the
+// promote dropdown in the Levels tab (updates the student + logs to level_history),
+// just surfaced directly from the student's own card for convenience.
+function UpgradeLevelModal({ student, levels, onClose, onUpgraded }) {
+  const sorted = levels.slice().sort((a, b) => a.order_num - b.order_num);
+  const currentIdx = sorted.findIndex((l) => l.id === student.level_id);
+  const nextLevel = currentIdx >= 0 && currentIdx < sorted.length - 1 ? sorted[currentIdx + 1] : (currentIdx === -1 && sorted.length > 0 ? sorted[0] : null);
+  const [levelId, setLevelId] = useState(nextLevel?.id || "");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!levelId) return;
+    setSaving(true);
+    await supabase.from("students").update({ level_id: levelId }).eq("id", student.id);
+    await supabase.from("level_history").insert({ student_id: student.id, level_id: levelId, date: localDateStr(new Date()) });
+    setSaving(false);
+    onUpgraded();
+  };
+
+  const currentLevel = sorted.find((l) => l.id === student.level_id);
+
+  return (
+    <Modal title={`Upgrade ${student.name}'s level`} onClose={onClose}>
+      <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 14 }}>Currently: {currentLevel ? currentLevel.name : "Unassigned"}</p>
+      <Field label="New level">
+        <select style={inputStyle} value={levelId} onChange={(e) => setLevelId(e.target.value)}>
+          <option value="">Select…</option>
+          {sorted.map((l) => <option key={l.id} value={l.id}>{l.name}{l.id === nextLevel?.id ? " (next)" : ""}</option>)}
+        </select>
+      </Field>
+      <div className="flex justify-end gap-2 mt-2">
+        <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+        <Btn variant="success" onClick={save} disabled={saving || !levelId}>{saving ? "Updating…" : "Upgrade"}</Btn>
+      </div>
+    </Modal>
+  );
+}
+
 function PackageBadge({ remaining, hasAny }) {
   if (!hasAny) return <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 999, background: `${T.terracotta}18`, color: T.terracotta, fontWeight: 600 }}>No package on file</span>;
   const ok = remaining > 0;
@@ -418,7 +457,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
       {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
       <div className="flex justify-end gap-2 mt-4">
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-        <Btn onClick={save} disabled={saving}>{saving ? "Saving…" : initial ? "Save changes" : "Save student"}</Btn>
+        <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : initial ? "Save changes" : "Save student"}</Btn>
       </div>
     </Modal>
   );
@@ -484,7 +523,7 @@ function BookClassModal({ student, onClose, onBooked }) {
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
           <div className="flex justify-end gap-2 mt-2">
             <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-            <Btn onClick={book} disabled={saving || !selected}>{saving ? "Booking…" : "Book"}</Btn>
+            <Btn variant="success" onClick={book} disabled={saving || !selected}>{saving ? "Booking…" : "Book"}</Btn>
           </div>
         </>
       )}
@@ -548,7 +587,7 @@ function SendConfirmationModal({ student, onClose, onReady }) {
           )}
           <div className="flex justify-end gap-2 mt-2">
             <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-            <Btn onClick={proceed} disabled={!selected}>Continue</Btn>
+            <Btn variant="success" onClick={proceed} disabled={!selected}>Continue</Btn>
           </div>
         </>
       )}
@@ -571,6 +610,7 @@ export default function StudentsView() {
   const [booking, setBooking] = useState(null);
   const [sendingConfirmation, setSendingConfirmation] = useState(null);
   const [sendingPackageReminder, setSendingPackageReminder] = useState(null);
+  const [upgradingLevel, setUpgradingLevel] = useState(null);
   const [emailPreview, setEmailPreview] = useState(null);
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -695,6 +735,9 @@ export default function StudentsView() {
                 {!s.archived && pkg && pkg.classes_total > 0 && remaining <= 0 && (
                   <button onClick={() => openPackageReminder(s, pkg)} style={{ ...actionBtnStyle, color: T.terracotta, borderColor: `${T.terracotta}55` }}>💳 Payment required</button>
                 )}
+                {!s.archived && levels.length > 0 && (
+                  <button onClick={() => setUpgradingLevel(s)} style={{ ...actionBtnStyle, color: T.sage, borderColor: `${T.sage}55` }}>⬆ Upgrade Level</button>
+                )}
                 {!s.archived && <button onClick={() => setEditing(s)} style={{ ...actionBtnStyle, color: T.maroon, borderColor: `${T.maroon}55` }}>Edit</button>}
                 {s.archived ? (
                   <button onClick={() => doArchive(s.id, false)} style={{ ...actionBtnStyle, color: T.sage, borderColor: `${T.sage}55` }}>Restore</button>
@@ -756,6 +799,14 @@ export default function StudentsView() {
           classesUsed={sendingPackageReminder.classesUsed}
           onCancel={() => setSendingPackageReminder(null)}
           onSent={() => setSendingPackageReminder(null)}
+        />
+      )}
+      {upgradingLevel && (
+        <UpgradeLevelModal
+          student={upgradingLevel}
+          levels={levels}
+          onClose={() => setUpgradingLevel(null)}
+          onUpgraded={() => { setUpgradingLevel(null); load(); }}
         />
       )}
       {emailPreview && (

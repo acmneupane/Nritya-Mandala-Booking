@@ -134,7 +134,7 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
       {sent && <p style={{ color: T.sage, fontSize: 13, marginTop: 10, fontWeight: 600 }}>Sent.</p>}
       <div className="flex justify-end gap-2 mt-4">
         <Btn variant="ghost" onClick={onCancel} disabled={sending}>Cancel — don't send</Btn>
-        <Btn onClick={send} disabled={sending || sent || !template}>
+        <Btn variant="success" onClick={send} disabled={sending || sent || !template}>
           {sending ? "Sending…" : `Send ${eligible.length} email${eligible.length === 1 ? "" : "s"}`}
         </Btn>
       </div>

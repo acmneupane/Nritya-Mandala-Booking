@@ -180,7 +180,7 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
                 {r.status === "pending" ? (
                   <div className="flex gap-2">
                     <Btn size="sm" variant="ghost" onClick={() => setConfirmReject(r)}>Reject</Btn>
-                    <Btn size="sm" onClick={() => approve(r)} disabled={approving === r.id}>{approving === r.id ? "Approving…" : "Approve"}</Btn>
+                    <Btn variant="success" size="sm" onClick={() => approve(r)} disabled={approving === r.id}>{approving === r.id ? "Approving…" : "Approve"}</Btn>
                   </div>
                 ) : (
                   <span style={{ fontSize: 12, fontWeight: 600, color: r.status === "approved" ? T.sage : T.terracotta, textTransform: "capitalize" }}>{r.status}</span>

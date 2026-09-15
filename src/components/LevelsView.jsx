@@ -24,7 +24,7 @@ function AddLevelModal({ nextOrder, onClose, onSaved }) {
       <p style={{ fontSize: 11, color: T.inkSoft, marginBottom: 16 }}>It'll be added to the end of the order — reorder with the up/down arrows afterwards if needed.</p>
       <div className="flex justify-end gap-2">
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-        <Btn onClick={save} disabled={saving}>{saving ? "Adding…" : "Add level"}</Btn>
+        <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Adding…" : "Add level"}</Btn>
       </div>
     </Modal>
   );

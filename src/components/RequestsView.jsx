@@ -171,7 +171,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
       {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
       <div className="flex justify-end gap-2 mt-2">
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-        <Btn onClick={approve} disabled={saving}>{saving ? "Creating…" : `Approve & create ${students.length > 1 ? `${students.length} students` : "student"}`}</Btn>
+        <Btn variant="success" onClick={approve} disabled={saving}>{saving ? "Creating…" : `Approve & create ${students.length > 1 ? `${students.length} students` : "student"}`}</Btn>
       </div>
     </Modal>
   );
