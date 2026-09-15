@@ -52,13 +52,20 @@ export default function Dashboard() {
   const [counts, setCounts] = useState({ students: 0, classes: 0, requests: 0, renewals: 0 });
 
   const loadCounts = useCallback(async () => {
-    const [sRes, cRes, rRes, renRes] = await Promise.all([
+    const [sRes, cRes, rRes, renRes, studentsRes, pkgRes] = await Promise.all([
       supabase.from("students").select("id", { count: "exact", head: true }).eq("archived", false),
       supabase.from("classes").select("id", { count: "exact", head: true }),
       supabase.from("enrollment_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
       supabase.from("package_renewal_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("students").select("id").eq("archived", false),
+      supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
     ]);
-    setCounts({ students: sRes.count || 0, classes: cRes.count || 0, requests: rRes.count || 0, renewals: renRes.count || 0 });
+    const pkgByStudent = Object.fromEntries((pkgRes.data || []).map((p) => [p.student_id, p]));
+    const dueCount = (studentsRes.data || []).filter((s) => {
+      const pkg = pkgByStudent[s.id];
+      return pkg && pkg.classes_total > 0 && (pkg.classes_total - pkg.classes_used) <= 2;
+    }).length;
+    setCounts({ students: sRes.count || 0, classes: cRes.count || 0, requests: rRes.count || 0, renewals: (renRes.count || 0) + dueCount });
   }, []);
 
   useEffect(() => { loadCounts(); }, [loadCounts]);

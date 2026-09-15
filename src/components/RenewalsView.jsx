@@ -6,7 +6,7 @@ import PackageReminderModal from "./PackageReminderModal";
 
 const DUE_THRESHOLD = 2; // classes remaining at or below this counts as "coming due"
 
-function DueForRenewalSection() {
+function DueForRenewalSection({ onChanged }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sendingTo, setSendingTo] = useState(null);
@@ -68,14 +68,14 @@ function DueForRenewalSection() {
           packageSize={sendingTo.packageSize}
           classesUsed={sendingTo.classesUsed}
           onCancel={() => setSendingTo(null)}
-          onSent={() => { setSendingTo(null); load(); }}
+          onSent={() => { setSendingTo(null); load(); onChanged && onChanged(); }}
         />
       )}
     </div>
   );
 }
 
-function SubmittedRequestsSection({ focusRenewalId }) {
+function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showHandled, setShowHandled] = useState(false);
@@ -117,11 +117,13 @@ function SubmittedRequestsSection({ focusRenewalId }) {
     await supabase.from("package_renewal_requests").update({ status: "approved", reviewed_at: new Date().toISOString() }).eq("id", r.id);
     setApproving(null);
     load();
+    onChanged && onChanged();
   };
   const reject = async (id) => {
     await supabase.from("package_renewal_requests").update({ status: "rejected", reviewed_at: new Date().toISOString() }).eq("id", id);
     setConfirmReject(null);
     load();
+    onChanged && onChanged();
   };
 
   const filtered = requests.filter((r) => (showHandled ? r.status !== "pending" : r.status === "pending"));
@@ -199,6 +201,25 @@ function SubmittedRequestsSection({ focusRenewalId }) {
 
 export default function RenewalsView({ focusRenewalId }) {
   const [section, setSection] = useState(focusRenewalId ? "submitted" : "due");
+  const [dueCount, setDueCount] = useState(0);
+  const [submittedCount, setSubmittedCount] = useState(0);
+
+  const loadCounts = useCallback(async () => {
+    const [studentsRes, pkgRes, renRes] = await Promise.all([
+      supabase.from("students").select("id").eq("archived", false),
+      supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
+      supabase.from("package_renewal_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    ]);
+    const pkgByStudent = Object.fromEntries((pkgRes.data || []).map((p) => [p.student_id, p]));
+    const due = (studentsRes.data || []).filter((s) => {
+      const pkg = pkgByStudent[s.id];
+      return pkg && pkg.classes_total > 0 && (pkg.classes_total - pkg.classes_used) <= DUE_THRESHOLD;
+    }).length;
+    setDueCount(due);
+    setSubmittedCount(renRes.count || 0);
+  }, []);
+
+  useEffect(() => { loadCounts(); }, [loadCounts]);
 
   return (
     <div>
@@ -207,17 +228,17 @@ export default function RenewalsView({ focusRenewalId }) {
           onClick={() => setSection("due")}
           style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "due" ? "#fff" : "transparent", color: section === "due" ? T.maroonDark : T.inkSoft, fontWeight: section === "due" ? 600 : 400 }}
         >
-          Due for renewal
+          Due for renewal ({dueCount})
         </button>
         <button
           onClick={() => setSection("submitted")}
           style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "submitted" ? "#fff" : "transparent", color: section === "submitted" ? T.maroonDark : T.inkSoft, fontWeight: section === "submitted" ? 600 : 400 }}
         >
-          Submitted requests
+          Submitted requests ({submittedCount})
         </button>
       </div>
 
-      {section === "due" ? <DueForRenewalSection /> : <SubmittedRequestsSection focusRenewalId={focusRenewalId} />}
+      {section === "due" ? <DueForRenewalSection onChanged={loadCounts} /> : <SubmittedRequestsSection focusRenewalId={focusRenewalId} onChanged={loadCounts} />}
     </div>
   );
 }
