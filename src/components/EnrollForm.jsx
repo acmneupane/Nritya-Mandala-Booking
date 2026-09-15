@@ -166,10 +166,10 @@ export default function EnrollForm() {
   useEffect(() => {
     Promise.all([
       supabase.from("classes").select("id, label, day, time, end_time, capacity"),
-      supabase.from("enrollments").select("class_id"),
+      supabase.rpc("get_effective_class_counts"),
     ]).then(([cRes, eRes]) => {
       const counts = {};
-      (eRes.data || []).forEach((e) => { counts[e.class_id] = (counts[e.class_id] || 0) + 1; });
+      (eRes.data || []).forEach((row) => { counts[row.class_id] = Number(row.effective_count); });
       const open = (cRes.data || []).filter((c) => (counts[c.id] || 0) < c.capacity);
       setClasses(open.slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
     });

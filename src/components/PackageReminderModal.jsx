@@ -30,7 +30,7 @@ export default function PackageReminderModal({ student, guardianEmail, packageSi
     setSending(true);
     setError("");
     const { error: fnErr } = await supabase.functions.invoke("send-package-reminder-email", {
-      body: { guardianEmail, studentName: student.name, studentCode: student.code, packageSize, classesUsed, includeBcc: bccChecked },
+      body: { guardianEmail, studentId: student.id, studentName: student.name, studentCode: student.code, packageSize, classesUsed, includeBcc: bccChecked },
     });
     setSending(false);
     if (fnErr) { setError("Something went wrong sending — you can try again, or check with the parent directly."); return; }

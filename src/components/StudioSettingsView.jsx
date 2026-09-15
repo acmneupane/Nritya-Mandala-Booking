@@ -101,6 +101,43 @@ function EnrolmentFeesEditor() {
   );
 }
 
+function CapacityEditor() {
+  const [days, setDays] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    supabase.from("settings").select("renewal_grace_period_days").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setDays(String(data.renewal_grace_period_days));
+      setLoading(false);
+    });
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    await supabase.from("settings").update({ renewal_grace_period_days: Number(days) }).eq("id", 1);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  if (loading) return <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>;
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Renewal grace period</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        When a student's package runs out, they keep their spot in the class for this many days before it's counted as available to a new enrolment. Set to 0 to free the spot immediately once their package is empty.
+      </p>
+      <Field label="Grace period (days)"><input style={inputStyle} type="number" min={0} value={days} onChange={(e) => setDays(e.target.value)} /></Field>
+      {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
+      <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Btn>
+    </div>
+  );
+}
+
 export default function StudioSettingsView() {
   const [section, setSection] = useState("fee");
 
@@ -114,6 +151,12 @@ export default function StudioSettingsView() {
           Enrolment fee
         </button>
         <button
+          onClick={() => setSection("capacity")}
+          style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "capacity" ? "#fff" : "transparent", color: section === "capacity" ? T.maroonDark : T.inkSoft, fontWeight: section === "capacity" ? 600 : 400 }}
+        >
+          Capacity
+        </button>
+        <button
           onClick={() => setSection("emails")}
           style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "emails" ? "#fff" : "transparent", color: section === "emails" ? T.maroonDark : T.inkSoft, fontWeight: section === "emails" ? 600 : 400 }}
         >
@@ -121,9 +164,9 @@ export default function StudioSettingsView() {
         </button>
       </div>
 
-      {section === "fee" ? (
-        <EnrolmentFeesEditor />
-      ) : (
+      {section === "fee" && <EnrolmentFeesEditor />}
+      {section === "capacity" && <CapacityEditor />}
+      {section === "emails" && (
         <>
           <EmailTemplateEditor
             templateKey="enrollment_approved"

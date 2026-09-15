@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
-import { Btn, Field, Modal, TypeToConfirmModal } from "./ui";
+import { Btn, Field, Modal, TypeToConfirmModal, ConfirmModal } from "./ui";
 import QrModal from "./QrCode";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { computeAge } from "../lib/age";
@@ -13,6 +13,14 @@ import PendingPackagesEditor from "./PendingPackagesEditor";
 import PackageReminderModal from "./PackageReminderModal";
 
 const actionBtnStyle = { fontSize: 13, fontWeight: 500, padding: "5px 12px", borderRadius: 999, border: "1px solid", background: "#fff", whiteSpace: "nowrap" };
+
+function daysAgo(isoDate) {
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  return `${days} days ago`;
+}
 
 // Quick read-only glance at a student — name, level, package status, emergency
 // contacts — without opening the full edit form.
@@ -611,6 +619,7 @@ export default function StudentsView() {
   const [sendingConfirmation, setSendingConfirmation] = useState(null);
   const [sendingPackageReminder, setSendingPackageReminder] = useState(null);
   const [upgradingLevel, setUpgradingLevel] = useState(null);
+  const [confirmResend, setConfirmResend] = useState(null);
   const [emailPreview, setEmailPreview] = useState(null);
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -652,6 +661,13 @@ export default function StudentsView() {
     const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", s.id);
     const guardianEmail = (guardianLinks || []).map((g) => g.guardians?.email).find((e) => e) || null;
     setSendingPackageReminder({ student: s, guardianEmail, packageSize: pkg.classes_total, classesUsed: pkg.classes_used });
+  };
+  const handlePaymentReminderClick = (s, pkg) => {
+    if (s.last_renewal_reminder_sent_at) {
+      setConfirmResend({ student: s, pkg });
+    } else {
+      openPackageReminder(s, pkg);
+    }
   };
 
   const doArchive = async (id, archived) => {
@@ -733,7 +749,7 @@ export default function StudentsView() {
                   <button onClick={() => setSendingConfirmation(s)} style={{ ...actionBtnStyle, color: T.gold, borderColor: `${T.gold}55` }}>⚠ Send confirmation</button>
                 )}
                 {!s.archived && pkg && pkg.classes_total > 0 && remaining <= 0 && (
-                  <button onClick={() => openPackageReminder(s, pkg)} style={{ ...actionBtnStyle, color: T.terracotta, borderColor: `${T.terracotta}55` }}>💳 Payment required</button>
+                  <button onClick={() => handlePaymentReminderClick(s, pkg)} style={{ ...actionBtnStyle, color: T.terracotta, borderColor: `${T.terracotta}55` }}>💳 Payment required</button>
                 )}
                 {!s.archived && levels.length > 0 && (
                   <button onClick={() => setUpgradingLevel(s)} style={{ ...actionBtnStyle, color: T.sage, borderColor: `${T.sage}55` }}>⬆ Upgrade Level</button>
@@ -807,6 +823,15 @@ export default function StudentsView() {
           levels={levels}
           onClose={() => setUpgradingLevel(null)}
           onUpgraded={() => { setUpgradingLevel(null); load(); }}
+        />
+      )}
+      {confirmResend && (
+        <ConfirmModal
+          title="Send another reminder?"
+          message={`A reminder was already sent to ${confirmResend.student.name}'s family ${daysAgo(confirmResend.student.last_renewal_reminder_sent_at)}. Send another one?`}
+          confirmLabel="Send again"
+          onConfirm={() => { openPackageReminder(confirmResend.student, confirmResend.pkg); setConfirmResend(null); }}
+          onCancel={() => setConfirmResend(null)}
         />
       )}
       {emailPreview && (

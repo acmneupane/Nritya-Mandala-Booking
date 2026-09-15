@@ -6,16 +6,25 @@ import PackageReminderModal from "./PackageReminderModal";
 
 const DUE_THRESHOLD = 2; // classes remaining at or below this counts as "coming due"
 
+function daysAgo(isoDate) {
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  return `${days} days ago`;
+}
+
 function DueForRenewalSection({ onChanged }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sendingTo, setSendingTo] = useState(null);
+  const [confirmResend, setConfirmResend] = useState(null);
   const [threshold, setThreshold] = useState(2);
 
   const load = useCallback(async (limit) => {
     setLoading(true);
     const [sRes, pRes] = await Promise.all([
-      supabase.from("students").select("id, name, code").eq("archived", false),
+      supabase.from("students").select("id, name, code, last_renewal_reminder_sent_at").eq("archived", false),
       supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
     ]);
     const pkgByStudent = Object.fromEntries((pRes.data || []).map((p) => [p.student_id, p]));
@@ -46,6 +55,14 @@ function DueForRenewalSection({ onChanged }) {
     setSendingTo({ student: row.student, guardianEmail, packageSize: row.packageSize, classesUsed: row.classesUsed });
   };
 
+  const handleSendClick = (row) => {
+    if (row.student.last_renewal_reminder_sent_at) {
+      setConfirmResend(row);
+    } else {
+      openReminder(row);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-4 flex-wrap" style={{ fontSize: 13, color: T.ink }}>
@@ -70,12 +87,24 @@ function DueForRenewalSection({ onChanged }) {
                   <div style={{ fontSize: 12, color: row.hasPackage && row.remaining > 0 ? T.gold : T.terracotta, fontWeight: 600 }}>
                     {!row.hasPackage ? "No package on file" : row.remaining <= 0 ? "Package fully used" : `${row.remaining} class${row.remaining === 1 ? "" : "es"} remaining`}
                   </div>
+                  {row.student.last_renewal_reminder_sent_at && (
+                    <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>Reminder last sent {daysAgo(row.student.last_renewal_reminder_sent_at)}</div>
+                  )}
                 </div>
-                <Btn size="sm" onClick={() => openReminder(row)}>Send reminder</Btn>
+                <Btn size="sm" onClick={() => handleSendClick(row)}>Send reminder</Btn>
               </div>
             ))}
           </div>
         </>
+      )}
+      {confirmResend && (
+        <ConfirmModal
+          title="Send another reminder?"
+          message={`A reminder was already sent to ${confirmResend.student.name}'s family ${daysAgo(confirmResend.student.last_renewal_reminder_sent_at)}. Send another one?`}
+          confirmLabel="Send again"
+          onConfirm={() => { openReminder(confirmResend); setConfirmResend(null); }}
+          onCancel={() => setConfirmResend(null)}
+        />
       )}
       {sendingTo && (
         <PackageReminderModal
