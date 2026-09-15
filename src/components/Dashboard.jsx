@@ -10,13 +10,17 @@ import HistoryView from "./HistoryView";
 import RequestsView from "./RequestsView";
 import SettingsView from "./SettingsView";
 import ShareEnrollLink from "./ShareEnrollLink";
+import PackageTiersView from "./PackageTiersView";
+import RenewalsView from "./RenewalsView";
 
 const NAV = [
   { id: "calendar", label: "Calendar" },
   { id: "students", label: "Students", countKey: "students" },
   { id: "requests", label: "Requests", countKey: "requests", urgent: true },
+  { id: "renewals", label: "Renewals", countKey: "renewals", urgent: true },
   { id: "classes", label: "Classes", countKey: "classes" },
   { id: "levels", label: "Levels" },
+  { id: "packages", label: "Packages" },
   { id: "history", label: "History" },
   { id: "settings", label: "Settings" },
 ];
@@ -42,17 +46,19 @@ export default function Dashboard() {
   // ?request=<id> link (from the notification email) overrides this and jumps
   // straight to that request.
   const focusRequestId = new URLSearchParams(window.location.search).get("request");
-  const [tab, setTab] = useState(focusRequestId ? "requests" : "calendar");
+  const focusRenewalId = new URLSearchParams(window.location.search).get("renewal");
+  const [tab, setTab] = useState(focusRequestId ? "requests" : focusRenewalId ? "renewals" : "calendar");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [counts, setCounts] = useState({ students: 0, classes: 0, requests: 0 });
+  const [counts, setCounts] = useState({ students: 0, classes: 0, requests: 0, renewals: 0 });
 
   const loadCounts = useCallback(async () => {
-    const [sRes, cRes, rRes] = await Promise.all([
+    const [sRes, cRes, rRes, renRes] = await Promise.all([
       supabase.from("students").select("id", { count: "exact", head: true }).eq("archived", false),
       supabase.from("classes").select("id", { count: "exact", head: true }),
       supabase.from("enrollment_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("package_renewal_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
     ]);
-    setCounts({ students: sRes.count || 0, classes: cRes.count || 0, requests: rRes.count || 0 });
+    setCounts({ students: sRes.count || 0, classes: cRes.count || 0, requests: rRes.count || 0, renewals: renRes.count || 0 });
   }, []);
 
   useEffect(() => { loadCounts(); }, [loadCounts]);
@@ -151,8 +157,10 @@ export default function Dashboard() {
         {tab === "students" && <StudentsView />}
         {tab === "calendar" && <CalendarView />}
         {tab === "requests" && <RequestsView focusRequestId={focusRequestId} />}
+        {tab === "renewals" && <RenewalsView focusRenewalId={focusRenewalId} />}
         {tab === "classes" && <ClassesView />}
         {tab === "levels" && <LevelsView />}
+        {tab === "packages" && <PackageTiersView />}
         {tab === "history" && <HistoryView />}
         {tab === "settings" && <SettingsView />}
       </main>

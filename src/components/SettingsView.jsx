@@ -115,7 +115,7 @@ export default function SettingsView() {
         templateKey="package_expired"
         title="Payment required (package expired) email"
         description="Sent when you click 'Payment required' on a student whose package has run out."
-        placeholders={["student_name", "package_size", "classes_used"]}
+        placeholders={["student_name", "package_size", "classes_used", "renew_link"]}
       />
     </div>
   );
