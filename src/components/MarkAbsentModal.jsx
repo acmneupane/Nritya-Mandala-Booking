@@ -5,6 +5,11 @@ import { Btn, Modal } from "./ui";
 import { upcomingOccurrencesOf, formatTimeRange } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
 
+function hoursUntil(dateStr, time) {
+  const target = new Date(`${dateStr}T${time || "00:00"}`);
+  return (target.getTime() - Date.now()) / (1000 * 60 * 60);
+}
+
 // Lets a parent mark several upcoming weekly classes as absences in one go — e.g.
 // "we're away for the next 5 Wednesdays" — instead of one date at a time. Requires a
 // reason as a deliberate friction step so it can't be triggered by an accidental tap.
@@ -17,7 +22,7 @@ export default function MarkAbsentModal({ student, classes, skips, remaining, lo
   // Pull a generous pool per class, merge everything chronologically, then keep only
   // as many as the student actually has left on their package. If lockTo is given
   // (marking just the next class from the banner), skip all that and use it alone.
-  const options = lockTo
+  const options = (lockTo
     ? [{ classId: lockTo.classId, day: lockTo.day, time: lockTo.time, endTime: lockTo.endTime, date: lockTo.date, dateStr: lockTo.dateStr, key: `${lockTo.classId}-${lockTo.dateStr}` }]
     : classes
         .flatMap((c) =>
@@ -27,7 +32,8 @@ export default function MarkAbsentModal({ student, classes, skips, remaining, lo
           }))
         )
         .sort((a, b) => a.dateStr.localeCompare(b.dateStr))
-        .slice(0, cap);
+        .slice(0, cap)
+  ).map((o) => ({ ...o, lateNotice: hoursUntil(o.dateStr, o.time) < 24 }));
 
   const [selected, setSelected] = useState(new Set(lockTo ? [options[0].key] : []));
   const [reason, setReason] = useState("");
@@ -49,13 +55,20 @@ export default function MarkAbsentModal({ student, classes, skips, remaining, lo
     setError("");
     const chosen = options.filter((o) => selected.has(o.key));
     let anyFailed = false;
+    let lateCount = 0;
     for (const o of chosen) {
-      const { data: ok } = await supabase.rpc("mark_absence", { p_code: student.code, p_class_id: o.classId, p_date: o.dateStr, p_reason: reason.trim() });
-      if (!ok) anyFailed = true;
+      const { data: status } = await supabase.rpc("mark_absence", { p_code: student.code, p_class_id: o.classId, p_date: o.dateStr, p_reason: reason.trim() });
+      if (!status) anyFailed = true;
+      else if (status === "missed") lateCount++;
     }
     setSaving(false);
     if (anyFailed) {
       setError("Some dates couldn't be marked — the studio may have already recorded attendance for one of them.");
+    }
+    if (lateCount > 0 && !anyFailed) {
+      // Let the parent know before closing — some of these went through as
+      // late cancellations rather than excused absences.
+      alert(`${lateCount} of these ${lateCount === 1 ? "was" : "were"} within 24 hours of the class, so ${lateCount === 1 ? "it still counts" : "they still count"} toward the package, same as a missed class.`);
     }
     onDone();
   };
@@ -79,13 +92,21 @@ export default function MarkAbsentModal({ student, classes, skips, remaining, lo
       ) : lockTo ? (
         <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: "10px 12px", marginBottom: 12, fontSize: 14, fontWeight: 600, color: T.ink, textAlign: "center" }}>
           {options[0].date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · {formatTimeRange(options[0].time, options[0].endTime)}
+          {options[0].lateNotice && (
+            <div style={{ fontSize: 11, fontWeight: 500, color: T.terracotta, marginTop: 6 }}>
+              ⚠ Less than 24 hours away — this won't be excused and will still count toward the package, same as a missed class.
+            </div>
+          )}
         </div>
       ) : (
         <div className="grid gap-2 mb-4" style={{ maxHeight: 260, overflowY: "auto" }}>
           {options.map((o) => (
-            <label key={o.key} className="flex items-center gap-2" style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, cursor: "pointer" }}>
+            <label key={o.key} className="flex items-center gap-2" style={{ border: `1px solid ${o.lateNotice ? T.terracotta + "55" : T.line}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, cursor: "pointer" }}>
               <input type="checkbox" checked={selected.has(o.key)} onChange={() => toggle(o.key)} />
-              <span>{o.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · {formatTimeRange(o.time, o.endTime)}</span>
+              <span>
+                {o.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · {formatTimeRange(o.time, o.endTime)}
+                {o.lateNotice && <span style={{ display: "block", fontSize: 11, color: T.terracotta, marginTop: 2 }}>⚠ Less than 24 hours away — will still count toward the package</span>}
+              </span>
             </label>
           ))}
         </div>

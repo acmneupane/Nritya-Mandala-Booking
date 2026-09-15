@@ -36,7 +36,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
       student.level_id ? supabase.from("levels").select("id, name").eq("id", student.level_id).maybeSingle() : Promise.resolve({ data: null }),
       supabase.from("levels").select("id, name, order_num").order("order_num"),
       supabase.from("enrollments").select("class_id, classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
-      supabase.from("attendance").select("id, class_id, date, status").eq("student_id", student.id).order("date", { ascending: false }).limit(10),
+      supabase.from("attendance").select("id, class_id, date, status, reason").eq("student_id", student.id).order("date", { ascending: false }).limit(10),
       supabase.from("level_history").select("id, level_id, date, levels(name)").eq("student_id", student.id).order("date", { ascending: false }),
       supabase.from("student_package_summary").select("classes_total, classes_used").eq("student_id", student.id).maybeSingle(),
       supabase.rpc("get_family_students", { p_code: student.code }),
@@ -177,7 +177,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           {classes.length === 0 && <p style={{ fontSize: 13, color: T.inkSoft }}>No classes booked yet — check with the studio.</p>}
           {classes.map((c) => {
             const occ = nextOccurrences[c.id];
-            const alreadyAbsent = occ && history.some((h) => h.class_id === c.id && h.date === occ.dateStr && h.status === "skipped");
+            const alreadyAbsent = occ && history.some((h) => h.class_id === c.id && h.date === occ.dateStr && (h.status === "skipped" || (h.status === "missed" && h.reason)));
             return (
               <div key={c.id} style={{ padding: "10px 0", borderTop: `1px solid ${T.line}` }}>
                 <div className="flex items-center justify-between flex-wrap gap-2">
@@ -197,7 +197,8 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Recent attendance</h3>
           {history.length === 0 && <p style={{ fontSize: 13, color: T.inkSoft }}>No history yet.</p>}
           {history.map((h) => {
-            const label = h.status === "attended" ? "Attended" : h.status === "skipped" ? "Marked absent" : "Missed";
+            const lateCancel = h.status === "missed" && h.reason;
+            const label = h.status === "attended" ? "Attended" : h.status === "skipped" ? "Marked absent" : lateCancel ? "Late cancellation" : "Missed";
             const color = h.status === "attended" ? T.sage : h.status === "skipped" ? T.gold : T.terracotta;
             return (
               <div key={h.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", borderTop: `1px solid ${T.line}` }}>
