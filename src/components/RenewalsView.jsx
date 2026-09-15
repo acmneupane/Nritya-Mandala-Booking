@@ -2,8 +2,80 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
 import { Btn, ConfirmModal } from "./ui";
+import PackageReminderModal from "./PackageReminderModal";
 
-export default function RenewalsView({ focusRenewalId }) {
+const DUE_THRESHOLD = 2; // classes remaining at or below this counts as "coming due"
+
+function DueForRenewalSection() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [sendingTo, setSendingTo] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [sRes, pRes] = await Promise.all([
+      supabase.from("students").select("id, name, code").eq("archived", false),
+      supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
+    ]);
+    const pkgByStudent = Object.fromEntries((pRes.data || []).map((p) => [p.student_id, p]));
+    const due = (sRes.data || [])
+      .map((s) => {
+        const pkg = pkgByStudent[s.id];
+        if (!pkg || pkg.classes_total <= 0) return null;
+        const remaining = pkg.classes_total - pkg.classes_used;
+        if (remaining > DUE_THRESHOLD) return null;
+        return { student: s, packageSize: pkg.classes_total, classesUsed: pkg.classes_used, remaining };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.remaining - b.remaining);
+    setRows(due);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openReminder = async (row) => {
+    const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", row.student.id);
+    const guardianEmail = (guardianLinks || []).map((g) => g.guardians?.email).find((e) => e) || null;
+    setSendingTo({ student: row.student, guardianEmail, packageSize: row.packageSize, classesUsed: row.classesUsed });
+  };
+
+  if (loading) return <p style={{ color: T.inkSoft }}>Loading…</p>;
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 14 }}>
+        Students with {DUE_THRESHOLD} or fewer classes remaining on their package — worth a nudge before they run out.
+      </p>
+      {rows.length === 0 && <p style={{ color: T.inkSoft }}>Nobody's coming due right now.</p>}
+      <div className="grid gap-3">
+        {rows.map((row) => (
+          <div key={row.student.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${row.remaining <= 0 ? T.terracotta : T.gold}`, borderRadius: 8, padding: 14 }} className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <div style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>{row.student.name}</div>
+              <div style={{ fontSize: 12, color: row.remaining <= 0 ? T.terracotta : T.gold, fontWeight: 600 }}>
+                {row.remaining <= 0 ? "Package fully used" : `${row.remaining} class${row.remaining === 1 ? "" : "es"} remaining`}
+              </div>
+            </div>
+            <Btn size="sm" onClick={() => openReminder(row)}>Send reminder</Btn>
+          </div>
+        ))}
+      </div>
+      {sendingTo && (
+        <PackageReminderModal
+          student={sendingTo.student}
+          guardianEmail={sendingTo.guardianEmail}
+          packageSize={sendingTo.packageSize}
+          classesUsed={sendingTo.classesUsed}
+          onCancel={() => setSendingTo(null)}
+          onSent={() => { setSendingTo(null); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function SubmittedRequestsSection({ focusRenewalId }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showHandled, setShowHandled] = useState(false);
@@ -60,13 +132,13 @@ export default function RenewalsView({ focusRenewalId }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <p style={{ fontSize: 13, color: T.inkSoft }}>{pendingCount} pending renewal{pendingCount === 1 ? "" : "s"}.</p>
+        <p style={{ fontSize: 13, color: T.inkSoft }}>{pendingCount} submission{pendingCount === 1 ? "" : "s"} waiting on your confirmation.</p>
         <button onClick={() => setShowHandled((v) => !v)} style={{ fontSize: 12, color: showHandled ? T.maroon : T.inkSoft, fontWeight: showHandled ? 600 : 400, whiteSpace: "nowrap" }}>
           {showHandled ? "← Back to pending" : "View approved/rejected"}
         </button>
       </div>
 
-      {filtered.length === 0 && <p style={{ color: T.inkSoft }}>{showHandled ? "No handled renewals yet." : "No pending renewals."}</p>}
+      {filtered.length === 0 && <p style={{ color: T.inkSoft }}>{showHandled ? "No handled submissions yet." : "No submissions waiting."}</p>}
 
       <div className="grid gap-3">
         {filtered.map((r) => {
@@ -121,6 +193,31 @@ export default function RenewalsView({ focusRenewalId }) {
           onCancel={() => setConfirmReject(null)}
         />
       )}
+    </div>
+  );
+}
+
+export default function RenewalsView({ focusRenewalId }) {
+  const [section, setSection] = useState(focusRenewalId ? "submitted" : "due");
+
+  return (
+    <div>
+      <div className="flex gap-1 mb-4" style={{ background: T.paper, borderRadius: 8, padding: 3, display: "inline-flex" }}>
+        <button
+          onClick={() => setSection("due")}
+          style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "due" ? "#fff" : "transparent", color: section === "due" ? T.maroonDark : T.inkSoft, fontWeight: section === "due" ? 600 : 400 }}
+        >
+          Due for renewal
+        </button>
+        <button
+          onClick={() => setSection("submitted")}
+          style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "submitted" ? "#fff" : "transparent", color: section === "submitted" ? T.maroonDark : T.inkSoft, fontWeight: section === "submitted" ? 600 : 400 }}
+        >
+          Submitted requests
+        </button>
+      </div>
+
+      {section === "due" ? <DueForRenewalSection /> : <SubmittedRequestsSection focusRenewalId={focusRenewalId} />}
     </div>
   );
 }

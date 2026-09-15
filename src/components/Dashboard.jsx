@@ -17,7 +17,7 @@ const NAV = [
   { id: "calendar", label: "Calendar" },
   { id: "students", label: "Students", countKey: "students" },
   { id: "requests", label: "New Requests", countKey: "requests", urgent: true },
-  { id: "renewals", label: "Pending Renewals", countKey: "renewals", urgent: true },
+  { id: "renewals", label: "Renewal Requests", countKey: "renewals", urgent: true },
   { id: "classes", label: "Classes", countKey: "classes" },
   { id: "levels", label: "Levels" },
   { id: "packages", label: "Packages" },
