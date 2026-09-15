@@ -6,13 +6,14 @@ import { generateStudentCode } from "../lib/studentCode";
 import { formatTimeRange, nextOccurrenceOf } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
 import EmailPreviewModal from "./EmailPreviewModal";
+import PendingPackagesEditor from "./PendingPackagesEditor";
 
 function ApproveModal({ request, levels, classes, classById, skips, onClose, onApproved }) {
   const [students, setStudents] = useState(
     (request.enrollment_request_students || [])
       .slice()
       .sort((a, b) => a.sort_order - b.sort_order)
-      .map((s) => ({ id: s.id, name: s.student_name, dob: s.student_dob || "", levelId: "", preferredClassId: s.preferred_class_id || "", isSibling: s.is_sibling }))
+      .map((s) => ({ id: s.id, name: s.student_name, dob: s.student_dob || "", levelId: "", preferredClassId: s.preferred_class_id || "", isSibling: s.is_sibling, pendingPackages: [] }))
   );
   const [guardianName, setGuardianName] = useState(request.guardian_name);
   const [guardianPhone, setGuardianPhone] = useState(request.guardian_phone || "");
@@ -24,6 +25,13 @@ function ApproveModal({ request, levels, classes, classById, skips, onClose, onA
   const [error, setError] = useState("");
 
   const updateStudent = (i, field, val) => setStudents((ss) => ss.map((s, idx) => (idx === i ? { ...s, [field]: val } : s)));
+  const setStudentPackages = (i) => (updater) => {
+    setStudents((ss) => ss.map((s, idx) => {
+      if (idx !== i) return s;
+      const next = typeof updater === "function" ? updater(s.pendingPackages || []) : updater;
+      return { ...s, pendingPackages: next };
+    }));
+  };
 
   const approve = async () => {
     setSaving(true);
@@ -64,6 +72,12 @@ function ApproveModal({ request, levels, classes, classById, skips, onClose, onA
           await supabase.from("enrollments").insert({ student_id: created.id, class_id: s.preferredClassId });
         }
         await supabase.from("enrollment_request_students").update({ created_student_id: created.id }).eq("id", s.id);
+
+        for (const p of s.pendingPackages || []) {
+          await supabase.from("packages").insert({
+            student_id: created.id, classes_total: p.classesTotal, amount: p.amount, notes: p.note,
+          });
+        }
 
         const bookedClass = s.preferredClassId ? classById[s.preferredClassId] : null;
         const nextOcc = bookedClass ? nextOccurrenceOf(bookedClass, skips, localDateStr) : null;
@@ -118,6 +132,7 @@ function ApproveModal({ request, levels, classes, classById, skips, onClose, onA
           {s.preferredClassId && classById[s.preferredClassId] && (
             <p style={{ fontSize: 11, color: T.sage }}>Requested: {classById[s.preferredClassId].label} — {classById[s.preferredClassId].day} {formatTimeRange(classById[s.preferredClassId].time, classById[s.preferredClassId].end_time)}</p>
           )}
+          <PendingPackagesEditor pendingPackages={s.pendingPackages || []} setPendingPackages={setStudentPackages(i)} />
         </div>
       ))}
 
