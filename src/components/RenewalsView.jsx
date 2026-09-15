@@ -10,8 +10,9 @@ function DueForRenewalSection({ onChanged }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sendingTo, setSendingTo] = useState(null);
+  const [threshold, setThreshold] = useState(2);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (limit) => {
     setLoading(true);
     const [sRes, pRes] = await Promise.all([
       supabase.from("students").select("id, name, code").eq("archived", false),
@@ -24,7 +25,7 @@ function DueForRenewalSection({ onChanged }) {
         const hasPackage = !!pkg && pkg.classes_total > 0;
         if (hasPackage) {
           const remaining = pkg.classes_total - pkg.classes_used;
-          if (remaining > DUE_THRESHOLD) return null;
+          if (remaining > limit) return null;
           return { student: s, packageSize: pkg.classes_total, classesUsed: pkg.classes_used, remaining, hasPackage: true };
         }
         // No package on file at all (e.g. just reactivated from archive) — still
@@ -37,7 +38,7 @@ function DueForRenewalSection({ onChanged }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(threshold); }, [load, threshold]);
 
   const openReminder = async (row) => {
     const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", row.student.id);
@@ -45,27 +46,37 @@ function DueForRenewalSection({ onChanged }) {
     setSendingTo({ student: row.student, guardianEmail, packageSize: row.packageSize, classesUsed: row.classesUsed });
   };
 
-  if (loading) return <p style={{ color: T.inkSoft }}>Loading…</p>;
-
   return (
     <div>
-      <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 14 }}>
-        Students with {DUE_THRESHOLD} or fewer classes remaining on their package — worth a nudge before they run out.
-      </p>
-      {rows.length === 0 && <p style={{ color: T.inkSoft }}>Nobody's coming due right now.</p>}
-      <div className="grid gap-3">
-        {rows.map((row) => (
-          <div key={row.student.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.terracotta}`, borderRadius: 8, padding: 14 }} className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <div style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>{row.student.name}</div>
-              <div style={{ fontSize: 12, color: row.hasPackage && row.remaining > 0 ? T.gold : T.terracotta, fontWeight: 600 }}>
-                {!row.hasPackage ? "No package on file" : row.remaining <= 0 ? "Package fully used" : `${row.remaining} class${row.remaining === 1 ? "" : "es"} remaining`}
-              </div>
-            </div>
-            <Btn size="sm" onClick={() => openReminder(row)}>Send reminder</Btn>
-          </div>
-        ))}
+      <div className="flex items-center gap-2 mb-4 flex-wrap" style={{ fontSize: 13, color: T.ink }}>
+        <span>Show students with</span>
+        <input
+          type="number" min={0} value={threshold}
+          onChange={(e) => setThreshold(Math.max(0, Number(e.target.value) || 0))}
+          style={{ width: 56, padding: "4px 8px", borderRadius: 6, border: `1px solid ${T.line}`, textAlign: "center", fontSize: 13 }}
+        />
+        <span>or fewer classes remaining</span>
       </div>
+      {loading ? (
+        <p style={{ color: T.inkSoft }}>Loading…</p>
+      ) : (
+        <>
+          {rows.length === 0 && <p style={{ color: T.inkSoft }}>Nobody's coming due right now.</p>}
+          <div className="grid gap-3">
+            {rows.map((row) => (
+              <div key={row.student.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.terracotta}`, borderRadius: 8, padding: 14 }} className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <div style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>{row.student.name}</div>
+                  <div style={{ fontSize: 12, color: row.hasPackage && row.remaining > 0 ? T.gold : T.terracotta, fontWeight: 600 }}>
+                    {!row.hasPackage ? "No package on file" : row.remaining <= 0 ? "Package fully used" : `${row.remaining} class${row.remaining === 1 ? "" : "es"} remaining`}
+                  </div>
+                </div>
+                <Btn size="sm" onClick={() => openReminder(row)}>Send reminder</Btn>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       {sendingTo && (
         <PackageReminderModal
           student={sendingTo.student}
@@ -73,7 +84,7 @@ function DueForRenewalSection({ onChanged }) {
           packageSize={sendingTo.packageSize}
           classesUsed={sendingTo.classesUsed}
           onCancel={() => setSendingTo(null)}
-          onSent={() => { setSendingTo(null); load(); onChanged && onChanged(); }}
+          onSent={() => { setSendingTo(null); load(threshold); onChanged && onChanged(); }}
         />
       )}
     </div>
