@@ -126,12 +126,18 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
   const [showHandled, setShowHandled] = useState(false);
   const [approving, setApproving] = useState(null);
   const [confirmReject, setConfirmReject] = useState(null);
+  const [paymentSettings, setPaymentSettings] = useState({}); // { [requestId]: { confirmed, method } }
   const focusRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase.from("package_renewal_requests").select("*, students(name, code)").order("created_at", { ascending: false });
     setRequests(data || []);
+    setPaymentSettings((prev) => {
+      const next = { ...prev };
+      (data || []).forEach((r) => { if (!(r.id in next)) next[r.id] = { confirmed: r.payment_claimed || false, method: "" }; });
+      return next;
+    });
     setLoading(false);
   }, []);
 
@@ -154,10 +160,14 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
     window.open(data.signedUrl, "_blank");
   };
 
+  const setPaymentField = (id, field, val) => setPaymentSettings((s) => ({ ...s, [id]: { ...s[id], [field]: val } }));
+
   const approve = async (r) => {
+    const ps = paymentSettings[r.id] || { confirmed: false, method: "" };
     setApproving(r.id);
     await supabase.from("packages").insert({
       student_id: r.student_id, classes_total: r.classes_count_snapshot, amount: r.price_snapshot, notes: r.tier_name_snapshot,
+      payment_confirmed: ps.confirmed, payment_method: ps.method || null,
     });
     await supabase.from("package_renewal_requests").update({ status: "approved", reviewed_at: new Date().toISOString() }).eq("id", r.id);
     setApproving(null);
@@ -226,6 +236,31 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
                   <span style={{ fontSize: 12, fontWeight: 600, color: r.status === "approved" ? T.sage : T.terracotta, textTransform: "capitalize" }}>{r.status}</span>
                 )}
               </div>
+              {r.status === "pending" && (
+                <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.line}` }}>
+                  <label className="flex items-center gap-1.5" style={{ fontSize: 12, color: T.ink }}>
+                    <input
+                      type="checkbox"
+                      checked={paymentSettings[r.id]?.confirmed || false}
+                      onChange={(e) => setPaymentField(r.id, "confirmed", e.target.checked)}
+                    />
+                    Payment confirmed
+                  </label>
+                  {paymentSettings[r.id]?.confirmed && (
+                    <select
+                      value={paymentSettings[r.id]?.method || ""}
+                      onChange={(e) => setPaymentField(r.id, "method", e.target.value)}
+                      style={{ fontSize: 12, padding: "3px 6px", borderRadius: 6, border: `1px solid ${T.line}` }}
+                    >
+                      <option value="">Method not specified</option>
+                      <option value="bank_transfer">Bank transfer</option>
+                      <option value="cash">Cash</option>
+                      <option value="card">Card</option>
+                      <option value="other">Other</option>
+                    </select>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}

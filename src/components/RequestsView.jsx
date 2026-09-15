@@ -15,10 +15,11 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((s) => {
         const selectedTier = s.selected_package_tier_id ? tierById[s.selected_package_tier_id] : null;
-        const tierPrice = selectedTier ? (s.is_sibling && selectedTier.sibling_price != null ? Number(selectedTier.sibling_price) : Number(selectedTier.price)) : 0;
+        const isSiblingPrice = !!(selectedTier && s.is_sibling && selectedTier.sibling_price != null);
+        const tierPrice = selectedTier ? (isSiblingPrice ? Number(selectedTier.sibling_price) : Number(selectedTier.price)) : 0;
         return {
           id: s.id, name: s.student_name, dob: s.student_dob || "", levelId: "", preferredClassId: s.preferred_class_id || "", isSibling: s.is_sibling,
-          pendingPackages: selectedTier ? [{ classesTotal: selectedTier.classes_count, amount: tierPrice, note: `Requested at enrolment: ${selectedTier.name}` }] : [],
+          pendingPackages: selectedTier ? [{ classesTotal: selectedTier.classes_count, amount: tierPrice, note: `Requested at enrolment: ${selectedTier.name}`, isSiblingPrice }] : [],
         };
       })
   );
@@ -28,8 +29,17 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
   const [emergencySame, setEmergencySame] = useState(request.emergency_same);
   const [emergencyName, setEmergencyName] = useState(request.emergency_name || "");
   const [emergencyPhone, setEmergencyPhone] = useState(request.emergency_phone || "");
+  const [paymentConfirmed, setPaymentConfirmed] = useState(request.payment_claimed || false);
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [fees, setFees] = useState({ enabled: false, primary: 0, sibling: 0 });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    supabase.from("settings").select("enrolment_fee_enabled, enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setFees({ enabled: data.enrolment_fee_enabled, primary: Number(data.enrolment_fee_primary), sibling: Number(data.enrolment_fee_sibling) });
+    });
+  }, []);
 
   const updateStudent = (i, field, val) => setStudents((ss) => ss.map((s, idx) => (idx === i ? { ...s, [field]: val } : s)));
   const setStudentPackages = (i) => (updater) => {
@@ -83,6 +93,14 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
         for (const p of s.pendingPackages || []) {
           await supabase.from("packages").insert({
             student_id: created.id, classes_total: p.classesTotal, amount: p.amount, notes: p.note,
+            payment_confirmed: paymentConfirmed, payment_method: paymentMethod || null, is_sibling_price: !!p.isSiblingPrice,
+          });
+        }
+
+        if (fees.enabled) {
+          await supabase.from("enrolment_fee_charges").insert({
+            student_id: created.id, amount: s.isSibling ? fees.sibling : fees.primary, is_sibling: s.isSibling,
+            payment_confirmed: paymentConfirmed, payment_method: paymentMethod || null,
           });
         }
 
@@ -168,6 +186,25 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
         Video/photo consent: {request.video_consent ? "Given ✓" : "Not given"}
       </p>
       {request.notes && <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}><strong>Note from parent:</strong> {request.notes}</p>}
+
+      <div style={{ background: T.paper, borderRadius: 8, padding: 12, marginBottom: 12 }}>
+        <label className="flex items-center gap-2 mb-2" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
+          <input type="checkbox" checked={paymentConfirmed} onChange={(e) => setPaymentConfirmed(e.target.checked)} />
+          Payment confirmed {request.payment_claimed ? "(parent marked as paid)" : ""}
+        </label>
+        {paymentConfirmed && (
+          <Field label="Payment method">
+            <select style={inputStyle} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+              <option value="">Not specified</option>
+              <option value="bank_transfer">Bank transfer</option>
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="other">Other</option>
+            </select>
+          </Field>
+        )}
+      </div>
+
       {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
       <div className="flex justify-end gap-2 mt-2">
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>

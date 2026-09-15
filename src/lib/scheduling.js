@@ -47,3 +47,24 @@ export function upcomingOccurrencesOf(cls, skips, localDateStrFn, { count = 8, l
 export function nextOccurrenceOf(cls, skips, localDateStrFn, lookaheadDays = 60) {
   return upcomingOccurrencesOf(cls, skips, localDateStrFn, { count: 1, lookaheadDays })[0] || null;
 }
+
+// Counts how many times a class actually ran within a given date range (inclusive),
+// respecting the class's active term and any dates the studio marked as skipped.
+// Unlike upcomingOccurrencesOf (which looks forward from today), this works for any
+// past, present, or future range — used for finance reporting (e.g. per-class rent).
+export function occurrencesInRange(cls, skips, localDateStrFn, startDateStr, endDateStr) {
+  const dayIndex = WEEKDAYS.indexOf(cls.day);
+  if (dayIndex === -1) return 0;
+  let count = 0;
+  const start = new Date(startDateStr + "T00:00:00");
+  const end = new Date(endDateStr + "T00:00:00");
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const jsDay = (d.getDay() + 6) % 7;
+    if (jsDay !== dayIndex) continue;
+    const dateStr = localDateStrFn(d);
+    if (!isClassActiveOn(cls, dateStr)) continue;
+    if (skips.some((s) => s.class_id === cls.id && s.date === dateStr)) continue;
+    count++;
+  }
+  return count;
+}

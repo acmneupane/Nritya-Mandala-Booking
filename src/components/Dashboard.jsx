@@ -13,6 +13,7 @@ import StudioSettingsView from "./StudioSettingsView";
 import ShareEnrollLink from "./ShareEnrollLink";
 import PackageTiersView from "./PackageTiersView";
 import RenewalsView from "./RenewalsView";
+import FinancesView from "./FinancesView";
 
 const NAV = [
   { id: "calendar", label: "Calendar" },
@@ -22,6 +23,7 @@ const NAV = [
   { id: "classes", label: "Classes", countKey: "classes" },
   { id: "levels", label: "Levels" },
   { id: "packages", label: "Packages" },
+  { id: "finances", label: "Finances" },
   { id: "history", label: "History" },
   { id: "studio-settings", label: "Studio Settings" },
   { id: "account", label: "Account" },
@@ -172,6 +174,7 @@ export default function Dashboard() {
         {tab === "classes" && <ClassesView />}
         {tab === "levels" && <LevelsView />}
         {tab === "packages" && <PackageTiersView />}
+        {tab === "finances" && <FinancesView />}
         {tab === "history" && <HistoryView />}
         {tab === "studio-settings" && <StudioSettingsView />}
         {tab === "account" && <AccountView />}
