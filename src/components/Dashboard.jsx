@@ -63,7 +63,9 @@ export default function Dashboard() {
     const pkgByStudent = Object.fromEntries((pkgRes.data || []).map((p) => [p.student_id, p]));
     const dueCount = (studentsRes.data || []).filter((s) => {
       const pkg = pkgByStudent[s.id];
-      return pkg && pkg.classes_total > 0 && (pkg.classes_total - pkg.classes_used) <= 2;
+      const hasPackage = pkg && pkg.classes_total > 0;
+      if (!hasPackage) return true; // no package at all — e.g. freshly reactivated
+      return (pkg.classes_total - pkg.classes_used) <= 2;
     }).length;
     setCounts({ students: sRes.count || 0, classes: cRes.count || 0, requests: rRes.count || 0, renewals: (renRes.count || 0) + dueCount });
   }, []);

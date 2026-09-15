@@ -21,10 +21,15 @@ function DueForRenewalSection({ onChanged }) {
     const due = (sRes.data || [])
       .map((s) => {
         const pkg = pkgByStudent[s.id];
-        if (!pkg || pkg.classes_total <= 0) return null;
-        const remaining = pkg.classes_total - pkg.classes_used;
-        if (remaining > DUE_THRESHOLD) return null;
-        return { student: s, packageSize: pkg.classes_total, classesUsed: pkg.classes_used, remaining };
+        const hasPackage = !!pkg && pkg.classes_total > 0;
+        if (hasPackage) {
+          const remaining = pkg.classes_total - pkg.classes_used;
+          if (remaining > DUE_THRESHOLD) return null;
+          return { student: s, packageSize: pkg.classes_total, classesUsed: pkg.classes_used, remaining, hasPackage: true };
+        }
+        // No package on file at all (e.g. just reactivated from archive) — still
+        // worth a nudge, just phrased differently since there's nothing to "run out".
+        return { student: s, packageSize: 0, classesUsed: 0, remaining: 0, hasPackage: false };
       })
       .filter(Boolean)
       .sort((a, b) => a.remaining - b.remaining);
@@ -50,11 +55,11 @@ function DueForRenewalSection({ onChanged }) {
       {rows.length === 0 && <p style={{ color: T.inkSoft }}>Nobody's coming due right now.</p>}
       <div className="grid gap-3">
         {rows.map((row) => (
-          <div key={row.student.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${row.remaining <= 0 ? T.terracotta : T.gold}`, borderRadius: 8, padding: 14 }} className="flex items-center justify-between flex-wrap gap-3">
+          <div key={row.student.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.terracotta}`, borderRadius: 8, padding: 14 }} className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <div style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>{row.student.name}</div>
-              <div style={{ fontSize: 12, color: row.remaining <= 0 ? T.terracotta : T.gold, fontWeight: 600 }}>
-                {row.remaining <= 0 ? "Package fully used" : `${row.remaining} class${row.remaining === 1 ? "" : "es"} remaining`}
+              <div style={{ fontSize: 12, color: row.hasPackage && row.remaining > 0 ? T.gold : T.terracotta, fontWeight: 600 }}>
+                {!row.hasPackage ? "No package on file" : row.remaining <= 0 ? "Package fully used" : `${row.remaining} class${row.remaining === 1 ? "" : "es"} remaining`}
               </div>
             </div>
             <Btn size="sm" onClick={() => openReminder(row)}>Send reminder</Btn>
@@ -213,7 +218,9 @@ export default function RenewalsView({ focusRenewalId }) {
     const pkgByStudent = Object.fromEntries((pkgRes.data || []).map((p) => [p.student_id, p]));
     const due = (studentsRes.data || []).filter((s) => {
       const pkg = pkgByStudent[s.id];
-      return pkg && pkg.classes_total > 0 && (pkg.classes_total - pkg.classes_used) <= DUE_THRESHOLD;
+      const hasPackage = pkg && pkg.classes_total > 0;
+      if (!hasPackage) return true;
+      return (pkg.classes_total - pkg.classes_used) <= DUE_THRESHOLD;
     }).length;
     setDueCount(due);
     setSubmittedCount(renRes.count || 0);
