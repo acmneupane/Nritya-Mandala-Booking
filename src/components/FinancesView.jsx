@@ -87,7 +87,7 @@ async function computeFinances(rangeStart, rangeEnd) {
     computeRevenueEarned(rangeStart, rangeEnd),
     supabase.from("enrolment_fee_charges").select("id, amount, charged_at, is_sibling, students(name)")
       .eq("payment_confirmed", true).gte("charged_at", rangeStart).lte("charged_at", rangeEnd),
-    supabase.from("packages").select("id, amount, purchase_date, notes, students(name)")
+    supabase.from("packages").select("id, student_id, amount, purchase_date, notes, students(name)")
       .eq("payment_confirmed", true).gte("purchase_date", rangeStart).lte("purchase_date", rangeEnd),
     supabase.from("expenses").select("*"),
     supabase.from("classes").select("*"),
@@ -286,12 +286,28 @@ export default function FinancesView() {
             <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: T.inkSoft, marginBottom: 8 }}>Package purchases (cash basis)</div>
               {data.packagesCash.length === 0 && <p style={{ fontSize: 12, color: T.inkSoft }}>None in this period.</p>}
-              {data.packagesCash.map((p) => (
-                <div key={p.id} className="flex justify-between" style={{ fontSize: 12, padding: "4px 0", borderTop: `1px solid ${T.line}` }}>
-                  <span>{p.students?.name || "Unknown"} — {p.notes || "Package"} ({p.purchase_date})</span>
-                  <span style={{ fontWeight: 600 }}>${Number(p.amount).toFixed(2)}</span>
-                </div>
-              ))}
+              {(() => {
+                const byStudent = {};
+                data.packagesCash.forEach((p) => {
+                  const key = p.student_id || "unknown";
+                  (byStudent[key] ||= { name: p.students?.name || "Unknown", packages: [], total: 0 }).packages.push(p);
+                  byStudent[key].total += Number(p.amount);
+                });
+                return Object.entries(byStudent).map(([studentId, group]) => (
+                  <div key={studentId} style={{ marginTop: 10 }}>
+                    <div className="flex justify-between" style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, padding: "4px 0", borderTop: `2px solid ${T.line}` }}>
+                      <span>{group.name}</span>
+                      <span>${group.total.toFixed(2)}</span>
+                    </div>
+                    {group.packages.map((p) => (
+                      <div key={p.id} className="flex justify-between" style={{ fontSize: 12, color: T.inkSoft, padding: "3px 0 3px 12px" }}>
+                        <span>{p.notes || "Package"} ({p.purchase_date})</span>
+                        <span>${Number(p.amount).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ));
+              })()}
             </div>
           )}
 
