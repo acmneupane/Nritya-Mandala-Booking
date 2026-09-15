@@ -267,9 +267,11 @@ export default function RequestsView({ focusRequestId }) {
                     <div key={k.id} style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>
                       {k.student_name} {k.is_sibling && <span style={{ fontSize: 11, color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>(sibling)</span>}
                       {k.student_dob && <span style={{ fontSize: 11, color: T.inkSoft, fontFamily: "Inter, sans-serif", marginLeft: 6 }}>· DOB {k.student_dob}</span>}
-                      {k.preferred_class_id && classById[k.preferred_class_id] && (
+                      {k.preferred_class_id && classById[k.preferred_class_id] ? (
                         <span style={{ fontSize: 11, color: T.sage, fontFamily: "Inter, sans-serif", marginLeft: 6 }}>· wants {classById[k.preferred_class_id].label}</span>
-                      )}
+                      ) : k.preferred_class_text ? (
+                        <span style={{ fontSize: 11, color: T.gold, fontFamily: "Inter, sans-serif", marginLeft: 6 }}>· preferred: {k.preferred_class_text}</span>
+                      ) : null}
                     </div>
                   ))}
                   <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 4 }}>

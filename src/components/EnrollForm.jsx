@@ -89,12 +89,18 @@ function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
         <Field label="Name"><input style={inputStyle} value={sibling.name} onChange={(e) => onChange({ ...sibling, name: e.target.value })} /></Field>
         <Field label="Date of birth"><input style={inputStyle} type="date" value={sibling.dob} onChange={(e) => onChange({ ...sibling, dob: e.target.value })} /></Field>
       </div>
-      <Field label="Preferred class">
-        <select style={inputStyle} value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
-          <option value="">Not sure</option>
-          {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
-        </select>
-      </Field>
+      {classes.length > 0 ? (
+        <Field label="Preferred class">
+          <select style={inputStyle} value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
+            <option value="">Not sure</option>
+            {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+          </select>
+        </Field>
+      ) : (
+        <Field label="Preferred day/time (optional)">
+          <input style={inputStyle} value={sibling.classText || ""} onChange={(e) => onChange({ ...sibling, classText: e.target.value })} placeholder="e.g. Saturday mornings, Tuesday evenings" />
+        </Field>
+      )}
     </div>
   );
 }
@@ -104,6 +110,7 @@ export default function EnrollForm() {
   const [studentName, setStudentName] = useState("");
   const [studentDob, setStudentDob] = useState("");
   const [preferredClassId, setPreferredClassId] = useState("");
+  const [preferredClassText, setPreferredClassText] = useState("");
   const [guardianName, setGuardianName] = useState("");
   const [guardianRelation, setGuardianRelation] = useState("");
   const [guardianRelationOther, setGuardianRelationOther] = useState("");
@@ -147,7 +154,7 @@ export default function EnrollForm() {
 
   const addSibling = () => {
     if (siblings.length >= MAX_SIBLINGS) return;
-    setSiblings((s) => [...s, { name: "", dob: "", classId: "" }]);
+    setSiblings((s) => [...s, { name: "", dob: "", classId: "", classText: "" }]);
   };
   const updateSibling = (i, val) => setSiblings((s) => s.map((sib, idx) => (idx === i ? val : sib)));
   const removeSibling = (i) => setSiblings((s) => s.filter((_, idx) => idx !== i));
@@ -186,9 +193,9 @@ export default function EnrollForm() {
       }
 
       const studentRows = [
-        { name: studentName.trim(), dob: studentDob || null, preferred_class_id: preferredClassId || null, is_sibling: false, sort_order: 0 },
+        { name: studentName.trim(), dob: studentDob || null, preferred_class_id: preferredClassId || null, preferred_class_text: preferredClassText.trim() || null, is_sibling: false, sort_order: 0 },
         ...siblings.filter((s) => s.name.trim()).map((s, i) => ({
-          name: s.name.trim(), dob: s.dob || null, preferred_class_id: s.classId || null, is_sibling: true, sort_order: i + 1,
+          name: s.name.trim(), dob: s.dob || null, preferred_class_id: s.classId || null, preferred_class_text: (s.classText || "").trim() || null, is_sibling: true, sort_order: i + 1,
         })),
       ];
 
@@ -257,15 +264,27 @@ export default function EnrollForm() {
 
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 12 }}>Student details</h3>
           <Field label="Student's name *"><input style={inputStyle} value={studentName} onChange={(e) => setStudentName(e.target.value)} /></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Date of birth"><input style={inputStyle} type="date" value={studentDob} onChange={(e) => setStudentDob(e.target.value)} /></Field>
-            <Field label="Preferred class">
-              <select style={inputStyle} value={preferredClassId} onChange={(e) => setPreferredClassId(e.target.value)}>
-                <option value="">Not sure</option>
-                {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
-              </select>
-            </Field>
-          </div>
+          {classes.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Date of birth"><input style={inputStyle} type="date" value={studentDob} onChange={(e) => setStudentDob(e.target.value)} /></Field>
+              <Field label="Preferred class">
+                <select style={inputStyle} value={preferredClassId} onChange={(e) => setPreferredClassId(e.target.value)}>
+                  <option value="">Not sure</option>
+                  {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+                </select>
+              </Field>
+            </div>
+          ) : (
+            <>
+              <Field label="Date of birth"><input style={inputStyle} type="date" value={studentDob} onChange={(e) => setStudentDob(e.target.value)} /></Field>
+              <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, color: T.ink, lineHeight: 1.5 }}>
+                We're growing and adding new classes soon! Let us know your preferred day and time below so we can keep you in mind as we plan — we'll reach out as soon as we have a class ready for you.
+              </div>
+              <Field label="Preferred day/time (optional)">
+                <input style={inputStyle} value={preferredClassText} onChange={(e) => setPreferredClassText(e.target.value)} placeholder="e.g. Saturday mornings, Tuesday evenings" />
+              </Field>
+            </>
+          )}
 
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, margin: "18px 0 12px" }}>Who's filling this out?</h3>
           <Field label="Your name *"><input style={inputStyle} value={guardianName} onChange={(e) => setGuardianName(e.target.value)} /></Field>
@@ -343,28 +362,36 @@ export default function EnrollForm() {
 
           <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 18, marginTop: 16 }}>
             <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 8 }}>Payment</h3>
-            <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
-              Please pay using the bank details above, with the reference below — this is what tells us the payment is for {studentName || "your child"}'s enrolment.
-            </p>
-            <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Pay with this reference</div>
-              <div style={{ fontFamily: "Fraunces, serif", fontSize: 22, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>
-                {generatingReference ? "Generating…" : paymentReference || "—"}
-              </div>
-            </div>
-            <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
-              <input type="checkbox" checked={paymentClaimed} onChange={(e) => togglePaymentClaimed(e.target.checked)} />
-              I have already paid
-            </label>
-            {paymentClaimed && (
-              <Field label="Payment screenshot">
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => setPaymentFile(e.target.files?.[0] || null)}
-                  style={{ fontSize: 13 }}
-                />
-              </Field>
+            {classes.length > 0 ? (
+              <>
+                <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
+                  Please pay using the bank details above, with the reference below — this is what tells us the payment is for {studentName || "your child"}'s enrolment.
+                </p>
+                <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Pay with this reference</div>
+                  <div style={{ fontFamily: "Fraunces, serif", fontSize: 22, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>
+                    {generatingReference ? "Generating…" : paymentReference || "—"}
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
+                  <input type="checkbox" checked={paymentClaimed} onChange={(e) => togglePaymentClaimed(e.target.checked)} />
+                  I have already paid
+                </label>
+                {paymentClaimed && (
+                  <Field label="Payment screenshot">
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={(e) => setPaymentFile(e.target.files?.[0] || null)}
+                      style={{ fontSize: 13 }}
+                    />
+                  </Field>
+                )}
+              </>
+            ) : (
+              <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.5 }}>
+                No payment is needed right now, since there's no confirmed class yet. Once we confirm a class for you, we'll follow up with payment details and your reference number.
+              </p>
             )}
           </div>
 
