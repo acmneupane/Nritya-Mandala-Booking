@@ -37,25 +37,68 @@ function countMonthly(anchorStr, start, end) {
   return count;
 }
 
-// Computes revenue + expense totals (with itemized drill-down lists) for a date
-// range. Revenue = confirmed package purchases + confirmed enrolment fee charges.
-// Expenses = one-off (in range) + recurring occurrences (in range) + per-class
-// sessions actually held (in range, respecting term dates and skipped classes).
+// Revenue recognition: instead of counting a package's full price in the month it
+// was bought, spread it across the classes as they're actually delivered. Each
+// qualifying attendance record (attended, or missed with no 24hr notice — NOT
+// skipped, and NOT a class the studio itself cancelled) recognizes one class's
+// worth of revenue (package amount ÷ classes_total), dated to when it happened.
+// When a student has bought multiple packages over time, consumption is FIFO —
+// oldest package's classes get used up first. Only confirmed packages count.
+async function computeRevenueEarned(rangeStart, rangeEnd) {
+  const [pkgRes, attRes, skipRes, studentRes] = await Promise.all([
+    supabase.from("packages").select("id, student_id, amount, classes_total, purchase_date").eq("payment_confirmed", true).lte("purchase_date", rangeEnd).order("purchase_date"),
+    supabase.from("attendance").select("student_id, class_id, date, status").in("status", ["attended", "missed"]).lte("date", rangeEnd).order("date"),
+    supabase.from("class_skips").select("class_id, date"),
+    supabase.from("students").select("id, name"),
+  ]);
+
+  const skipSet = new Set((skipRes.data || []).map((s) => `${s.class_id}|${s.date}`));
+  const studentById = Object.fromEntries((studentRes.data || []).map((s) => [s.id, s]));
+
+  const pkgsByStudent = {};
+  (pkgRes.data || []).forEach((p) => { (pkgsByStudent[p.student_id] ||= []).push(p); });
+
+  const attByStudent = {};
+  (attRes.data || []).forEach((a) => {
+    if (skipSet.has(`${a.class_id}|${a.date}`)) return; // studio cancelled this session — never happened
+    (attByStudent[a.student_id] ||= []).push(a);
+  });
+
+  const revenueLines = [];
+  for (const [studentId, atts] of Object.entries(attByStudent)) {
+    const pkgs = pkgsByStudent[studentId] || [];
+    let pkgIdx = 0, usedInCurrent = 0;
+    for (const a of atts) {
+      while (pkgIdx < pkgs.length && usedInCurrent >= pkgs[pkgIdx].classes_total) { pkgIdx++; usedInCurrent = 0; }
+      if (pkgIdx >= pkgs.length) break; // more classes attended than paid for — nothing left to recognize
+      const pkg = pkgs[pkgIdx];
+      const perClass = pkg.classes_total > 0 ? Number(pkg.amount) / pkg.classes_total : 0;
+      usedInCurrent++;
+      if (a.date >= rangeStart && a.date <= rangeEnd) {
+        revenueLines.push({ studentId, studentName: studentById[studentId]?.name || "Unknown", date: a.date, amount: perClass });
+      }
+    }
+  }
+  return revenueLines;
+}
+
 async function computeFinances(rangeStart, rangeEnd) {
-  const [pkgRes, feeRes, expRes, classRes, skipRes] = await Promise.all([
-    supabase.from("packages").select("id, amount, purchase_date, notes, payment_confirmed, students(name)")
-      .eq("payment_confirmed", true).gte("purchase_date", rangeStart).lte("purchase_date", rangeEnd),
+  const [revenueLines, feeRes, pkgCashRes, expRes, classRes, skipRes] = await Promise.all([
+    computeRevenueEarned(rangeStart, rangeEnd),
     supabase.from("enrolment_fee_charges").select("id, amount, charged_at, is_sibling, students(name)")
       .eq("payment_confirmed", true).gte("charged_at", rangeStart).lte("charged_at", rangeEnd),
+    supabase.from("packages").select("id, amount, purchase_date, notes, students(name)")
+      .eq("payment_confirmed", true).gte("purchase_date", rangeStart).lte("purchase_date", rangeEnd),
     supabase.from("expenses").select("*"),
     supabase.from("classes").select("*"),
     supabase.from("class_skips").select("class_id, date"),
   ]);
 
-  const packages = pkgRes.data || [];
   const fees = feeRes.data || [];
-  const packageRevenue = packages.reduce((sum, p) => sum + Number(p.amount), 0);
   const feeRevenue = fees.reduce((sum, f) => sum + Number(f.amount), 0);
+  const packageRevenueEarned = revenueLines.reduce((sum, l) => sum + l.amount, 0);
+  const packagesCash = pkgCashRes.data || [];
+  const cashCollected = packagesCash.reduce((sum, p) => sum + Number(p.amount), 0) + feeRevenue;
 
   const classById = Object.fromEntries((classRes.data || []).map((c) => [c.id, c]));
   const skips = skipRes.data || [];
@@ -82,11 +125,12 @@ async function computeFinances(rangeStart, rangeEnd) {
     }
   }
   const totalExpenses = expenseLines.reduce((sum, l) => sum + l.total, 0);
+  const totalRevenueEarned = packageRevenueEarned + feeRevenue;
 
   return {
-    packageRevenue, feeRevenue, totalRevenue: packageRevenue + feeRevenue,
-    packages, fees, expenseLines, totalExpenses,
-    profit: packageRevenue + feeRevenue - totalExpenses,
+    packageRevenueEarned, feeRevenue, totalRevenueEarned, cashCollected,
+    revenueLines, fees, packagesCash, expenseLines, totalExpenses,
+    profit: totalRevenueEarned - totalExpenses,
   };
 }
 
@@ -118,7 +162,7 @@ export default function FinancesView() {
   const [allTime, setAllTime] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(null); // 'revenue' | 'expenses' | null
+  const [expanded, setExpanded] = useState(null); // 'revenue' | 'cash' | 'expenses' | null
   const [trend, setTrend] = useState([]);
 
   const rangeLabel = allTime
@@ -144,7 +188,7 @@ export default function FinancesView() {
         const d = new Date(cursor.year, cursor.month - i, 1);
         const { start, end } = monthBounds(d.getFullYear(), d.getMonth());
         const r = await computeFinances(start, end);
-        months.push({ label: d.toLocaleDateString(undefined, { month: "short" }), revenue: r.totalRevenue, expenses: r.totalExpenses });
+        months.push({ label: d.toLocaleDateString(undefined, { month: "short" }), revenue: r.totalRevenueEarned, expenses: r.totalExpenses });
       }
       setTrend(months);
     })();
@@ -190,10 +234,10 @@ export default function FinancesView() {
         <p style={{ color: T.inkSoft }}>Loading…</p>
       ) : (
         <>
-          <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+          <div className="grid gap-3 mb-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
             <button onClick={() => setExpanded(expanded === "revenue" ? null : "revenue")} style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.sage}`, borderRadius: 10, padding: 16 }}>
-              <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}>TOTAL REVENUE</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: T.sage, fontFamily: "Fraunces, serif" }}>${data.totalRevenue.toFixed(2)}</div>
+              <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}>REVENUE EARNED</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: T.sage, fontFamily: "Fraunces, serif" }}>${data.totalRevenueEarned.toFixed(2)}</div>
               <div style={{ fontSize: 11, color: T.inkSoft }}>{expanded === "revenue" ? "Hide breakdown ▾" : "Show breakdown ▸"}</div>
             </button>
             <button onClick={() => setExpanded(expanded === "expenses" ? null : "expenses")} style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.terracotta}`, borderRadius: 10, padding: 16 }}>
@@ -206,17 +250,25 @@ export default function FinancesView() {
               <div style={{ fontSize: 22, fontWeight: 700, color: data.profit >= 0 ? T.sage : T.terracotta, fontFamily: "Fraunces, serif" }}>
                 {data.profit >= 0 ? "+" : "-"}${Math.abs(data.profit).toFixed(2)}
               </div>
+              <div style={{ fontSize: 11, color: T.inkSoft }}>Revenue earned − expenses</div>
             </div>
           </div>
 
+          <button onClick={() => setExpanded(expanded === "cash" ? null : "cash")} style={{ textAlign: "left", width: "100%", background: T.paper, border: `1px dashed ${T.line}`, borderRadius: 8, padding: "10px 14px", marginBottom: 16 }}>
+            <span style={{ fontSize: 12, color: T.inkSoft }}>
+              Cash actually collected this period (full package + fee amounts, not spread out): <strong style={{ color: T.ink }}>${data.cashCollected.toFixed(2)}</strong>
+              {" · "}{expanded === "cash" ? "Hide ▾" : "Show ▸"}
+            </span>
+          </button>
+
           {expanded === "revenue" && (
             <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: T.inkSoft, marginBottom: 8 }}>Package purchases — ${data.packageRevenue.toFixed(2)}</div>
-              {data.packages.length === 0 && <p style={{ fontSize: 12, color: T.inkSoft }}>None in this period.</p>}
-              {data.packages.map((p) => (
-                <div key={p.id} className="flex justify-between" style={{ fontSize: 12, padding: "4px 0", borderTop: `1px solid ${T.line}` }}>
-                  <span>{p.students?.name || "Unknown"} — {p.notes || "Package"} ({p.purchase_date})</span>
-                  <span style={{ fontWeight: 600 }}>${Number(p.amount).toFixed(2)}</span>
+              <div style={{ fontSize: 12, fontWeight: 600, color: T.inkSoft, marginBottom: 8 }}>Package classes delivered — ${data.packageRevenueEarned.toFixed(2)}</div>
+              {data.revenueLines.length === 0 && <p style={{ fontSize: 12, color: T.inkSoft }}>None in this period.</p>}
+              {data.revenueLines.map((l, i) => (
+                <div key={i} className="flex justify-between" style={{ fontSize: 12, padding: "4px 0", borderTop: `1px solid ${T.line}` }}>
+                  <span>{l.studentName} — class on {l.date}</span>
+                  <span style={{ fontWeight: 600 }}>${l.amount.toFixed(2)}</span>
                 </div>
               ))}
               <div style={{ fontSize: 12, fontWeight: 600, color: T.inkSoft, marginTop: 14, marginBottom: 8 }}>Enrolment fees — ${data.feeRevenue.toFixed(2)}</div>
@@ -225,6 +277,19 @@ export default function FinancesView() {
                 <div key={f.id} className="flex justify-between" style={{ fontSize: 12, padding: "4px 0", borderTop: `1px solid ${T.line}` }}>
                   <span>{f.students?.name || "Unknown"} — {f.is_sibling ? "sibling fee" : "enrolment fee"} ({f.charged_at})</span>
                   <span style={{ fontWeight: 600 }}>${Number(f.amount).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {expanded === "cash" && (
+            <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: T.inkSoft, marginBottom: 8 }}>Package purchases (cash basis)</div>
+              {data.packagesCash.length === 0 && <p style={{ fontSize: 12, color: T.inkSoft }}>None in this period.</p>}
+              {data.packagesCash.map((p) => (
+                <div key={p.id} className="flex justify-between" style={{ fontSize: 12, padding: "4px 0", borderTop: `1px solid ${T.line}` }}>
+                  <span>{p.students?.name || "Unknown"} — {p.notes || "Package"} ({p.purchase_date})</span>
+                  <span style={{ fontWeight: 600 }}>${Number(p.amount).toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -249,7 +314,7 @@ export default function FinancesView() {
           {!allTime && trend.length > 0 && (
             <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16 }}>
               <div className="flex items-center gap-4 mb-2" style={{ fontSize: 12 }}>
-                <span style={{ color: T.inkSoft }}>Last 6 months</span>
+                <span style={{ color: T.inkSoft }}>Last 6 months (revenue earned, not cash collected)</span>
                 <span className="flex items-center gap-1"><span style={{ width: 10, height: 10, background: T.sage, borderRadius: 2, display: "inline-block" }} /> Revenue</span>
                 <span className="flex items-center gap-1"><span style={{ width: 10, height: 10, background: T.terracotta, borderRadius: 2, display: "inline-block" }} /> Expenses</span>
               </div>
