@@ -46,6 +46,8 @@ function EmailTemplateEditor({ templateKey, title, description, placeholders }) 
 }
 
 function EnrolmentFeesEditor() {
+  const [enabled, setEnabled] = useState(false);
+  const [label, setLabel] = useState("");
   const [primary, setPrimary] = useState("");
   const [sibling, setSibling] = useState("");
   const [loading, setLoading] = useState(true);
@@ -53,8 +55,13 @@ function EnrolmentFeesEditor() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    supabase.from("settings").select("enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
-      if (data) { setPrimary(String(data.enrolment_fee_primary)); setSibling(String(data.enrolment_fee_sibling)); }
+    supabase.from("settings").select("enrolment_fee_enabled, enrolment_fee_label, enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) {
+        setEnabled(data.enrolment_fee_enabled);
+        setLabel(data.enrolment_fee_label);
+        setPrimary(String(data.enrolment_fee_primary));
+        setSibling(String(data.enrolment_fee_sibling));
+      }
       setLoading(false);
     });
   }, []);
@@ -62,7 +69,10 @@ function EnrolmentFeesEditor() {
   const save = async () => {
     setSaving(true);
     setSaved(false);
-    await supabase.from("settings").update({ enrolment_fee_primary: Number(primary), enrolment_fee_sibling: Number(sibling) }).eq("id", 1);
+    await supabase.from("settings").update({
+      enrolment_fee_enabled: enabled, enrolment_fee_label: label.trim() || "One-off Enrolment fee",
+      enrolment_fee_primary: Number(primary), enrolment_fee_sibling: Number(sibling),
+    }).eq("id", 1);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -72,10 +82,15 @@ function EnrolmentFeesEditor() {
 
   return (
     <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
-      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Enrolment fees</h3>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Enrolment fee</h3>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        The one-off enrolment fee shown on the enrolment form and included in the total each student pays.
+        A one-off fee shown and charged on the enrolment form — applies even before a class is available, if enabled.
       </p>
+      <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
+        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+        Charge this fee on new enrolments
+      </label>
+      <Field label="Label shown to parents"><input style={inputStyle} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="One-off Enrolment fee" /></Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Primary student ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={primary} onChange={(e) => setPrimary(e.target.value)} /></Field>
         <Field label="Each sibling ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={sibling} onChange={(e) => setSibling(e.target.value)} /></Field>

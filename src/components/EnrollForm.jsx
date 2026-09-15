@@ -7,10 +7,6 @@ import { RELATION_OPTIONS } from "../lib/relations";
 import { formatTimeRange } from "../lib/scheduling";
 
 const MAX_SIBLINGS = 2;
-// Paused for now, per studio decision — flip to true to re-enable. Amounts stay
-// configurable in Settings either way, so nothing else needs to change to turn it
-// back on.
-const CHARGE_ENROLMENT_FEE = false;
 
 function InfoSection({ title, children }) {
   return (
@@ -121,7 +117,7 @@ export default function EnrollForm() {
   const [preferredClassText, setPreferredClassText] = useState("");
   const [packageTierId, setPackageTierId] = useState("");
   const [packageTiers, setPackageTiers] = useState([]);
-  const [fees, setFees] = useState({ primary: 20, sibling: 15 });
+  const [fees, setFees] = useState({ primary: 20, sibling: 15, enabled: false, label: "One-off Enrolment fee" });
   const [guardianName, setGuardianName] = useState("");
   const [guardianRelation, setGuardianRelation] = useState("");
   const [guardianRelationOther, setGuardianRelationOther] = useState("");
@@ -154,8 +150,8 @@ export default function EnrollForm() {
       setClasses(open.slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
     });
     supabase.from("package_tiers").select("*").eq("active", true).order("sort_order").then(({ data }) => setPackageTiers(data || []));
-    supabase.from("settings").select("enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
-      if (data) setFees({ primary: Number(data.enrolment_fee_primary), sibling: Number(data.enrolment_fee_sibling) });
+    supabase.from("settings").select("enrolment_fee_enabled, enrolment_fee_label, enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setFees({ primary: Number(data.enrolment_fee_primary), sibling: Number(data.enrolment_fee_sibling), enabled: data.enrolment_fee_enabled, label: data.enrolment_fee_label });
     });
     // The reference is shown up front — it's what they need to actually make the
     // payment with, not just a receipt after the fact — so generate it immediately
@@ -183,9 +179,11 @@ export default function EnrollForm() {
   const tierById = Object.fromEntries(packageTiers.map((t) => [t.id, t]));
   const siblingTierPrice = (tier) => (tier.sibling_price != null ? Number(tier.sibling_price) : Number(tier.price));
   const primaryTierPrice = packageTierId && tierById[packageTierId] ? Number(tierById[packageTierId].price) : 0;
-  const total = classes.length > 0
-    ? (CHARGE_ENROLMENT_FEE ? fees.primary : 0) + primaryTierPrice + namedSiblings.reduce((sum, s) => sum + (CHARGE_ENROLMENT_FEE ? fees.sibling : 0) + (s.packageTierId && tierById[s.packageTierId] ? siblingTierPrice(tierById[s.packageTierId]) : 0), 0)
+  const packageTotal = classes.length > 0
+    ? primaryTierPrice + namedSiblings.reduce((sum, s) => sum + (s.packageTierId && tierById[s.packageTierId] ? siblingTierPrice(tierById[s.packageTierId]) : 0), 0)
     : 0;
+  const enrolmentFeeTotal = fees.enabled ? fees.primary + namedSiblings.length * fees.sibling : 0;
+  const total = enrolmentFeeTotal + packageTotal;
 
   const submit = async () => {
     if (!studentName.trim() || !guardianName.trim()) {
@@ -392,45 +390,52 @@ export default function EnrollForm() {
 
           <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 12 }}>Once submitted, we'll contact you via email or mobile to confirm the enrolment.</p>
 
-          <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 18, marginTop: 16 }}>
-            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 8 }}>Payment</h3>
-            {classes.length > 0 ? (
+          <div style={{ background: `${T.gold}0F`, border: `2px solid ${T.gold}`, borderRadius: 10, padding: 18, marginTop: 16 }}>
+            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 8 }}>💳 Payment</h3>
+            {(classes.length > 0 || fees.enabled) ? (
               <>
                 <div style={{ marginBottom: 14 }}>
-                  {CHARGE_ENROLMENT_FEE && (
+                  {fees.enabled && (
                     <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
-                      <span style={{ fontSize: 13, color: T.ink }}>{studentName || "Student"} — One-off Enrolment fee</span>
+                      <span style={{ fontSize: 13, color: T.ink }}>{studentName || "Student"} — {fees.label}</span>
                       <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>${fees.primary.toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
-                    <span style={{ fontSize: 13, color: T.ink }}>{studentName || "Student"} — Package{packageTierId && tierById[packageTierId] ? ` (${tierById[packageTierId].name})` : ""}</span>
-                    <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{packageTierId && tierById[packageTierId] ? `$${primaryTierPrice.toFixed(2)}` : "—"}</span>
-                  </div>
+                  {classes.length > 0 && (
+                    <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
+                      <span style={{ fontSize: 13, color: T.ink }}>{studentName || "Student"} — Package{packageTierId && tierById[packageTierId] ? ` (${tierById[packageTierId].name})` : ""}</span>
+                      <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{packageTierId && tierById[packageTierId] ? `$${primaryTierPrice.toFixed(2)}` : "—"}</span>
+                    </div>
+                  )}
                   {namedSiblings.map((s, i) => (
                     <div key={i}>
-                      {CHARGE_ENROLMENT_FEE && (
+                      {fees.enabled && (
                         <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
-                          <span style={{ fontSize: 13, color: T.ink }}>{s.name} — One-off Enrolment fee (sibling)</span>
+                          <span style={{ fontSize: 13, color: T.ink }}>{s.name} — {fees.label} (sibling)</span>
                           <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>${fees.sibling.toFixed(2)}</span>
                         </div>
                       )}
-                      <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
-                        <span style={{ fontSize: 13, color: T.ink }}>{s.name} — Package{s.packageTierId && tierById[s.packageTierId] ? ` (${tierById[s.packageTierId].name})` : ""}</span>
-                        <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{s.packageTierId && tierById[s.packageTierId] ? `$${siblingTierPrice(tierById[s.packageTierId]).toFixed(2)}` : "—"}</span>
-                      </div>
+                      {classes.length > 0 && (
+                        <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
+                          <span style={{ fontSize: 13, color: T.ink }}>{s.name} — Package{s.packageTierId && tierById[s.packageTierId] ? ` (${tierById[s.packageTierId].name})` : ""}</span>
+                          <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{s.packageTierId && tierById[s.packageTierId] ? `$${siblingTierPrice(tierById[s.packageTierId]).toFixed(2)}` : "—"}</span>
+                        </div>
+                      )}
                     </div>
                   ))}
                   <div className="flex items-center justify-between" style={{ padding: "10px 0 2px" }}>
                     <span style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>Total</span>
                     <span style={{ fontSize: 18, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>${total.toFixed(2)}</span>
                   </div>
+                  {classes.length === 0 && (
+                    <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>Package cost isn't included yet — there's no class available to book into right now. We'll follow up once one's ready.</p>
+                  )}
                 </div>
 
                 <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
                   Please pay using the bank details above, with the reference below — this is what tells us the payment is for {studentName || "your child"}'s enrolment.
                 </p>
-                <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
+                <div style={{ background: "#fff", border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
                   <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Pay with this reference</div>
                   <div style={{ fontFamily: "Fraunces, serif", fontSize: 22, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>
                     {generatingReference ? "Generating…" : paymentReference || "—"}
@@ -467,7 +472,7 @@ export default function EnrollForm() {
 
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
           {agreedToInfo && (
-            <div style={{ marginTop: 10 }}>
+            <div style={{ marginTop: 10, textAlign: "right" }}>
               <Btn onClick={submit} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
             </div>
           )}
