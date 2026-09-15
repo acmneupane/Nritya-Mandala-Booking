@@ -20,7 +20,7 @@ export default function App() {
   if (path === "/parent") return <ParentLookup />;
   if (path === "/enroll") return <EnrollForm />;
   if (path === "/qr") return <ParentLookup />;
-  if (path === "/renew") return <RenewForm />;
+  if (path === "/renew" || path === "/renewal") return <RenewForm />;
 
   if (session === undefined) {
     return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>Loading…</div>;
