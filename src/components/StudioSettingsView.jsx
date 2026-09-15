@@ -102,21 +102,43 @@ function EnrolmentFeesEditor() {
 }
 
 export default function StudioSettingsView() {
+  const [section, setSection] = useState("fee");
+
   return (
     <div style={{ maxWidth: 460 }}>
-      <EmailTemplateEditor
-        templateKey="enrollment_approved"
-        title="Enrolment approval email"
-        description="Sent automatically to the parent when you approve their request."
-        placeholders={["student_name", "day", "time", "start_date", "access_code", "qr_link", "qr_code_image"]}
-      />
-      <EmailTemplateEditor
-        templateKey="package_expired"
-        title="Payment required (package expired) email"
-        description="Sent when you click 'Payment required' on a student whose package has run out."
-        placeholders={["student_name", "package_size", "classes_used", "status_text", "renew_link"]}
-      />
-      <EnrolmentFeesEditor />
+      <div className="flex gap-1 mb-4" style={{ background: T.paper, borderRadius: 8, padding: 3, display: "inline-flex" }}>
+        <button
+          onClick={() => setSection("fee")}
+          style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "fee" ? "#fff" : "transparent", color: section === "fee" ? T.maroonDark : T.inkSoft, fontWeight: section === "fee" ? 600 : 400 }}
+        >
+          Enrolment fee
+        </button>
+        <button
+          onClick={() => setSection("emails")}
+          style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "emails" ? "#fff" : "transparent", color: section === "emails" ? T.maroonDark : T.inkSoft, fontWeight: section === "emails" ? 600 : 400 }}
+        >
+          Email templates
+        </button>
+      </div>
+
+      {section === "fee" ? (
+        <EnrolmentFeesEditor />
+      ) : (
+        <>
+          <EmailTemplateEditor
+            templateKey="enrollment_approved"
+            title="Enrolment approval email"
+            description="Sent automatically to the parent when you approve their request."
+            placeholders={["student_name", "day", "time", "start_date", "access_code", "qr_link", "qr_code_image"]}
+          />
+          <EmailTemplateEditor
+            templateKey="package_expired"
+            title="Payment required (package expired) email"
+            description="Sent when you click 'Payment required' on a student whose package has run out."
+            placeholders={["student_name", "package_size", "classes_used", "status_text", "renew_link"]}
+          />
+        </>
+      )}
     </div>
   );
 }
