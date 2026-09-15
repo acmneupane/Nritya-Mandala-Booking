@@ -10,6 +10,7 @@ import { formatTimeRange, nextOccurrenceOf } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
 import EmailPreviewModal from "./EmailPreviewModal";
 import PendingPackagesEditor from "./PendingPackagesEditor";
+import PackageReminderModal from "./PackageReminderModal";
 
 const actionBtnStyle = { fontSize: 13, fontWeight: 500, padding: "5px 12px", borderRadius: 999, border: "1px solid", background: "#fff", whiteSpace: "nowrap" };
 
@@ -569,6 +570,7 @@ export default function StudentsView() {
   const [viewingInfo, setViewingInfo] = useState(null);
   const [booking, setBooking] = useState(null);
   const [sendingConfirmation, setSendingConfirmation] = useState(null);
+  const [sendingPackageReminder, setSendingPackageReminder] = useState(null);
   const [emailPreview, setEmailPreview] = useState(null);
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -605,6 +607,12 @@ export default function StudentsView() {
 
   const setQueryAndResetPage = (val) => { setQuery(val); setPage(1); };
   const toggleArchivedAndResetPage = () => { setShowArchived((v) => !v); setPage(1); };
+
+  const openPackageReminder = async (s, pkg) => {
+    const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", s.id);
+    const guardianEmail = (guardianLinks || []).map((g) => g.guardians?.email).find((e) => e) || null;
+    setSendingPackageReminder({ student: s, guardianEmail, packageSize: pkg.classes_total, classesUsed: pkg.classes_used });
+  };
 
   const doArchive = async (id, archived) => {
     await supabase.from("students").update({ archived }).eq("id", id);
@@ -684,6 +692,9 @@ export default function StudentsView() {
                 {!s.archived && !s.confirmation_email_sent && (
                   <button onClick={() => setSendingConfirmation(s)} style={{ ...actionBtnStyle, color: T.gold, borderColor: `${T.gold}55` }}>⚠ Send confirmation</button>
                 )}
+                {!s.archived && pkg && pkg.classes_total > 0 && remaining <= 0 && (
+                  <button onClick={() => openPackageReminder(s, pkg)} style={{ ...actionBtnStyle, color: T.terracotta, borderColor: `${T.terracotta}55` }}>💳 Payment required</button>
+                )}
                 {!s.archived && <button onClick={() => setEditing(s)} style={{ ...actionBtnStyle, color: T.maroon, borderColor: `${T.maroon}55` }}>Edit</button>}
                 {s.archived ? (
                   <button onClick={() => doArchive(s.id, false)} style={{ ...actionBtnStyle, color: T.sage, borderColor: `${T.sage}55` }}>Restore</button>
@@ -735,6 +746,16 @@ export default function StudentsView() {
             setSendingConfirmation(null);
             setEmailPreview({ guardianEmail, students: emailStudents });
           }}
+        />
+      )}
+      {sendingPackageReminder && (
+        <PackageReminderModal
+          student={sendingPackageReminder.student}
+          guardianEmail={sendingPackageReminder.guardianEmail}
+          packageSize={sendingPackageReminder.packageSize}
+          classesUsed={sendingPackageReminder.classesUsed}
+          onCancel={() => setSendingPackageReminder(null)}
+          onSent={() => setSendingPackageReminder(null)}
         />
       )}
       {emailPreview && (

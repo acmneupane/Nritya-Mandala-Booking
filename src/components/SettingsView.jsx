@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field } from "./ui";
 
-function EmailTemplateEditor() {
+function EmailTemplateEditor({ templateKey, title, description, placeholders }) {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(true);
@@ -11,16 +11,16 @@ function EmailTemplateEditor() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    supabase.from("email_templates").select("subject, body").eq("key", "enrollment_approved").maybeSingle().then(({ data }) => {
+    supabase.from("email_templates").select("subject, body").eq("key", templateKey).maybeSingle().then(({ data }) => {
       if (data) { setSubject(data.subject); setBody(data.body); }
       setLoading(false);
     });
-  }, []);
+  }, [templateKey]);
 
   const save = async () => {
     setSaving(true);
     setSaved(false);
-    await supabase.from("email_templates").update({ subject, body, updated_at: new Date().toISOString() }).eq("key", "enrollment_approved");
+    await supabase.from("email_templates").update({ subject, body, updated_at: new Date().toISOString() }).eq("key", templateKey);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -30,14 +30,12 @@ function EmailTemplateEditor() {
 
   return (
     <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
-      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Enrolment approval email</h3>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>{title}</h3>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        Sent automatically to the parent when you approve their request. Available placeholders:{" "}
-        <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>{"{{student_name}}"}</code>{" "}
-        <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>{"{{day}}"}</code>{" "}
-        <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>{"{{start_date}}"}</code>{" "}
-        <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>{"{{qr_link}}"}</code>{" "}
-        <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>{"{{qr_code_image}}"}</code>
+        {description} Available placeholders:{" "}
+        {placeholders.map((p) => (
+          <code key={p} style={{ background: T.paper, padding: "1px 5px", borderRadius: 4, marginRight: 4 }}>{`{{${p}}}`}</code>
+        ))}
       </p>
       <Field label="Subject"><input style={inputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
       <Field label="Body"><textarea style={{ ...inputStyle, minHeight: 220, fontFamily: "monospace", fontSize: 13 }} value={body} onChange={(e) => setBody(e.target.value)} /></Field>
@@ -107,7 +105,18 @@ export default function SettingsView() {
         {success && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Password updated.</p>}
         <Btn onClick={changePassword} disabled={saving}>{saving ? "Updating…" : "Update password"}</Btn>
       </div>
-      <EmailTemplateEditor />
+      <EmailTemplateEditor
+        templateKey="enrollment_approved"
+        title="Enrolment approval email"
+        description="Sent automatically to the parent when you approve their request."
+        placeholders={["student_name", "day", "time", "start_date", "access_code", "qr_link", "qr_code_image"]}
+      />
+      <EmailTemplateEditor
+        templateKey="package_expired"
+        title="Payment required (package expired) email"
+        description="Sent when you click 'Payment required' on a student whose package has run out."
+        placeholders={["student_name", "package_size", "classes_used"]}
+      />
     </div>
   );
 }
