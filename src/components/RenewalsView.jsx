@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
 import { Btn, ConfirmModal } from "./ui";
 import PackageReminderModal from "./PackageReminderModal";
+import { localDateStr } from "../lib/dates";
 
 const DUE_THRESHOLD = 2; // classes remaining at or below this counts as "coming due"
 
@@ -23,11 +24,17 @@ function DueForRenewalSection({ onChanged }) {
 
   const load = useCallback(async (limit) => {
     setLoading(true);
-    const [sRes, pRes] = await Promise.all([
+    const [sRes, pRes, settingsRes, emptiedRes] = await Promise.all([
       supabase.from("students").select("id, name, code, last_renewal_reminder_sent_at").eq("archived", false),
       supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
+      supabase.from("settings").select("renewal_grace_period_days").eq("id", 1).maybeSingle(),
+      supabase.rpc("get_package_emptied_dates"),
     ]);
     const pkgByStudent = Object.fromEntries((pRes.data || []).map((p) => [p.student_id, p]));
+    const emptiedByStudent = Object.fromEntries((emptiedRes.data || []).map((e) => [e.student_id, e.emptied_date]));
+    const graceDays = settingsRes.data?.renewal_grace_period_days ?? 7;
+    const today = localDateStr(new Date());
+
     const due = (sRes.data || [])
       .map((s) => {
         const pkg = pkgByStudent[s.id];
@@ -35,11 +42,16 @@ function DueForRenewalSection({ onChanged }) {
         if (hasPackage) {
           const remaining = pkg.classes_total - pkg.classes_used;
           if (remaining > limit) return null;
-          return { student: s, packageSize: pkg.classes_total, classesUsed: pkg.classes_used, remaining, hasPackage: true };
+          let daysUntilSpotFrees = null;
+          if (remaining <= 0 && emptiedByStudent[s.id]) {
+            const daysSinceEmptied = Math.floor((new Date(today) - new Date(emptiedByStudent[s.id])) / 86400000);
+            daysUntilSpotFrees = graceDays - daysSinceEmptied;
+          }
+          return { student: s, packageSize: pkg.classes_total, classesUsed: pkg.classes_used, remaining, hasPackage: true, daysUntilSpotFrees };
         }
         // No package on file at all (e.g. just reactivated from archive) — still
         // worth a nudge, just phrased differently since there's nothing to "run out".
-        return { student: s, packageSize: 0, classesUsed: 0, remaining: 0, hasPackage: false };
+        return { student: s, packageSize: 0, classesUsed: 0, remaining: 0, hasPackage: false, daysUntilSpotFrees: null };
       })
       .filter(Boolean)
       .sort((a, b) => a.remaining - b.remaining);
@@ -89,6 +101,16 @@ function DueForRenewalSection({ onChanged }) {
                   </div>
                   {row.student.last_renewal_reminder_sent_at && (
                     <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>Reminder last sent {daysAgo(row.student.last_renewal_reminder_sent_at)}</div>
+                  )}
+                  {row.daysUntilSpotFrees != null && (
+                    <div style={{ marginTop: 8, background: `${T.terracotta}18`, border: `2px solid ${T.terracotta}`, borderRadius: 8, padding: "8px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 18 }}>⚠️</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: T.terracotta }}>
+                        {row.daysUntilSpotFrees > 0
+                          ? `Spot free in ${row.daysUntilSpotFrees} day${row.daysUntilSpotFrees === 1 ? "" : "s"} if not renewed`
+                          : "Grace period over — spot is now available to new enrolments"}
+                      </span>
+                    </div>
                   )}
                 </div>
                 <Btn size="sm" onClick={() => handleSendClick(row)}>Send reminder</Btn>
