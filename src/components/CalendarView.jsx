@@ -323,6 +323,7 @@ export default function CalendarView() {
   const [bookingClass, setBookingClass] = useState(null);
   const [skippingClass, setSkippingClass] = useState(null);
   const [confirmUnskip, setConfirmUnskip] = useState(null);
+  const [scanningClass, setScanningClass] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -339,6 +340,26 @@ export default function CalendarView() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Same as DayView's check-in — surfaced here too so scanning doesn't require
+  // drilling into Day view first when browsing Month/Week/Fortnight.
+  const checkInByCode = async (cls, code) => {
+    const { data: student } = await supabase.from("students").select("id, name").eq("code", code).eq("archived", false).maybeSingle();
+    if (!student) return { ok: false, message: "Code not recognized" };
+
+    const { data: existingEnrollment } = await supabase.from("enrollments").select("id").eq("student_id", student.id).eq("class_id", cls.id).maybeSingle();
+    if (!existingEnrollment) {
+      await supabase.from("enrollments").insert({ student_id: student.id, class_id: cls.id });
+    }
+    const { data: existingAttendance } = await supabase.from("attendance").select("id, status").eq("student_id", student.id).eq("class_id", cls.id).eq("date", cls.dateStr).maybeSingle();
+    if (existingAttendance) {
+      if (existingAttendance.status !== "attended") await supabase.from("attendance").update({ status: "attended" }).eq("id", existingAttendance.id);
+    } else {
+      await supabase.from("attendance").insert({ student_id: student.id, class_id: cls.id, date: cls.dateStr, status: "attended" });
+    }
+    load();
+    return { ok: true, message: `${student.name} checked in ✓` };
+  };
 
   const unskip = async (id) => {
     await supabase.from("class_skips").delete().eq("id", id);
@@ -419,10 +440,13 @@ export default function CalendarView() {
                   }
                   return (
                     <div key={c.id} style={{ background: T.paper, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
-                      <button type="button" onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none", cursor: "pointer" }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
-                        <div style={{ fontSize: 10, color: T.inkSoft }}>{bookedCount} booked</div>
-                      </button>
+                      <div className="flex items-center justify-between gap-1">
+                        <button type="button" onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", flex: 1, minWidth: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer" }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
+                          <div style={{ fontSize: 10, color: T.inkSoft }}>{bookedCount} booked</div>
+                        </button>
+                        <button type="button" onClick={() => setScanningClass({ ...c, dateStr })} title="Scan to check in" style={{ fontSize: 13, padding: "2px 4px", background: "transparent", border: "none", cursor: "pointer", flexShrink: 0 }}>📷</button>
+                      </div>
                       <button type="button" onClick={() => setSkippingClass({ ...c, dateStr, bookedCount })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
                     </div>
                   );
@@ -449,6 +473,13 @@ export default function CalendarView() {
           confirmLabel="Undo skip"
           onConfirm={() => unskip(confirmUnskip.id)}
           onCancel={() => setConfirmUnskip(null)}
+        />
+      )}
+      {scanningClass && (
+        <QrScanner
+          title={`Scan for ${scanningClass.label}`}
+          onDetected={(code) => checkInByCode(scanningClass, code)}
+          onClose={() => setScanningClass(null)}
         />
       )}
     </div>
