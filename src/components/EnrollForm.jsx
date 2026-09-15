@@ -93,7 +93,10 @@ function SiblingCard({ sibling, index, classes, packageTiers, onChange, onRemove
           <Field label="Package *">
             <select style={inputStyle} value={sibling.packageTierId || ""} onChange={(e) => onChange({ ...sibling, packageTierId: e.target.value })}>
               <option value="">Select a package…</option>
-              {packageTiers.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.classes_count} classes — ${Number(t.price).toFixed(2)}</option>)}
+              {packageTiers.map((t) => {
+                const p = t.sibling_price != null ? Number(t.sibling_price) : Number(t.price);
+                return <option key={t.id} value={t.id}>{t.name} — {t.classes_count} classes — ${p.toFixed(2)}{t.sibling_price != null ? " (sibling price)" : ""}</option>;
+              })}
             </select>
           </Field>
         </>
@@ -174,9 +177,10 @@ export default function EnrollForm() {
 
   const namedSiblings = siblings.filter((s) => s.name.trim());
   const tierById = Object.fromEntries(packageTiers.map((t) => [t.id, t]));
+  const siblingTierPrice = (tier) => (tier.sibling_price != null ? Number(tier.sibling_price) : Number(tier.price));
   const primaryTierPrice = packageTierId && tierById[packageTierId] ? Number(tierById[packageTierId].price) : 0;
   const total = classes.length > 0
-    ? fees.primary + primaryTierPrice + namedSiblings.reduce((sum, s) => sum + fees.sibling + (s.packageTierId && tierById[s.packageTierId] ? Number(tierById[s.packageTierId].price) : 0), 0)
+    ? fees.primary + primaryTierPrice + namedSiblings.reduce((sum, s) => sum + fees.sibling + (s.packageTierId && tierById[s.packageTierId] ? siblingTierPrice(tierById[s.packageTierId]) : 0), 0)
     : 0;
 
   const submit = async () => {
@@ -384,8 +388,6 @@ export default function EnrollForm() {
 
           <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 12 }}>Once submitted, we'll contact you via email or mobile to confirm the enrolment.</p>
 
-          <ImportantInfo preferredClass={classes.find((c) => c.id === preferredClassId) || null} />
-
           <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 18, marginTop: 16 }}>
             <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 8 }}>Payment</h3>
             {classes.length > 0 ? (
@@ -407,7 +409,7 @@ export default function EnrollForm() {
                       </div>
                       <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
                         <span style={{ fontSize: 13, color: T.ink }}>{s.name} — Package{s.packageTierId && tierById[s.packageTierId] ? ` (${tierById[s.packageTierId].name})` : ""}</span>
-                        <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{s.packageTierId && tierById[s.packageTierId] ? `$${Number(tierById[s.packageTierId].price).toFixed(2)}` : "—"}</span>
+                        <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{s.packageTierId && tierById[s.packageTierId] ? `$${siblingTierPrice(tierById[s.packageTierId]).toFixed(2)}` : "—"}</span>
                       </div>
                     </div>
                   ))}
@@ -447,6 +449,8 @@ export default function EnrollForm() {
               </p>
             )}
           </div>
+
+          <ImportantInfo preferredClass={classes.find((c) => c.id === preferredClassId) || null} />
 
           <label className="flex items-start gap-2 mt-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
             <input type="checkbox" checked={agreedToInfo} onChange={(e) => setAgreedToInfo(e.target.checked)} style={{ marginTop: 2 }} />

@@ -15,9 +15,10 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((s) => {
         const selectedTier = s.selected_package_tier_id ? tierById[s.selected_package_tier_id] : null;
+        const tierPrice = selectedTier ? (s.is_sibling && selectedTier.sibling_price != null ? Number(selectedTier.sibling_price) : Number(selectedTier.price)) : 0;
         return {
           id: s.id, name: s.student_name, dob: s.student_dob || "", levelId: "", preferredClassId: s.preferred_class_id || "", isSibling: s.is_sibling,
-          pendingPackages: selectedTier ? [{ classesTotal: selectedTier.classes_count, amount: Number(selectedTier.price), note: `Requested at enrolment: ${selectedTier.name}` }] : [],
+          pendingPackages: selectedTier ? [{ classesTotal: selectedTier.classes_count, amount: tierPrice, note: `Requested at enrolment: ${selectedTier.name}` }] : [],
         };
       })
   );
@@ -284,7 +285,9 @@ export default function RequestsView({ focusRequestId }) {
                         <span style={{ fontSize: 11, color: T.gold, fontFamily: "Inter, sans-serif", marginLeft: 6 }}>· preferred: {k.preferred_class_text}</span>
                       ) : null}
                       {k.selected_package_tier_id && tierById[k.selected_package_tier_id] && (
-                        <span style={{ fontSize: 11, color: T.maroon, fontFamily: "Inter, sans-serif", marginLeft: 6 }}>· package: {tierById[k.selected_package_tier_id].name} (${Number(tierById[k.selected_package_tier_id].price).toFixed(2)})</span>
+                        <span style={{ fontSize: 11, color: T.maroon, fontFamily: "Inter, sans-serif", marginLeft: 6 }}>
+                          · package: {tierById[k.selected_package_tier_id].name} (${(k.is_sibling && tierById[k.selected_package_tier_id].sibling_price != null ? Number(tierById[k.selected_package_tier_id].sibling_price) : Number(tierById[k.selected_package_tier_id].price)).toFixed(2)})
+                        </span>
                       )}
                     </div>
                   ))}
