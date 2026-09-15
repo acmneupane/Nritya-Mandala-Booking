@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
-import { Btn, Field } from "./ui";
+import { Btn, Field, ConfirmModal } from "./ui";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { formatTimeRange } from "../lib/scheduling";
 
@@ -18,60 +18,68 @@ function InfoSection({ title, children }) {
 }
 
 function ImportantInfo({ preferredClass }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 18, marginTop: 20 }}>
-      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 12 }}>Important Information</h3>
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 18, marginTop: 16 }}>
+      <button onClick={() => setOpen((v) => !v)} className="flex items-center justify-between" style={{ width: "100%", textAlign: "left" }}>
+        <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>ℹ️ Important Information</h3>
+        <span style={{ fontSize: 13, color: T.inkSoft }}>{open ? "Hide ▾" : "Show ▸"}</span>
+      </button>
+      {!open && <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 6 }}>Location, policies, attendance, and more — please read before submitting.</p>}
+      {open && (
+        <div style={{ marginTop: 14 }}>
+          <InfoSection title="Location & Time">
+            72 Central Avenue, Oran Park, NSW 2570<br />
+            {preferredClass ? (
+              <>Requested time: <strong>{formatTimeRange(preferredClass.time, preferredClass.end_time)}</strong></>
+            ) : (
+              <span style={{ color: T.inkSoft }}>Select a preferred class above to see its time here.</span>
+            )}
+          </InfoSection>
 
-      <InfoSection title="Location & Time">
-        72 Central Avenue, Oran Park, NSW 2570<br />
-        {preferredClass ? (
-          <>Requested time: <strong>{formatTimeRange(preferredClass.time, preferredClass.end_time)}</strong></>
-        ) : (
-          <span style={{ color: T.inkSoft }}>Select a preferred class above to see its time here.</span>
-        )}
-      </InfoSection>
+          <InfoSection title="Bank Account Details">
+            Bank: NAB<br />
+            Account Name: Sarita Sigdel<br />
+            BSB: 082 231<br />
+            Account Number: 846746850<br /><br />
+            Payment Reference: use the reference number shown in the Payment section below.
+          </InfoSection>
 
-      <InfoSection title="Bank Account Details">
-        Bank: NAB<br />
-        Account Name: Sarita Sigdel<br />
-        BSB: 082 231<br />
-        Account Number: 846746850<br /><br />
-        Payment Reference: use the reference number shown in the Payment section below.
-      </InfoSection>
+          <InfoSection title="Payment Confirmation">
+            After making the payment, please send a screenshot of your payment confirmation to Nritya Mandala. This helps us confirm and process your enrolment.<br /><br />
+            <strong>Your child's place in the class will be confirmed once payment has been received.</strong>
+          </InfoSection>
 
-      <InfoSection title="Payment Confirmation">
-        After making the payment, please send a screenshot of your payment confirmation to Nritya Mandala. This helps us confirm and process your enrolment.<br /><br />
-        <strong>Your child's place in the class will be confirmed once payment has been received.</strong>
-      </InfoSection>
+          <InfoSection title="Attendance & Punctuality">
+            Please arrive at least 5 minutes before class, ready to dance. Regular attendance is encouraged as it helps students keep up with their routines and make the most of their classes. Please let us know if your child will be absent.
+          </InfoSection>
 
-      <InfoSection title="Attendance & Punctuality">
-        Please arrive at least 5 minutes before class, ready to dance. Regular attendance is encouraged as it helps students keep up with their routines and make the most of their classes. Please let us know if your child will be absent.
-      </InfoSection>
+          <InfoSection title="Clothing, Shoes & Hair">
+            Students should wear comfortable clothing suitable for dancing, such as activewear. Correctly fitting and comfortable dance shoes should be worn — flip-flops are not permitted. Long hair should be neatly tied back and kept away from the face where possible.
+          </InfoSection>
 
-      <InfoSection title="Clothing, Shoes & Hair">
-        Students should wear comfortable clothing suitable for dancing, such as activewear. Correctly fitting and comfortable dance shoes should be worn — flip-flops are not permitted. Long hair should be neatly tied back and kept away from the face where possible.
-      </InfoSection>
+          <InfoSection title="Parents & Guardians">
+            Parents and guardians are encouraged to remain outside the dance room during classes. This helps minimise distractions and allows students to focus on learning.
+          </InfoSection>
 
-      <InfoSection title="Parents & Guardians">
-        Parents and guardians are encouraged to remain outside the dance room during classes. This helps minimise distractions and allows students to focus on learning.
-      </InfoSection>
+          <InfoSection title="Personal Belongings">
+            Please avoid bringing valuables, large amounts of cash or unnecessary personal belongings to class. Nritya Mandala accepts no responsibility for belongings that are lost, damaged or stolen.
+          </InfoSection>
 
-      <InfoSection title="Personal Belongings">
-        Please avoid bringing valuables, large amounts of cash or unnecessary personal belongings to class. Nritya Mandala accepts no responsibility for belongings that are lost, damaged or stolen.
-      </InfoSection>
+          <InfoSection title="Cancellation Policy">
+            If your child is unable to attend a class, please notify Nritya Mandala at least 24 hours before the scheduled class. Cancellations made less than 24 hours before the class may not be eligible for a make-up class or credit. We understand that emergencies and unexpected circumstances can happen, and these will be considered on a case-by-case basis. Thank you for helping us manage class spaces and provide the best experience for all students.
+          </InfoSection>
 
-      <InfoSection title="Cancellation Policy">
-        If your child is unable to attend a class, please notify Nritya Mandala at least 24 hours before the scheduled class. Cancellations made less than 24 hours before the class may not be eligible for a make-up class or credit. We understand that emergencies and unexpected circumstances can happen, and these will be considered on a case-by-case basis. Thank you for helping us manage class spaces and provide the best experience for all students.
-      </InfoSection>
-
-      <InfoSection title="Safe & Respectful Environment">
-        Nritya Mandala is committed to providing a safe, welcoming and non-discriminatory environment for all students, parents and teachers. Bullying, harassment and disrespectful behaviour are not tolerated.
-      </InfoSection>
+          <InfoSection title="Safe & Respectful Environment">
+            Nritya Mandala is committed to providing a safe, welcoming and non-discriminatory environment for all students, parents and teachers. Bullying, harassment and disrespectful behaviour are not tolerated.
+          </InfoSection>
+        </div>
+      )}
     </div>
   );
 }
 
-function SiblingCard({ sibling, index, classes, packageTiers, onChange, onRemove }) {
+function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
   return (
     <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 12, marginBottom: 10 }}>
       <div className="flex items-center justify-between mb-2">
@@ -83,28 +91,44 @@ function SiblingCard({ sibling, index, classes, packageTiers, onChange, onRemove
         <Field label="Date of birth"><input style={inputStyle} type="date" value={sibling.dob} onChange={(e) => onChange({ ...sibling, dob: e.target.value })} /></Field>
       </div>
       {classes.length > 0 ? (
-        <>
-          <Field label="Preferred class">
-            <select style={inputStyle} value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
-              <option value="">Not sure</option>
-              {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
-            </select>
-          </Field>
-          <Field label="Package *">
-            <select style={inputStyle} value={sibling.packageTierId || ""} onChange={(e) => onChange({ ...sibling, packageTierId: e.target.value })}>
-              <option value="">Select a package…</option>
-              {packageTiers.map((t) => {
-                const p = t.sibling_price != null ? Number(t.sibling_price) : Number(t.price);
-                return <option key={t.id} value={t.id}>{t.name} — {t.classes_count} classes — ${p.toFixed(2)}{t.sibling_price != null ? " (sibling price)" : ""}</option>;
-              })}
-            </select>
-          </Field>
-        </>
+        <Field label="Preferred class">
+          <select style={inputStyle} value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
+            <option value="">Not sure</option>
+            {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+          </select>
+        </Field>
       ) : (
         <Field label="Preferred day/time (optional)">
           <input style={inputStyle} value={sibling.classText || ""} onChange={(e) => onChange({ ...sibling, classText: e.target.value })} placeholder="e.g. Saturday mornings, Tuesday evenings" />
         </Field>
       )}
+    </div>
+  );
+}
+
+// Radio-card package selector, matching the style used on the renewal page.
+function PackageTierPicker({ tiers, selectedId, onSelect, sibling }) {
+  return (
+    <div className="grid gap-2 mb-2">
+      {tiers.map((t) => {
+        const price = sibling && t.sibling_price != null ? Number(t.sibling_price) : Number(t.price);
+        const checked = selectedId === t.id;
+        return (
+          <label
+            key={t.id}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between", border: `2px solid ${checked ? T.gold : T.line}`,
+              borderRadius: 8, padding: "10px 12px", cursor: "pointer", background: checked ? `${T.gold}12` : "#fff",
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <input type="radio" checked={checked} onChange={() => onSelect(t.id)} />
+              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({t.classes_count} classes){sibling && t.sibling_price != null ? " — sibling price" : ""}</span>
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 700, color: T.maroonDark }}>${price.toFixed(2)}</span>
+          </label>
+        );
+      })}
     </div>
   );
 }
@@ -185,28 +209,46 @@ export default function EnrollForm() {
   const enrolmentFeeTotal = fees.enabled ? fees.primary + namedSiblings.length * fees.sibling : 0;
   const total = enrolmentFeeTotal + packageTotal;
 
-  const submit = async () => {
+  const [confirmUnpaid, setConfirmUnpaid] = useState(false);
+
+  const validate = () => {
     if (!studentName.trim() || !guardianName.trim()) {
-      setError("Student name and your name are required.");
-      return;
+      return "Student name and your name are required.";
     }
     if (!emergencySame && (!emergencyName.trim() || !emergencyPhone.trim())) {
-      setError("Please provide an emergency contact name and phone, or mark it the same as yours.");
-      return;
+      return "Please provide an emergency contact name and phone, or mark it the same as yours.";
     }
     if (videoConsent === null) {
-      setError("Please answer the photo/video consent question.");
-      return;
+      return "Please answer the photo/video consent question.";
     }
     if (!agreedToInfo) {
-      setError("Please confirm you've read the Important Information above.");
-      return;
+      return "Please confirm you've read the Important Information above.";
     }
     if (classes.length > 0) {
-      if (!packageTierId) { setError("Please select a package for " + (studentName || "the student") + "."); return; }
+      if (!packageTierId) return "Please select a package for " + (studentName || "the student") + ".";
       const missingSiblingPackage = namedSiblings.find((s) => !s.packageTierId);
-      if (missingSiblingPackage) { setError(`Please select a package for ${missingSiblingPackage.name}.`); return; }
+      if (missingSiblingPackage) return `Please select a package for ${missingSiblingPackage.name}.`;
     }
+    return null;
+  };
+
+  const handleSubmitClick = () => {
+    const validationError = validate();
+    if (validationError) { setError(validationError); return; }
+    setError("");
+    // Nothing to pay right now, or they've already indicated payment — go straight
+    // through. Otherwise, a quick check-in first, since an unpaid submission may
+    // take longer to process.
+    const somethingToPay = classes.length > 0 || fees.enabled;
+    if (somethingToPay && !paymentClaimed) {
+      setConfirmUnpaid(true);
+      return;
+    }
+    submit();
+  };
+
+  const submit = async () => {
+    setConfirmUnpaid(false);
     setSubmitting(true);
     setError("");
     try {
@@ -299,12 +341,6 @@ export default function EnrollForm() {
                   {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
                 </select>
               </Field>
-              <Field label="Package *">
-                <select style={inputStyle} value={packageTierId} onChange={(e) => setPackageTierId(e.target.value)}>
-                  <option value="">Select a package…</option>
-                  {packageTiers.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.classes_count} classes — ${Number(t.price).toFixed(2)}</option>)}
-                </select>
-              </Field>
             </div>
           ) : (
             <>
@@ -364,7 +400,7 @@ export default function EnrollForm() {
             <>
               <button onClick={() => setWantsSiblings(false)} style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8, textDecoration: "underline" }}>Actually, no siblings</button>
               {siblings.map((s, i) => (
-                <SiblingCard key={i} sibling={s} index={i} classes={classes} packageTiers={packageTiers} onChange={(val) => updateSibling(i, val)} onRemove={() => removeSibling(i)} />
+                <SiblingCard key={i} sibling={s} index={i} classes={classes} onChange={(val) => updateSibling(i, val)} onRemove={() => removeSibling(i)} />
               ))}
               {siblings.length < MAX_SIBLINGS && (
                 <Btn size="sm" variant="ghost" onClick={addSibling}>+ Add sibling ({siblings.length}/{MAX_SIBLINGS})</Btn>
@@ -394,6 +430,18 @@ export default function EnrollForm() {
             <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 8 }}>💳 Payment</h3>
             {(classes.length > 0 || fees.enabled) ? (
               <>
+                {classes.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <h4 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 8 }}>Select a package for {studentName || "the student"}</h4>
+                    <PackageTierPicker tiers={packageTiers} selectedId={packageTierId} onSelect={setPackageTierId} />
+                    {namedSiblings.map((s, i) => (
+                      <div key={i} style={{ marginTop: 14 }}>
+                        <h4 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 8 }}>Select a package for {s.name}</h4>
+                        <PackageTierPicker tiers={packageTiers} selectedId={s.packageTierId} onSelect={(id) => updateSibling(siblings.indexOf(s), { ...s, packageTierId: id })} sibling />
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div style={{ marginBottom: 14 }}>
                   {fees.enabled && (
                     <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
@@ -473,7 +521,7 @@ export default function EnrollForm() {
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
           {agreedToInfo && (
             <div style={{ marginTop: 10, textAlign: "right" }}>
-              <Btn onClick={submit} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+              <Btn onClick={handleSubmitClick} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
             </div>
           )}
           <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 14 }}>
@@ -481,6 +529,15 @@ export default function EnrollForm() {
           </p>
         </div>
       </div>
+      {confirmUnpaid && (
+        <ConfirmModal
+          title="Submit without confirming payment?"
+          message="You haven't marked this as paid yet. That's completely fine — you can still submit now and pay afterward — but it may take a little longer for us to process your enrolment until payment is confirmed. Continue anyway?"
+          confirmLabel="Submit anyway"
+          onConfirm={submit}
+          onCancel={() => setConfirmUnpaid(false)}
+        />
+      )}
     </div>
   );
 }
