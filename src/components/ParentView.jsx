@@ -98,13 +98,8 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, color: T.maroonDark, marginBottom: 4 }}>{student.name}</h1>
         {allLevels.length > 0 && (
           <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 14 }}>
-            <div className="flex items-center justify-between mb-2">
+            <div className="mb-2">
               <span style={{ fontSize: 13, fontWeight: 600, color: T.maroonDark }}>{level ? level.name : "Unassigned"}</span>
-              {level && (
-                <span style={{ fontSize: 11, color: T.inkSoft }}>
-                  Level {allLevels.findIndex((l) => l.id === level.id) + 1} of {allLevels.length}
-                </span>
-              )}
             </div>
             <div style={{ display: "flex", gap: 4 }}>
               {allLevels.map((l, i) => {
