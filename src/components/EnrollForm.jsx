@@ -149,7 +149,7 @@ export default function EnrollForm() {
       const open = (cRes.data || []).filter((c) => (counts[c.id] || 0) < c.capacity);
       setClasses(open.slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
     });
-    supabase.from("package_tiers").select("*").order("sort_order").then(({ data }) => setPackageTiers(data || []));
+    supabase.from("package_tiers").select("*").eq("active", true).order("sort_order").then(({ data }) => setPackageTiers(data || []));
     supabase.from("settings").select("enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setFees({ primary: Number(data.enrolment_fee_primary), sibling: Number(data.enrolment_fee_sibling) });
     });

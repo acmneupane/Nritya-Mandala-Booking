@@ -19,7 +19,7 @@ export default function RenewForm() {
     if (!code) { setStudent(null); return; }
     supabase.from("student_public").select("id, code, name").eq("code", code.trim().toUpperCase()).maybeSingle()
       .then(({ data }) => setStudent(data || null));
-    supabase.from("package_tiers").select("*").order("sort_order").then(({ data }) => setTiers(data || []));
+    supabase.from("package_tiers").select("*").eq("active", true).order("sort_order").then(({ data }) => setTiers(data || []));
   }, [code]);
 
   const submit = async () => {
