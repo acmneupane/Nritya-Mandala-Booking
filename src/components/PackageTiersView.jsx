@@ -32,7 +32,7 @@ function TierModal({ initial, onClose, onSaved }) {
         <Field label="Number of classes"><input style={inputStyle} type="number" min={1} value={classesCount} onChange={(e) => setClassesCount(e.target.value)} /></Field>
         <Field label="Price ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={price} onChange={(e) => setPrice(e.target.value)} /></Field>
       </div>
-      <Field label="Sibling price ($, optional)">
+      <Field label="Family discount price ($, optional)">
         <input style={inputStyle} type="number" step="0.01" min={0} value={siblingPrice} onChange={(e) => setSiblingPrice(e.target.value)} placeholder="Leave blank to use the regular price" />
       </Field>
       <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink }}>
@@ -87,7 +87,7 @@ export default function PackageTiersView() {
               <div style={{ fontFamily: "Fraunces, serif", fontSize: 18, color: T.maroonDark }}>{t.name}{!t.active && <span style={{ fontSize: 12, color: T.inkSoft, fontFamily: "Inter, sans-serif", marginLeft: 8 }}>(inactive)</span>}</div>
               <div style={{ fontSize: 13, color: T.inkSoft }}>
                 {t.classes_count} classes · ${Number(t.price).toFixed(2)}
-                {t.sibling_price != null && <span> · Sibling: ${Number(t.sibling_price).toFixed(2)}</span>}
+                {t.sibling_price != null && <span> · Family discount: ${Number(t.sibling_price).toFixed(2)}</span>}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">

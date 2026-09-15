@@ -135,7 +135,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
 
       {students.map((s, i) => (
         <div key={s.id} style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 10, marginBottom: 8 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 6 }}>{s.isSibling ? "Sibling" : "Primary student"}</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 6 }}>{s.isSibling ? "Additional Student" : "Primary student"}</div>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Name"><input style={inputStyle} value={s.name} onChange={(e) => updateStudent(i, "name", e.target.value)} /></Field>
             <Field label="Date of birth"><input style={inputStyle} type="date" value={s.dob} onChange={(e) => updateStudent(i, "dob", e.target.value)} /></Field>
@@ -314,7 +314,7 @@ export default function RequestsView({ focusRequestId }) {
                   <div style={{ fontSize: 11, color: T.gold, fontWeight: 700, letterSpacing: 0.5, marginBottom: 2 }}>{r.reference}</div>
                   {kids.map((k) => (
                     <div key={k.id} style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>
-                      {k.student_name} {k.is_sibling && <span style={{ fontSize: 11, color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>(sibling)</span>}
+                      {k.student_name} {k.is_sibling && <span style={{ fontSize: 11, color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>(additional student)</span>}
                       {k.student_dob && <span style={{ fontSize: 11, color: T.inkSoft, fontFamily: "Inter, sans-serif", marginLeft: 6 }}>· DOB {k.student_dob}</span>}
                       {k.preferred_class_id && classById[k.preferred_class_id] ? (
                         <span style={{ fontSize: 11, color: T.sage, fontFamily: "Inter, sans-serif", marginLeft: 6 }}>· wants {classById[k.preferred_class_id].label}</span>

@@ -223,7 +223,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
         {siblings.length > 0 && (
           <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
-            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Your Other Children</h3>
+            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Other Students</h3>
             <div className="grid gap-2">
               {siblings.map((s) => (
                 <button

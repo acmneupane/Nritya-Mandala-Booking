@@ -47,11 +47,11 @@ function ImportantInfo({ preferredClass }) {
 
           <InfoSection title="Payment Confirmation">
             After making the payment, please send a screenshot of your payment confirmation to Nritya Mandala. This helps us confirm and process your enrolment.<br /><br />
-            <strong>Your child's place in the class will be confirmed once payment has been received.</strong>
+            <strong>Your student's place in the class will be confirmed once payment has been received.</strong>
           </InfoSection>
 
           <InfoSection title="Attendance & Punctuality">
-            Please arrive at least 5 minutes before class, ready to dance. Regular attendance is encouraged as it helps students keep up with their routines and make the most of their classes. Please let us know if your child will be absent.
+            Please arrive at least 5 minutes before class, ready to dance. Regular attendance is encouraged as it helps students keep up with their routines and make the most of their classes. Please let us know if your student will be absent.
           </InfoSection>
 
           <InfoSection title="Clothing, Shoes & Hair">
@@ -67,7 +67,7 @@ function ImportantInfo({ preferredClass }) {
           </InfoSection>
 
           <InfoSection title="Cancellation Policy">
-            If your child is unable to attend a class, please notify Nritya Mandala at least 24 hours before the scheduled class. Cancellations made less than 24 hours before the class may not be eligible for a make-up class or credit. We understand that emergencies and unexpected circumstances can happen, and these will be considered on a case-by-case basis. Thank you for helping us manage class spaces and provide the best experience for all students.
+            If your student is unable to attend a class, please notify Nritya Mandala at least 24 hours before the scheduled class. Cancellations made less than 24 hours before the class may not be eligible for a make-up class or credit. We understand that emergencies and unexpected circumstances can happen, and these will be considered on a case-by-case basis. Thank you for helping us manage class spaces and provide the best experience for all students.
           </InfoSection>
 
           <InfoSection title="Safe & Respectful Environment">
@@ -83,7 +83,7 @@ function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
   return (
     <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 12, marginBottom: 10 }}>
       <div className="flex items-center justify-between mb-2">
-        <span style={{ fontSize: 12, fontWeight: 600, color: T.inkSoft }}>Sibling {index + 1}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: T.inkSoft }}>Additional Student {index + 1}</span>
         <button onClick={onRemove} style={{ color: T.terracotta, fontSize: 12 }}>Remove</button>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -123,7 +123,7 @@ function PackageTierPicker({ tiers, selectedId, onSelect, sibling }) {
           >
             <div className="flex items-center gap-2">
               <input type="radio" checked={checked} onChange={() => onSelect(t.id)} />
-              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({t.classes_count} classes){sibling && t.sibling_price != null ? " — sibling price" : ""}</span>
+              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({t.classes_count} classes){sibling && t.sibling_price != null ? " — family discount" : ""}</span>
             </div>
             <span style={{ fontSize: 14, fontWeight: 700, color: T.maroonDark }}>${price.toFixed(2)}</span>
           </label>
@@ -403,7 +403,7 @@ export default function EnrollForm() {
                 <SiblingCard key={i} sibling={s} index={i} classes={classes} onChange={(val) => updateSibling(i, val)} onRemove={() => removeSibling(i)} />
               ))}
               {siblings.length < MAX_SIBLINGS && (
-                <Btn size="sm" variant="ghost" onClick={addSibling}>+ Add sibling ({siblings.length}/{MAX_SIBLINGS})</Btn>
+                <Btn size="sm" variant="ghost" onClick={addSibling}>+ Add additional student ({siblings.length}/{MAX_SIBLINGS})</Btn>
               )}
             </>
           )}
@@ -412,7 +412,7 @@ export default function EnrollForm() {
 
           <div style={{ marginTop: 16, marginBottom: 4 }}>
             <span style={{ fontSize: 13, fontWeight: 500, color: T.ink, display: "block", marginBottom: 6 }}>
-              Do you consent to photos/videos of your child taken during class being used by Nritya Mandala for social media?
+              Do you consent to photos/videos of your student taken during class being used by Nritya Mandala for social media?
             </span>
             <div className="flex gap-4">
               <label className="flex items-center gap-1.5 text-sm" style={{ color: T.ink }}>
@@ -459,7 +459,7 @@ export default function EnrollForm() {
                     <div key={i}>
                       {fees.enabled && (
                         <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
-                          <span style={{ fontSize: 13, color: T.ink }}>{s.name} — {fees.label} (sibling)</span>
+                          <span style={{ fontSize: 13, color: T.ink }}>{s.name} — {fees.label} (family discount)</span>
                           <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>${fees.sibling.toFixed(2)}</span>
                         </div>
                       )}
@@ -481,7 +481,7 @@ export default function EnrollForm() {
                 </div>
 
                 <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
-                  Please pay using the bank details above, with the reference below — this is what tells us the payment is for {studentName || "your child"}'s enrolment.
+                  Please pay using the bank details above, with the reference below — this is what tells us the payment is for {studentName || "your student"}'s enrolment.
                 </p>
                 <div style={{ background: "#fff", border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
                   <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Pay with this reference</div>

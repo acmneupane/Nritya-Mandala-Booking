@@ -140,7 +140,7 @@ export default function RenewForm() {
 
           {siblings.length > 0 && tiers.length > 0 && (
             <>
-              <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 8, marginTop: 4 }}>Renewing for a sibling too?</h3>
+              <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 8, marginTop: 4 }}>Renewing for another student too?</h3>
               {siblings.map((s) => (
                 <div key={s.id} style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <label className="flex items-center gap-2 mb-2" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
@@ -162,7 +162,7 @@ export default function RenewForm() {
                           >
                             <div className="flex items-center gap-2">
                               <input type="radio" name={`tier-${s.id}`} checked={checked} onChange={() => setSiblingTierIds((m) => ({ ...m, [s.id]: t.id }))} />
-                              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({t.classes_count} classes){t.sibling_price != null ? " — sibling price" : ""}</span>
+                              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({t.classes_count} classes){t.sibling_price != null ? " — family discount" : ""}</span>
                             </div>
                             <span style={{ fontSize: 14, fontWeight: 700, color: T.maroonDark }}>${p.toFixed(2)}</span>
                           </label>

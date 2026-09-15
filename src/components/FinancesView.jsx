@@ -275,7 +275,7 @@ export default function FinancesView() {
               {data.fees.length === 0 && <p style={{ fontSize: 12, color: T.inkSoft }}>None in this period.</p>}
               {data.fees.map((f) => (
                 <div key={f.id} className="flex justify-between" style={{ fontSize: 12, padding: "4px 0", borderTop: `1px solid ${T.line}` }}>
-                  <span>{f.students?.name || "Unknown"} — {f.is_sibling ? "sibling fee" : "enrolment fee"} ({f.charged_at})</span>
+                  <span>{f.students?.name || "Unknown"} — {f.is_sibling ? "family discount fee" : "enrolment fee"} ({f.charged_at})</span>
                   <span style={{ fontWeight: 600 }}>${Number(f.amount).toFixed(2)}</span>
                 </div>
               ))}

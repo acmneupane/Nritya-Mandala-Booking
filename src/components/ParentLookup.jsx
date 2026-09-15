@@ -41,7 +41,7 @@ export default function ParentLookup() {
       <div style={{ background: T.ivory, borderRadius: 12, padding: "40px 36px", width: 340, textAlign: "center" }}>
         <img src={LOGO_DATA_URI} alt="Nritya Mandala" style={{ width: 68, height: 68, borderRadius: "50%", margin: "0 auto 16px", display: "block" }} />
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: T.maroonDark, marginBottom: 4 }}>Nritya Mandala</h1>
-        <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 24 }}>Enter your child's code to see their bookings</p>
+        <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 24 }}>Enter your student's code to see their bookings</p>
         <input
           value={code}
           onChange={(e) => { setCode(e.target.value); setError(""); }}

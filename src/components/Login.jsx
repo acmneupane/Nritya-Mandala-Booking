@@ -42,7 +42,7 @@ export default function Login() {
         {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 12 }}>{error}</p>}
         <Btn onClick={submit} size="lg" disabled={loading}>{loading ? "Signing in…" : "Sign in"}</Btn>
         <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 18 }}>
-          <a href="/parent" style={{ color: T.gold, textDecoration: "underline" }}>Looking for your child's bookings?</a>
+          <a href="/parent" style={{ color: T.gold, textDecoration: "underline" }}>Looking for your student's bookings?</a>
         </p>
       </div>
     </div>
