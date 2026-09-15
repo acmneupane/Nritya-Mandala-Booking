@@ -7,6 +7,10 @@ import { RELATION_OPTIONS } from "../lib/relations";
 import { formatTimeRange } from "../lib/scheduling";
 
 const MAX_SIBLINGS = 2;
+// Paused for now, per studio decision — flip to true to re-enable. Amounts stay
+// configurable in Settings either way, so nothing else needs to change to turn it
+// back on.
+const CHARGE_ENROLMENT_FEE = false;
 
 function InfoSection({ title, children }) {
   return (
@@ -180,7 +184,7 @@ export default function EnrollForm() {
   const siblingTierPrice = (tier) => (tier.sibling_price != null ? Number(tier.sibling_price) : Number(tier.price));
   const primaryTierPrice = packageTierId && tierById[packageTierId] ? Number(tierById[packageTierId].price) : 0;
   const total = classes.length > 0
-    ? fees.primary + primaryTierPrice + namedSiblings.reduce((sum, s) => sum + fees.sibling + (s.packageTierId && tierById[s.packageTierId] ? siblingTierPrice(tierById[s.packageTierId]) : 0), 0)
+    ? (CHARGE_ENROLMENT_FEE ? fees.primary : 0) + primaryTierPrice + namedSiblings.reduce((sum, s) => sum + (CHARGE_ENROLMENT_FEE ? fees.sibling : 0) + (s.packageTierId && tierById[s.packageTierId] ? siblingTierPrice(tierById[s.packageTierId]) : 0), 0)
     : 0;
 
   const submit = async () => {
@@ -393,20 +397,24 @@ export default function EnrollForm() {
             {classes.length > 0 ? (
               <>
                 <div style={{ marginBottom: 14 }}>
-                  <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
-                    <span style={{ fontSize: 13, color: T.ink }}>{studentName || "Student"} — One-off Enrolment fee</span>
-                    <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>${fees.primary.toFixed(2)}</span>
-                  </div>
+                  {CHARGE_ENROLMENT_FEE && (
+                    <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
+                      <span style={{ fontSize: 13, color: T.ink }}>{studentName || "Student"} — One-off Enrolment fee</span>
+                      <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>${fees.primary.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
                     <span style={{ fontSize: 13, color: T.ink }}>{studentName || "Student"} — Package{packageTierId && tierById[packageTierId] ? ` (${tierById[packageTierId].name})` : ""}</span>
                     <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{packageTierId && tierById[packageTierId] ? `$${primaryTierPrice.toFixed(2)}` : "—"}</span>
                   </div>
                   {namedSiblings.map((s, i) => (
                     <div key={i}>
-                      <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
-                        <span style={{ fontSize: 13, color: T.ink }}>{s.name} — One-off Enrolment fee (sibling)</span>
-                        <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>${fees.sibling.toFixed(2)}</span>
-                      </div>
+                      {CHARGE_ENROLMENT_FEE && (
+                        <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
+                          <span style={{ fontSize: 13, color: T.ink }}>{s.name} — One-off Enrolment fee (sibling)</span>
+                          <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>${fees.sibling.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between" style={{ padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
                         <span style={{ fontSize: 13, color: T.ink }}>{s.name} — Package{s.packageTierId && tierById[s.packageTierId] ? ` (${tierById[s.packageTierId].name})` : ""}</span>
                         <span style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{s.packageTierId && tierById[s.packageTierId] ? `$${siblingTierPrice(tierById[s.packageTierId]).toFixed(2)}` : "—"}</span>
