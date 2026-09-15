@@ -48,13 +48,17 @@ export default function PackageReminderModal({ student, guardianEmail, packageSi
   }
 
   const vars = { student_name: student.name, package_size: String(packageSize), classes_used: String(classesUsed) };
+  const remaining = packageSize - classesUsed;
+  vars.status_text = remaining <= 0 ? "has now been fully used" : `has only ${remaining} class${remaining === 1 ? "" : "es"} remaining`;
+  const renewLink = student.code ? `${window.location.origin}/renew?code=${encodeURIComponent(student.code)}` : "";
+  vars.renew_link = renewLink ? `<a href="${renewLink}">${renewLink}</a>` : "";
   const subject = template ? fillTemplate(template.subject, vars) : "";
   const body = template ? fillTemplate(template.body, vars) : "";
 
   return (
     <Modal title="Confirm before sending" onClose={onCancel}>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        {student.name}'s package ({packageSize} classes) has been fully used. Review before sending a payment reminder.
+        {student.name}'s package ({packageSize} classes) {vars.status_text}. Review before sending a payment reminder.
       </p>
 
       {bccEmail && (
