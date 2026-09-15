@@ -172,8 +172,8 @@ function RosterEditor({ cls, onChanged }) {
                 <button onClick={() => setStatus(student.id, "attended")} title="Mark attended" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "attended" ? `${T.sage}22` : "transparent", color: att?.status === "attended" ? T.sage : T.inkSoft }}>✓ Attended</button>
                 <button onClick={() => setStatus(student.id, "skipped")} title="Excused — notified in advance, doesn't count as missed" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "skipped" ? `${T.gold}22` : "transparent", color: att?.status === "skipped" ? T.gold : T.inkSoft }}>⊘ Skipped</button>
                 <button onClick={() => setStatus(student.id, "missed")} title="Missed — unexpected no-show" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "missed" ? `${T.terracotta}22` : "transparent", color: att?.status === "missed" ? T.terracotta : T.inkSoft }}>! Missed</button>
-                {(att?.status === "skipped" || att?.status === "missed") && (
-                  <button onClick={() => clearStatus(student.id)} title="Clear this absence mark" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, color: T.inkSoft }}>↺ Undo absent</button>
+                {att && (
+                  <button onClick={() => clearStatus(student.id)} title="Clear this attendance mark" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, color: T.inkSoft }}>↺ Undo</button>
                 )}
                 <button onClick={() => unenroll(r.id)} title="Remove booking" style={{ color: T.terracotta, padding: "5px 8px" }}>✕</button>
               </div>
