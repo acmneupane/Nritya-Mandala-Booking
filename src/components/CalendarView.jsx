@@ -324,6 +324,7 @@ export default function CalendarView() {
   const [skippingClass, setSkippingClass] = useState(null);
   const [confirmUnskip, setConfirmUnskip] = useState(null);
   const [scanningClass, setScanningClass] = useState(null);
+  const [scanDay, setScanDay] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -417,14 +418,27 @@ export default function CalendarView() {
             const dimmed = viewMode === "month" && !inMonth;
             return (
               <div key={i} style={{ background: isToday ? `${T.gold}18` : "#fff", border: `1px solid ${isToday ? T.gold : T.line}`, borderRadius: 8, padding: 8, minHeight: 80, opacity: dimmed ? 0.4 : 1 }}>
-                <button
-                  type="button"
-                  onClick={() => { setAnchor(new Date(date)); setViewMode("day"); }}
-                  style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, marginBottom: 6, display: "block", textAlign: "left", background: "transparent", border: "none", padding: 0, cursor: "pointer", width: "100%" }}
-                  title="View this day"
-                >
-                  {viewMode === "month" ? date.getDate() : `${dayName.slice(0, 3)} ${date.getDate()}`}
-                </button>
+                <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => { setAnchor(new Date(date)); setViewMode("day"); }}
+                    style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, display: "block", textAlign: "left", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
+                    title="View this day"
+                  >
+                    {viewMode === "month" ? date.getDate() : `${dayName.slice(0, 3)} ${date.getDate()}`}
+                  </button>
+                  {dayClasses.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (dayClasses.length === 1) setScanningClass({ ...dayClasses[0], dateStr });
+                        else setScanDay({ dateStr, dayClasses, label: `${dayName} ${date.getDate()}` });
+                      }}
+                      title="Scan to check in"
+                      style={{ fontSize: 12, padding: "1px 3px", background: "transparent", border: "none", cursor: "pointer" }}
+                    >📷</button>
+                  )}
+                </div>
                 {dayClasses.length === 0 && <div style={{ fontSize: 11, color: `${T.inkSoft}99` }}>—</div>}
                 {dayClasses.map((c) => {
                   const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
@@ -440,13 +454,10 @@ export default function CalendarView() {
                   }
                   return (
                     <div key={c.id} style={{ background: T.paper, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
-                      <div className="flex items-center justify-between gap-1">
-                        <button type="button" onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", flex: 1, minWidth: 0, textAlign: "left", background: "transparent", border: "none", cursor: "pointer" }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
-                          <div style={{ fontSize: 10, color: T.inkSoft }}>{bookedCount} booked</div>
-                        </button>
-                        <button type="button" onClick={() => setScanningClass({ ...c, dateStr })} title="Scan to check in" style={{ fontSize: 13, padding: "2px 4px", background: "transparent", border: "none", cursor: "pointer", flexShrink: 0 }}>📷</button>
-                      </div>
+                      <button type="button" onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none", cursor: "pointer" }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
+                        <div style={{ fontSize: 10, color: T.inkSoft }}>{bookedCount} booked</div>
+                      </button>
                       <button type="button" onClick={() => setSkippingClass({ ...c, dateStr, bookedCount })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
                     </div>
                   );
@@ -474,6 +485,22 @@ export default function CalendarView() {
           onConfirm={() => unskip(confirmUnskip.id)}
           onCancel={() => setConfirmUnskip(null)}
         />
+      )}
+      {scanDay && (
+        <Modal title={`Scan for ${scanDay.label}`} onClose={() => setScanDay(null)}>
+          <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 12 }}>Which class is this check-in for?</p>
+          <div className="grid gap-2">
+            {scanDay.dayClasses.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => { setScanningClass({ ...c, dateStr: scanDay.dateStr }); setScanDay(null); }}
+                style={{ textAlign: "left", border: `1px solid ${T.line}`, borderRadius: 8, padding: "10px 12px", background: "#fff", cursor: "pointer" }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
+              </button>
+            ))}
+          </div>
+        </Modal>
       )}
       {scanningClass && (
         <QrScanner
