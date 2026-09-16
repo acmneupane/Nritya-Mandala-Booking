@@ -66,6 +66,11 @@ function StudentInfoModal({ student, level, onClose }) {
           </div>
 
           <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>PHOTO/VIDEO CONSENT</div>
+            <ConsentBadge consent={student.video_consent} />
+          </div>
+
+          <div>
             <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>PACKAGE</div>
             {purchased > 0 ? (
               <div style={{ fontSize: 13, color: T.ink }}>
@@ -164,6 +169,12 @@ function UpgradeLevelModal({ student, levels, onClose, onUpgraded }) {
       </div>
     </Modal>
   );
+}
+
+function ConsentBadge({ consent }) {
+  if (consent === true) return <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: `${T.sage}22`, color: T.sage, fontWeight: 600 }}>📷 Consent: Yes</span>;
+  if (consent === false) return <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: `${T.terracotta}22`, color: T.terracotta, fontWeight: 600 }}>📷 Consent: No</span>;
+  return <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: `${T.inkSoft}18`, color: T.inkSoft, fontWeight: 600 }}>📷 Consent: N/A</span>;
 }
 
 function PackageBadge({ remaining, hasAny }) {
@@ -363,6 +374,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   const [levelId, setLevelId] = useState(initial?.level_id || "");
   const [notes, setNotes] = useState(initial?.notes || "");
   const [code, setCode] = useState(initial?.code || "");
+  const [videoConsent, setVideoConsent] = useState(initial && "video_consent" in initial ? (initial.video_consent === null ? "" : String(initial.video_consent)) : "");
   // Only used when creating a brand-new student — a package entered here gets saved
   // right after the student is created, since there's no student id to attach it to yet.
   const [pendingPackages, setPendingPackages] = useState([]);
@@ -447,14 +459,15 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
       }
 
       let studentId = initial?.id;
+      const consentValue = videoConsent === "" ? null : videoConsent === "true";
       if (studentId) {
         const { error } = await supabase.from("students").update({
-          name: name.trim(), dob: dob || null, level_id: levelId || null, notes: notes.trim(), code: finalCode,
+          name: name.trim(), dob: dob || null, level_id: levelId || null, notes: notes.trim(), code: finalCode, video_consent: consentValue,
         }).eq("id", studentId);
         if (error) throw error;
       } else {
         const { data, error } = await supabase.from("students").insert({
-          name: name.trim(), dob: dob || null, level_id: levelId || null, notes: notes.trim(), code: finalCode,
+          name: name.trim(), dob: dob || null, level_id: levelId || null, notes: notes.trim(), code: finalCode, video_consent: consentValue,
         }).select().single();
         if (error) throw error;
         studentId = data.id;
@@ -515,6 +528,13 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
         </select>
       </Field>
       <Field label="Notes (allergies, needs, etc.)"><textarea style={{ ...inputStyle, minHeight: 60 }} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+      <Field label="Photo/video consent for social media">
+        <select style={inputStyle} value={videoConsent} onChange={(e) => setVideoConsent(e.target.value)}>
+          <option value="">N/A — not asked</option>
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+      </Field>
 
       <Field label="Access code (parent lookup & QR)">
         <div className="flex gap-2">
@@ -752,6 +772,7 @@ export default function StudentsView() {
   const [emailPreview, setEmailPreview] = useState(null);
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [consentFilter, setConsentFilter] = useState("all"); // 'all' | 'yes' | 'no' | 'na'
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 5;
 
@@ -777,7 +798,15 @@ export default function StudentsView() {
   const levelById = Object.fromEntries(levels.map((l) => [l.id, l]));
   const filtered = students
     .filter((s) => !!s.archived === showArchived)
-    .filter((s) => s.name.toLowerCase().includes(query.toLowerCase()));
+    .filter((s) => s.name.toLowerCase().includes(query.toLowerCase()))
+    .filter((s) => {
+      if (consentFilter === "all") return true;
+      if (consentFilter === "yes") return s.video_consent === true;
+      if (consentFilter === "no") return s.video_consent === false;
+      return s.video_consent === null || s.video_consent === undefined;
+    });
+
+  const setConsentFilterAndResetPage = (val) => { setConsentFilter(val); setPage(1); };
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const clampedPage = Math.min(page, totalPages);
@@ -832,6 +861,12 @@ export default function StudentsView() {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-3 flex-wrap">
           <input style={{ ...inputStyle, width: 220, maxWidth: "60vw" }} placeholder="Search students…" value={query} onChange={(e) => setQueryAndResetPage(e.target.value)} />
+          <select value={consentFilter} onChange={(e) => setConsentFilterAndResetPage(e.target.value)} style={{ ...inputStyle, width: "auto", padding: "6px 10px", fontSize: 13 }}>
+            <option value="all">Social media consent: All</option>
+            <option value="yes">Consent: Yes</option>
+            <option value="no">Consent: No</option>
+            <option value="na">Consent: N/A</option>
+          </select>
           <button onClick={toggleArchivedAndResetPage} style={{ fontSize: 12, color: showArchived ? T.maroon : T.inkSoft, fontWeight: showArchived ? 600 : 400 }}>
             {showArchived ? "← Back to active students" : "View archived students"}
           </button>
@@ -870,6 +905,7 @@ export default function StudentsView() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <LevelBadge level={levelById[s.level_id]} />
                   <PackageBadge remaining={remaining} hasAny={!!pkg && pkg.classes_total > 0} />
+                  <ConsentBadge consent={s.video_consent} />
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
