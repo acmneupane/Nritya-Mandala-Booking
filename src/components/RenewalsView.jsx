@@ -148,6 +148,7 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
   const [showHandled, setShowHandled] = useState(false);
   const [approving, setApproving] = useState(null);
   const [confirmReject, setConfirmReject] = useState(null);
+  const [confirmApprove, setConfirmApprove] = useState(null);
   const [paymentSettings, setPaymentSettings] = useState({}); // { [requestId]: { confirmed, method } }
   const focusRef = useRef(null);
 
@@ -252,7 +253,7 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
                 {r.status === "pending" ? (
                   <div className="flex gap-2">
                     <Btn size="sm" variant="ghost" onClick={() => setConfirmReject(r)}>Reject</Btn>
-                    <Btn variant="success" size="sm" onClick={() => approve(r)} disabled={approving === r.id}>{approving === r.id ? "Approving…" : "Approve"}</Btn>
+                    <Btn variant="success" size="sm" onClick={() => setConfirmApprove(r)} disabled={approving === r.id}>{approving === r.id ? "Approving…" : "Approve"}</Btn>
                   </div>
                 ) : (
                   <span style={{ fontSize: 12, fontWeight: 600, color: r.status === "approved" ? T.sage : T.terracotta, textTransform: "capitalize" }}>{r.status}</span>
@@ -295,6 +296,15 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
           confirmLabel="Reject"
           onConfirm={() => reject(confirmReject.id)}
           onCancel={() => setConfirmReject(null)}
+        />
+      )}
+      {confirmApprove && (
+        <ConfirmModal
+          title="Approve this renewal?"
+          message={`This will add ${confirmApprove.tier_name_snapshot} (${confirmApprove.classes_count_snapshot} classes) to ${confirmApprove.students?.name || "this student"}'s package balance.`}
+          confirmLabel="Approve"
+          onConfirm={() => { const r = confirmApprove; setConfirmApprove(null); approve(r); }}
+          onCancel={() => setConfirmApprove(null)}
         />
       )}
     </div>
