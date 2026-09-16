@@ -293,13 +293,15 @@ export default function FinancesView() {
                   (byStudent[key] ||= { name: p.students?.name || "Unknown", packages: [], total: 0 }).packages.push(p);
                   byStudent[key].total += Number(p.amount);
                 });
-                return Object.entries(byStudent).map(([studentId, group]) => (
+                return Object.entries(byStudent)
+                  .sort(([, a], [, b]) => a.name.localeCompare(b.name))
+                  .map(([studentId, group]) => (
                   <div key={studentId} style={{ marginTop: 10 }}>
                     <div className="flex justify-between" style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, padding: "4px 0", borderTop: `2px solid ${T.line}` }}>
                       <span>{group.name}</span>
                       <span>${group.total.toFixed(2)}</span>
                     </div>
-                    {group.packages.map((p) => (
+                    {group.packages.slice().sort((a, b) => a.purchase_date.localeCompare(b.purchase_date)).map((p) => (
                       <div key={p.id} className="flex justify-between" style={{ fontSize: 12, color: T.inkSoft, padding: "3px 0 3px 12px" }}>
                         <span>{p.notes || "Package"} ({p.purchase_date})</span>
                         <span>${Number(p.amount).toFixed(2)}</span>
