@@ -191,19 +191,21 @@ function RosterEditor({ cls, onChanged }) {
           const att = attendance.find((a) => a.student_id === student.id);
           const remaining = remainingByStudent[student.id] ?? 0;
           return (
-            <div key={r.id} style={{ border: `1px solid ${T.line}`, borderRadius: 6, padding: "8px 10px" }} className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2">
+            <div key={r.id} style={{ border: `1px solid ${T.line}`, borderRadius: 6, padding: "8px 10px" }}>
+              <div className="flex items-center gap-2 mb-1.5">
                 <span style={{ fontSize: 13, color: T.ink }}>{student.name}</span>
                 {remaining > 0 && <span style={{ fontSize: 11, color: T.sage }}>{remaining} left</span>}
               </div>
-              <div className="flex items-center flex-wrap gap-2">
-                <button onClick={() => setStatus(student.id, "attended")} title="Mark attended" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "attended" ? `${T.sage}22` : "transparent", color: att?.status === "attended" ? T.sage : T.inkSoft }}>✓ Attended</button>
-                <button onClick={() => setStatus(student.id, "skipped")} title="Excused — notified in advance, doesn't count as missed" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "skipped" ? `${T.gold}22` : "transparent", color: att?.status === "skipped" ? T.gold : T.inkSoft }}>⊘ Skipped</button>
-                <button onClick={() => setStatus(student.id, "missed")} title="Missed — unexpected no-show" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "missed" ? `${T.terracotta}22` : "transparent", color: att?.status === "missed" ? T.terracotta : T.inkSoft }}>! Missed</button>
-                {att && (
-                  <button onClick={() => clearStatus(student.id)} title="Clear this attendance mark" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, color: T.inkSoft }}>↺ Undo</button>
-                )}
-                <button onClick={() => unenroll(r.id)} title="Remove booking" style={{ color: T.terracotta, padding: "5px 8px" }}>✕</button>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center flex-wrap gap-2">
+                  <button onClick={() => setStatus(student.id, "attended")} title="Mark attended" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "attended" ? `${T.sage}22` : "transparent", color: att?.status === "attended" ? T.sage : T.inkSoft }}>✓ Attended</button>
+                  <button onClick={() => setStatus(student.id, "skipped")} title="Excused — notified in advance, doesn't count as missed" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "skipped" ? `${T.gold}22` : "transparent", color: att?.status === "skipped" ? T.gold : T.inkSoft }}>⊘ Skipped</button>
+                  <button onClick={() => setStatus(student.id, "missed")} title="Missed — unexpected no-show" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "missed" ? `${T.terracotta}22` : "transparent", color: att?.status === "missed" ? T.terracotta : T.inkSoft }}>! Missed</button>
+                  {att && (
+                    <button onClick={() => clearStatus(student.id)} title="Clear this attendance mark" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, color: T.inkSoft }}>↺ Undo</button>
+                  )}
+                </div>
+                <button onClick={() => unenroll(r.id)} title="Remove booking" style={{ color: T.terracotta, padding: "5px 8px", flexShrink: 0 }}>✕</button>
               </div>
             </div>
           );
