@@ -344,6 +344,8 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   // Only used when creating a brand-new student — a package entered here gets saved
   // right after the student is created, since there's no student id to attach it to yet.
   const [pendingPackages, setPendingPackages] = useState([]);
+  const [pendingPackagesDirty, setPendingPackagesDirty] = useState(false);
+  const [confirmDirtyPackage, setConfirmDirtyPackage] = useState(false);
   const [links, setLinks] = useState([]); // {guardian_id, name, phone, email, relation, emergency}
   const [originalLinkIds, setOriginalLinkIds] = useState([]);
   const [guardianQuery, setGuardianQuery] = useState("");
@@ -397,6 +399,14 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   const matches = guardianQuery.trim()
     ? allGuardians.filter((g) => g.name.toLowerCase().includes(guardianQuery.toLowerCase()) && !links.some((l) => l.guardianId === g.id))
     : [];
+
+  const handleSaveClick = () => {
+    if (!initial?.id && pendingPackagesDirty) {
+      setConfirmDirtyPackage(true);
+      return;
+    }
+    save();
+  };
 
   const save = async () => {
     if (!name.trim()) return;
@@ -470,6 +480,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   };
 
   return (
+    <>
     <Modal title={initial ? "Edit student" : "Add a student"} onClose={onClose} wide>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Name"><input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Student's name" /></Field>
@@ -490,7 +501,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
         </div>
       </Field>
 
-      {initial?.id ? <PackagesSection studentId={initial.id} /> : <PendingPackagesEditor pendingPackages={pendingPackages} setPendingPackages={setPendingPackages} />}
+      {initial?.id ? <PackagesSection studentId={initial.id} /> : <PendingPackagesEditor pendingPackages={pendingPackages} setPendingPackages={setPendingPackages} onDirtyChange={setPendingPackagesDirty} />}
 
       <div className="mt-2 mb-1">
         <span className="text-xs font-medium block mb-2" style={{ color: T.inkSoft }}>Parent / emergency contacts</span>
@@ -535,9 +546,19 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
       {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
       <div className="flex justify-end gap-2 mt-4">
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-        <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : initial ? "Save changes" : "Save student"}</Btn>
+        <Btn variant="success" onClick={handleSaveClick} disabled={saving}>{saving ? "Saving…" : initial ? "Save changes" : "Save student"}</Btn>
       </div>
     </Modal>
+    {confirmDirtyPackage && (
+      <ConfirmModal
+        title="Unsaved package changes"
+        message="You have a package entry that hasn't been saved yet — if you continue, it will be lost. Go back and click Save changes / Add package first, or continue without it?"
+        confirmLabel="Continue without saving it"
+        onConfirm={() => { setConfirmDirtyPackage(false); save(); }}
+        onCancel={() => setConfirmDirtyPackage(false)}
+      />
+    )}
+    </>
   );
 }
 

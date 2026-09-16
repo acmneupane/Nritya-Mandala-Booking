@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field } from "./ui";
 
@@ -6,12 +6,22 @@ import { Btn, Field } from "./ui";
 // both when adding a brand-new student and when approving an enrolment (where the
 // student doesn't have an id yet either). The caller is responsible for actually
 // inserting these into the packages table once the student row is created.
-export default function PendingPackagesEditor({ pendingPackages, setPendingPackages }) {
+//
+// "Add package" / "Save changes" here deliberately use the plain action colour, not
+// the submit colour — they only update this in-memory list, not the database. The
+// real save happens later when the student itself is saved/approved. onDirtyChange
+// lets the parent know when there's an open, unsaved package form, so it can warn
+// before letting that outer save proceed and silently lose it.
+export default function PendingPackagesEditor({ pendingPackages, setPendingPackages, onDirtyChange }) {
   const [adding, setAdding] = useState(pendingPackages.length === 0);
   const [editingIndex, setEditingIndex] = useState(null);
   const [classesTotal, setClassesTotal] = useState(10);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+
+  useEffect(() => {
+    onDirtyChange && onDirtyChange(adding || editingIndex !== null);
+  }, [adding, editingIndex, onDirtyChange]);
 
   const resetForm = () => { setClassesTotal(10); setAmount(""); setNote(""); };
 
@@ -49,7 +59,7 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
             <Field label="Note"><input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
             <div className="flex justify-end gap-2 mt-1">
               <Btn variant="ghost" size="sm" onClick={() => { setEditingIndex(null); resetForm(); }}>Cancel</Btn>
-              <Btn variant="success" size="sm" onClick={saveEdit}>Save changes</Btn>
+              <Btn size="sm" onClick={saveEdit}>Save changes</Btn>
             </div>
           </div>
         ) : (
@@ -75,7 +85,7 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
           <Field label="Note"><input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. 5-week package" /></Field>
           <div className="flex justify-end gap-2 mt-1">
             {pendingPackages.length > 0 && <Btn variant="ghost" size="sm" onClick={() => setAdding(false)}>Cancel</Btn>}
-            <Btn variant="success" size="sm" onClick={addPackage}>Add package</Btn>
+            <Btn size="sm" onClick={addPackage}>Add package</Btn>
           </div>
         </div>
       ) : (

@@ -34,6 +34,8 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
   const [fees, setFees] = useState({ enabled: false, primary: 0, sibling: 0 });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [dirtyPackages, setDirtyPackages] = useState({}); // { [studentIndex]: boolean }
+  const [confirmDirtyPackage, setConfirmDirtyPackage] = useState(false);
 
   useEffect(() => {
     supabase.from("settings").select("enrolment_fee_enabled, enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
@@ -48,6 +50,14 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
       const next = typeof updater === "function" ? updater(s.pendingPackages || []) : updater;
       return { ...s, pendingPackages: next };
     }));
+  };
+
+  const handleApproveClick = () => {
+    if (Object.values(dirtyPackages).some(Boolean)) {
+      setConfirmDirtyPackage(true);
+      return;
+    }
+    approve();
   };
 
   const approve = async () => {
@@ -132,6 +142,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
   };
 
   return (
+    <>
     <Modal title={`Approve enrolment · ${request.reference}`} onClose={onClose} wide>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12 }}>Review and adjust before creating {students.length > 1 ? "these student records" : "this student record"}.</p>
 
@@ -159,7 +170,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
           {s.preferredClassId && classById[s.preferredClassId] && (
             <p style={{ fontSize: 11, color: T.sage }}>Requested: {classById[s.preferredClassId].label} — {classById[s.preferredClassId].day} {formatTimeRange(classById[s.preferredClassId].time, classById[s.preferredClassId].end_time)}</p>
           )}
-          <PendingPackagesEditor pendingPackages={s.pendingPackages || []} setPendingPackages={setStudentPackages(i)} />
+          <PendingPackagesEditor pendingPackages={s.pendingPackages || []} setPendingPackages={setStudentPackages(i)} onDirtyChange={(dirty) => setDirtyPackages((d) => ({ ...d, [i]: dirty }))} />
         </div>
       ))}
 
@@ -210,9 +221,19 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
       {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
       <div className="flex justify-end gap-2 mt-2">
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-        <Btn variant="success" onClick={approve} disabled={saving}>{saving ? "Creating…" : `Approve & create ${students.length > 1 ? `${students.length} students` : "student"}`}</Btn>
+        <Btn variant="success" onClick={handleApproveClick} disabled={saving}>{saving ? "Creating…" : `Approve & create ${students.length > 1 ? `${students.length} students` : "student"}`}</Btn>
       </div>
     </Modal>
+    {confirmDirtyPackage && (
+      <ConfirmModal
+        title="Unsaved package changes"
+        message="One of the students has a package entry that hasn't been saved yet — if you continue, it will be lost. Go back and click Save changes / Add package first, or continue without it?"
+        confirmLabel="Continue without saving it"
+        onConfirm={() => { setConfirmDirtyPackage(false); approve(); }}
+        onCancel={() => setConfirmDirtyPackage(false)}
+      />
+    )}
+    </>
   );
 }
 
