@@ -80,6 +80,7 @@ function RosterEditor({ cls, onChanged }) {
   const [attendance, setAttendance] = useState([]);
   const [remainingByStudent, setRemainingByStudent] = useState({});
   const [addingStudent, setAddingStudent] = useState("");
+  const [addingStartDate, setAddingStartDate] = useState(cls.dateStr);
   const [addingModalOpen, setAddingModalOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -88,13 +89,18 @@ function RosterEditor({ cls, onChanged }) {
     setLoading(true);
     const [sRes, eRes, aRes] = await Promise.all([
       supabase.from("students").select("id, name").eq("archived", false),
-      supabase.from("enrollments").select("id, student_id").eq("class_id", cls.id),
+      supabase.from("enrollments").select("id, student_id, start_date").eq("class_id", cls.id),
       supabase.from("attendance").select("id, student_id, status").eq("class_id", cls.id).eq("date", cls.dateStr),
     ]);
     setStudents(sRes.data || []);
-    setRoster(eRes.data || []);
+    // Only show students whose booking had actually started by this date — a
+    // student added today shouldn't retroactively show up in last week's roster.
+    // Existing bookings from before this feature have no start_date recorded, so
+    // they're treated as always-active (unrestricted), same as before.
+    const activeRoster = (eRes.data || []).filter((e) => !e.start_date || e.start_date <= cls.dateStr);
+    setRoster(activeRoster);
     setAttendance(aRes.data || []);
-    const rosterIds = (eRes.data || []).map((e) => e.student_id);
+    const rosterIds = activeRoster.map((e) => e.student_id);
     if (rosterIds.length) {
       const { data: pkgRows } = await supabase.from("student_package_summary").select("student_id, classes_total, classes_used").in("student_id", rosterIds);
       const map = {};
@@ -111,7 +117,7 @@ function RosterEditor({ cls, onChanged }) {
 
   const enroll = async () => {
     if (!addingStudent) return;
-    await supabase.from("enrollments").insert({ student_id: addingStudent, class_id: cls.id });
+    await supabase.from("enrollments").insert({ student_id: addingStudent, class_id: cls.id, start_date: addingStartDate || cls.dateStr });
     setAddingStudent("");
     setAddingModalOpen(false);
     load();
@@ -215,6 +221,10 @@ function RosterEditor({ cls, onChanged }) {
                   {availableStudents.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </Field>
+              <Field label="Starting from">
+                <input style={inputStyle} type="date" value={addingStartDate} onChange={(e) => setAddingStartDate(e.target.value)} />
+              </Field>
+              <p style={{ fontSize: 11, color: T.inkSoft, marginTop: -6, marginBottom: 10 }}>They'll only show up on this class's roster from this date onward — not retroactively on past dates.</p>
               <div className="flex justify-end gap-2 mt-2">
                 <Btn variant="ghost" onClick={() => { setAddingModalOpen(false); setAddingStudent(""); }}>Cancel</Btn>
                 <Btn variant="success" onClick={enroll} disabled={!addingStudent}>Book</Btn>
@@ -288,7 +298,7 @@ function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChange
               {skip ? (
                 <button onClick={() => onUnskip(skip)} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skipped{skip.reason ? ` — ${skip.reason}` : ""} · Undo</button>
               ) : (
-                <button onClick={() => onSkip({ ...c, dateStr, bookedCount: enrollments.filter((e) => e.class_id === c.id).length })} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skip this date</button>
+                <button onClick={() => onSkip({ ...c, dateStr, bookedCount: enrollments.filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= dateStr)).length })} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skip this date</button>
               )}
             </div>
             {skip ? (
@@ -318,7 +328,7 @@ export default function CalendarView() {
     setLoading(true);
     const [cRes, eRes, skRes] = await Promise.all([
       supabase.from("classes").select("*"),
-      supabase.from("enrollments").select("id, class_id"),
+      supabase.from("enrollments").select("id, class_id, student_id, start_date"),
       supabase.from("class_skips").select("*"),
     ]);
     setClasses(cRes.data || []);
@@ -396,7 +406,7 @@ export default function CalendarView() {
                 {dayClasses.length === 0 && <div style={{ fontSize: 11, color: `${T.inkSoft}99` }}>—</div>}
                 {dayClasses.map((c) => {
                   const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
-                  const bookedCount = enrollments.filter((e) => e.class_id === c.id).length;
+                  const bookedCount = enrollments.filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= dateStr)).length;
                   if (skip) {
                     return (
                       <div key={c.id} style={{ background: `${T.terracotta}12`, border: `1px dashed ${T.terracotta}55`, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>

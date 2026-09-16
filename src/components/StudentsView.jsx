@@ -476,6 +476,7 @@ function BookClassModal({ student, onClose, onBooked }) {
   const [enrolledIds, setEnrolledIds] = useState([]);
   const [skips, setSkips] = useState([]);
   const [selected, setSelected] = useState("");
+  const [startDate, setStartDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -495,11 +496,18 @@ function BookClassModal({ student, onClose, onBooked }) {
 
   const available = classes.filter((c) => !enrolledIds.includes(c.id));
 
+  const selectClass = (classId) => {
+    setSelected(classId);
+    const cls = classes.find((c) => c.id === classId);
+    const nextOcc = cls ? nextOccurrenceOf(cls, skips, localDateStr) : null;
+    setStartDate(nextOcc?.dateStr || localDateStr(new Date()));
+  };
+
   const book = async () => {
     if (!selected) return;
     setSaving(true);
     setError("");
-    const { error } = await supabase.from("enrollments").insert({ student_id: student.id, class_id: selected });
+    const { error } = await supabase.from("enrollments").insert({ student_id: student.id, class_id: selected, start_date: startDate || null });
     setSaving(false);
     if (error) { setError(error.message); return; }
 
@@ -523,11 +531,19 @@ function BookClassModal({ student, onClose, onBooked }) {
       ) : (
         <>
           <Field label="Class">
-            <select style={inputStyle} value={selected} onChange={(e) => setSelected(e.target.value)}>
+            <select style={inputStyle} value={selected} onChange={(e) => selectClass(e.target.value)}>
               <option value="">Select a class…</option>
               {available.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
             </select>
           </Field>
+          {selected && (
+            <>
+              <Field label="Starting from">
+                <input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              </Field>
+              <p style={{ fontSize: 11, color: T.inkSoft, marginTop: -6, marginBottom: 10 }}>They'll only show up on this class's roster from this date onward — not retroactively on past dates.</p>
+            </>
+          )}
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
           <div className="flex justify-end gap-2 mt-2">
             <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
