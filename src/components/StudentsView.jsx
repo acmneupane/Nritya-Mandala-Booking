@@ -184,6 +184,8 @@ function PackagesSection({ studentId }) {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [tiers, setTiers] = useState([]);
+  const [selectedTierId, setSelectedTierId] = useState("");
   const [classesTotal, setClassesTotal] = useState(10);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -193,12 +195,14 @@ function PackagesSection({ studentId }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [pRes, sRes] = await Promise.all([
+    const [pRes, sRes, tRes] = await Promise.all([
       supabase.from("packages").select("*").eq("student_id", studentId).order("purchase_date", { ascending: false }),
       supabase.from("student_package_summary").select("classes_used").eq("student_id", studentId).maybeSingle(),
+      supabase.from("package_tiers").select("*").eq("active", true).order("sort_order"),
     ]);
     setPackages(pRes.data || []);
     setUsed(sRes.data?.classes_used || 0);
+    setTiers(tRes.data || []);
     setLoading(false);
   }, [studentId]);
 
@@ -208,7 +212,13 @@ function PackagesSection({ studentId }) {
   const remaining = total - used;
 
   const resetForm = () => {
-    setClassesTotal(10); setAmount(""); setNote(""); setPaymentConfirmed(false); setPaymentMethod("");
+    setSelectedTierId(""); setClassesTotal(10); setAmount(""); setNote(""); setPaymentConfirmed(false); setPaymentMethod("");
+  };
+
+  const applyTier = (tierId) => {
+    setSelectedTierId(tierId);
+    const tier = tiers.find((t) => t.id === tierId);
+    if (tier) { setClassesTotal(tier.classes_count); setAmount(String(tier.price)); setNote(tier.name); }
   };
 
   const addPackage = async () => {
@@ -230,6 +240,7 @@ function PackagesSection({ studentId }) {
 
   const startEdit = (p) => {
     setEditingId(p.id);
+    setSelectedTierId("");
     setClassesTotal(p.classes_total);
     setAmount(p.amount != null ? String(p.amount) : "");
     setNote(p.notes || "");
@@ -258,6 +269,15 @@ function PackagesSection({ studentId }) {
     load();
   };
 
+  const tierPicker = tiers.length > 0 && (
+    <Field label="Package (optional — or enter custom below)">
+      <select style={inputStyle} value={selectedTierId} onChange={(e) => applyTier(e.target.value)}>
+        <option value="">Custom…</option>
+        {tiers.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.classes_count} classes — ${Number(t.price).toFixed(2)}</option>)}
+      </select>
+    </Field>
+  );
+
   const paymentMethodSelect = (
     <Field label="Payment method">
       <select style={inputStyle} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
@@ -282,6 +302,7 @@ function PackagesSection({ studentId }) {
       {packages.map((p) => (
         editingId === p.id ? (
           <div key={p.id} style={{ border: `1px solid ${T.gold}`, borderRadius: 8, padding: 10, marginBottom: 6 }}>
+            {tierPicker}
             <div className="grid grid-cols-2 gap-2 mb-2">
               <Field label="Classes bought"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
               <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
@@ -314,6 +335,7 @@ function PackagesSection({ studentId }) {
       ))}
       {adding ? (
         <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 10, marginTop: 6 }}>
+          {tierPicker}
           <div className="grid grid-cols-2 gap-2 mb-2">
             <Field label="Classes bought"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
             <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 120.00" /></Field>

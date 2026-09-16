@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field } from "./ui";
 
@@ -15,15 +16,27 @@ import { Btn, Field } from "./ui";
 export default function PendingPackagesEditor({ pendingPackages, setPendingPackages, onDirtyChange }) {
   const [adding, setAdding] = useState(pendingPackages.length === 0);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [tiers, setTiers] = useState([]);
+  const [selectedTierId, setSelectedTierId] = useState("");
   const [classesTotal, setClassesTotal] = useState(10);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
 
   useEffect(() => {
+    supabase.from("package_tiers").select("*").eq("active", true).order("sort_order").then(({ data }) => setTiers(data || []));
+  }, []);
+
+  useEffect(() => {
     onDirtyChange && onDirtyChange(adding || editingIndex !== null);
   }, [adding, editingIndex, onDirtyChange]);
 
-  const resetForm = () => { setClassesTotal(10); setAmount(""); setNote(""); };
+  const resetForm = () => { setSelectedTierId(""); setClassesTotal(10); setAmount(""); setNote(""); };
+
+  const applyTier = (tierId) => {
+    setSelectedTierId(tierId);
+    const tier = tiers.find((t) => t.id === tierId);
+    if (tier) { setClassesTotal(tier.classes_count); setAmount(String(tier.price)); setNote(tier.name); }
+  };
 
   const addPackage = () => {
     if (!classesTotal || Number(classesTotal) <= 0) return;
@@ -35,6 +48,7 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
 
   const startEdit = (i, p) => {
     setEditingIndex(i);
+    setSelectedTierId("");
     setClassesTotal(p.classesTotal);
     setAmount(p.amount != null ? String(p.amount) : "");
     setNote(p.note || "");
@@ -46,12 +60,22 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
     resetForm();
   };
 
+  const tierPicker = tiers.length > 0 && (
+    <Field label="Package (optional — or enter custom below)">
+      <select style={inputStyle} value={selectedTierId} onChange={(e) => applyTier(e.target.value)}>
+        <option value="">Custom…</option>
+        {tiers.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.classes_count} classes — ${Number(t.price).toFixed(2)}</option>)}
+      </select>
+    </Field>
+  );
+
   return (
     <div className="mt-2 mb-1">
       <span className="text-xs font-medium block mb-2" style={{ color: T.inkSoft }}>Starting package (optional)</span>
       {pendingPackages.map((p, i) => (
         editingIndex === i ? (
           <div key={i} style={{ border: `1px solid ${T.gold}`, borderRadius: 8, padding: 10, marginBottom: 6 }}>
+            {tierPicker}
             <div className="grid grid-cols-2 gap-2 mb-2">
               <Field label="Classes bought"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
               <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
@@ -78,6 +102,7 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
       ))}
       {adding ? (
         <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 10 }}>
+          {tierPicker}
           <div className="grid grid-cols-2 gap-2 mb-2">
             <Field label="Classes bought"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
             <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 90.00" /></Field>
