@@ -183,9 +183,12 @@ function PackagesSection({ studentId }) {
   const [used, setUsed] = useState(0);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [classesTotal, setClassesTotal] = useState(10);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -204,6 +207,10 @@ function PackagesSection({ studentId }) {
   const total = packages.reduce((sum, p) => sum + p.classes_total, 0);
   const remaining = total - used;
 
+  const resetForm = () => {
+    setClassesTotal(10); setAmount(""); setNote(""); setPaymentConfirmed(false); setPaymentMethod("");
+  };
+
   const addPackage = async () => {
     if (!classesTotal || Number(classesTotal) <= 0) return;
     setSaving(true);
@@ -212,12 +219,37 @@ function PackagesSection({ studentId }) {
       classes_total: Number(classesTotal),
       amount: amount ? Number(amount) : null,
       notes: note.trim(),
+      payment_confirmed: paymentConfirmed,
+      payment_method: paymentConfirmed ? (paymentMethod || null) : null,
     });
     setSaving(false);
     setAdding(false);
-    setClassesTotal(10);
-    setAmount("");
-    setNote("");
+    resetForm();
+    load();
+  };
+
+  const startEdit = (p) => {
+    setEditingId(p.id);
+    setClassesTotal(p.classes_total);
+    setAmount(p.amount != null ? String(p.amount) : "");
+    setNote(p.notes || "");
+    setPaymentConfirmed(p.payment_confirmed || false);
+    setPaymentMethod(p.payment_method || "");
+  };
+
+  const saveEdit = async () => {
+    if (!classesTotal || Number(classesTotal) <= 0) return;
+    setSaving(true);
+    await supabase.from("packages").update({
+      classes_total: Number(classesTotal),
+      amount: amount ? Number(amount) : null,
+      notes: note.trim(),
+      payment_confirmed: paymentConfirmed,
+      payment_method: paymentConfirmed ? (paymentMethod || null) : null,
+    }).eq("id", editingId);
+    setSaving(false);
+    setEditingId(null);
+    resetForm();
     load();
   };
 
@@ -225,6 +257,18 @@ function PackagesSection({ studentId }) {
     await supabase.from("packages").delete().eq("id", id);
     load();
   };
+
+  const paymentMethodSelect = (
+    <Field label="Payment method">
+      <select style={inputStyle} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+        <option value="">Not specified</option>
+        <option value="bank_transfer">Bank transfer</option>
+        <option value="cash">Cash</option>
+        <option value="card">Card</option>
+        <option value="other">Other</option>
+      </select>
+    </Field>
+  );
 
   if (loading) return <p style={{ fontSize: 12, color: T.inkSoft }}>Loading packages…</p>;
 
@@ -236,15 +280,37 @@ function PackagesSection({ studentId }) {
       </div>
       {packages.length === 0 && !adding && <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8 }}>No packages on file yet.</p>}
       {packages.map((p) => (
-        <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${T.line}`, borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 12 }}>
-          <div>
-            <span style={{ fontWeight: 600 }}>{p.classes_total} classes</span>
-            {p.amount != null && <span style={{ color: T.inkSoft, marginLeft: 6 }}>· ${Number(p.amount).toFixed(2)}</span>}
-            <span style={{ color: T.inkSoft, marginLeft: 6 }}>· {p.purchase_date}</span>
-            {p.notes && <div style={{ color: T.inkSoft, marginTop: 2 }}>{p.notes}</div>}
+        editingId === p.id ? (
+          <div key={p.id} style={{ border: `1px solid ${T.gold}`, borderRadius: 8, padding: 10, marginBottom: 6 }}>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <Field label="Classes bought"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
+              <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
+            </div>
+            <Field label="Note"><input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+            <label className="flex items-center gap-2 mb-2" style={{ fontSize: 12, color: T.ink, fontWeight: 500 }}>
+              <input type="checkbox" checked={paymentConfirmed} onChange={(e) => setPaymentConfirmed(e.target.checked)} /> Payment confirmed
+            </label>
+            {paymentConfirmed && paymentMethodSelect}
+            <div className="flex justify-end gap-2 mt-1">
+              <Btn variant="ghost" size="sm" onClick={() => { setEditingId(null); resetForm(); }}>Cancel</Btn>
+              <Btn size="sm" onClick={saveEdit} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Btn>
+            </div>
           </div>
-          <button onClick={() => removePackage(p.id)} style={{ color: T.terracotta }}>✕</button>
-        </div>
+        ) : (
+          <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${T.line}`, borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 12 }}>
+            <div>
+              <span style={{ fontWeight: 600 }}>{p.classes_total} classes</span>
+              {p.amount != null && <span style={{ color: T.inkSoft, marginLeft: 6 }}>· ${Number(p.amount).toFixed(2)}</span>}
+              <span style={{ color: T.inkSoft, marginLeft: 6 }}>· {p.purchase_date}</span>
+              <span style={{ marginLeft: 6, color: p.payment_confirmed ? T.sage : T.terracotta, fontWeight: 600 }}>· {p.payment_confirmed ? "Confirmed" : "Unconfirmed"}</span>
+              {p.notes && <div style={{ color: T.inkSoft, marginTop: 2 }}>{p.notes}</div>}
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => startEdit(p)} style={{ color: T.maroon }}>Edit</button>
+              <button onClick={() => removePackage(p.id)} style={{ color: T.terracotta }}>✕</button>
+            </div>
+          </div>
+        )
       ))}
       {adding ? (
         <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 10, marginTop: 6 }}>
@@ -253,8 +319,12 @@ function PackagesSection({ studentId }) {
             <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 120.00" /></Field>
           </div>
           <Field label="Note"><input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. paid cash, 10-class pack" /></Field>
+          <label className="flex items-center gap-2 mb-2" style={{ fontSize: 12, color: T.ink, fontWeight: 500 }}>
+            <input type="checkbox" checked={paymentConfirmed} onChange={(e) => setPaymentConfirmed(e.target.checked)} /> Payment confirmed
+          </label>
+          {paymentConfirmed && paymentMethodSelect}
           <div className="flex justify-end gap-2 mt-1">
-            <Btn variant="ghost" size="sm" onClick={() => setAdding(false)}>Cancel</Btn>
+            <Btn variant="ghost" size="sm" onClick={() => { setAdding(false); resetForm(); }}>Cancel</Btn>
             <Btn size="sm" onClick={addPackage} disabled={saving}>{saving ? "Saving…" : "Add package"}</Btn>
           </div>
         </div>

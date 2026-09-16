@@ -84,9 +84,13 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
             student_id: created.id, guardian_id: emergencyGuardian.id, relation: "Emergency contact", emergency: true,
           });
         }
-        // Book them straight into the class they said they preferred, if any.
+        // Book them straight into the class they said they preferred, if any —
+        // starting from the class's actual next occurrence, so they don't
+        // retroactively show up on past dates' rosters.
+        const bookedClass = s.preferredClassId ? classById[s.preferredClassId] : null;
+        const nextOcc = bookedClass ? nextOccurrenceOf(bookedClass, skips, localDateStr) : null;
         if (s.preferredClassId) {
-          await supabase.from("enrollments").insert({ student_id: created.id, class_id: s.preferredClassId });
+          await supabase.from("enrollments").insert({ student_id: created.id, class_id: s.preferredClassId, start_date: nextOcc?.dateStr || localDateStr(new Date()) });
         }
         await supabase.from("enrollment_request_students").update({ created_student_id: created.id }).eq("id", s.id);
 
@@ -104,8 +108,6 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
           });
         }
 
-        const bookedClass = s.preferredClassId ? classById[s.preferredClassId] : null;
-        const nextOcc = bookedClass ? nextOccurrenceOf(bookedClass, skips, localDateStr) : null;
         emailStudents.push({
           id: created.id,
           name: s.name.trim(), code,
