@@ -81,6 +81,7 @@ function RosterEditor({ cls, onChanged }) {
   const [remainingByStudent, setRemainingByStudent] = useState({});
   const [addingStudent, setAddingStudent] = useState("");
   const [addingModalOpen, setAddingModalOpen] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -137,6 +138,24 @@ function RosterEditor({ cls, onChanged }) {
     if (existing) await supabase.from("attendance").delete().eq("id", existing.id);
     load();
   };
+  const checkInByCode = async (code) => {
+    const { data: student } = await supabase.from("students").select("id, name").eq("code", code).eq("archived", false).maybeSingle();
+    if (!student) return { ok: false, message: "Code not recognized" };
+
+    const { data: existingEnrollment } = await supabase.from("enrollments").select("id").eq("student_id", student.id).eq("class_id", cls.id).maybeSingle();
+    if (!existingEnrollment) {
+      await supabase.from("enrollments").insert({ student_id: student.id, class_id: cls.id });
+    }
+    const { data: existingAttendance } = await supabase.from("attendance").select("id, status").eq("student_id", student.id).eq("class_id", cls.id).eq("date", cls.dateStr).maybeSingle();
+    if (existingAttendance) {
+      if (existingAttendance.status !== "attended") await supabase.from("attendance").update({ status: "attended" }).eq("id", existingAttendance.id);
+    } else {
+      await supabase.from("attendance").insert({ student_id: student.id, class_id: cls.id, date: cls.dateStr, status: "attended" });
+    }
+    load();
+    onChanged();
+    return { ok: true, message: `${student.name} checked in ✓` };
+  };
 
   if (loading) return <p style={{ color: T.inkSoft, fontSize: 13 }}>Loading…</p>;
 
@@ -153,7 +172,10 @@ function RosterEditor({ cls, onChanged }) {
           {skippedCount > 0 && <> · <strong style={{ color: T.gold }}>{skippedCount}</strong> excused</>}
           {missedCount > 0 && <> · <strong style={{ color: T.terracotta }}>{missedCount}</strong> missed</>}
         </div>
-        <Btn size="sm" onClick={() => setAddingModalOpen(true)}>+ Add student</Btn>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setScanning(true)} title="Scan to check in" style={{ fontSize: 13, fontWeight: 500, padding: "5px 10px", borderRadius: 999, border: `1px solid ${T.line}`, background: "#fff" }}>📷 Scan to check in</button>
+          <Btn size="sm" onClick={() => setAddingModalOpen(true)}>+ Add student</Btn>
+        </div>
       </div>
       {roster.length === 0 && <p style={{ color: T.inkSoft, fontSize: 13 }}>No one booked into this class yet.</p>}
       <div className="grid gap-2">
@@ -201,6 +223,13 @@ function RosterEditor({ cls, onChanged }) {
           )}
         </Modal>
       )}
+      {scanning && (
+        <QrScanner
+          title={`Scan for ${cls.label}`}
+          onDetected={(code) => checkInByCode(code)}
+          onClose={() => setScanning(false)}
+        />
+      )}
     </div>
   );
 }
@@ -240,29 +269,6 @@ function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChange
   const dateStr = localDateStr(date);
   const dayName = DAYS[(date.getDay() + 6) % 7];
   const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr)).sort((a, b) => a.time.localeCompare(b.time));
-  const [scanningClass, setScanningClass] = useState(null);
-  const [refreshTick, setRefreshTick] = useState(0);
-
-  // Looks up the scanned code, books the student into this class if they weren't
-  // already (a walk-in), and marks them attended for today — all in one scan.
-  const checkInByCode = async (cls, code) => {
-    const { data: student } = await supabase.from("students").select("id, name").eq("code", code).eq("archived", false).maybeSingle();
-    if (!student) return { ok: false, message: "Code not recognized" };
-
-    const { data: existingEnrollment } = await supabase.from("enrollments").select("id").eq("student_id", student.id).eq("class_id", cls.id).maybeSingle();
-    if (!existingEnrollment) {
-      await supabase.from("enrollments").insert({ student_id: student.id, class_id: cls.id });
-    }
-    const { data: existingAttendance } = await supabase.from("attendance").select("id, status").eq("student_id", student.id).eq("class_id", cls.id).eq("date", cls.dateStr).maybeSingle();
-    if (existingAttendance) {
-      if (existingAttendance.status !== "attended") await supabase.from("attendance").update({ status: "attended" }).eq("id", existingAttendance.id);
-    } else {
-      await supabase.from("attendance").insert({ student_id: student.id, class_id: cls.id, date: cls.dateStr, status: "attended" });
-    }
-    setRefreshTick((t) => t + 1);
-    onChanged();
-    return { ok: true, message: `Checked in: ${student.name}` };
-  };
 
   if (dayClasses.length === 0) {
     return <p style={{ color: T.inkSoft, marginTop: 12 }}>No classes scheduled on {dayName}s.</p>;
@@ -285,31 +291,14 @@ function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChange
                 <button onClick={() => onSkip({ ...c, dateStr, bookedCount: enrollments.filter((e) => e.class_id === c.id).length })} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skip this date</button>
               )}
             </div>
-            {!skip && (
-              <div className="mb-3">
-                <button
-                  onClick={() => setScanningClass({ ...c, dateStr })}
-                  style={{ fontSize: 13, color: T.maroonDark, fontWeight: 600, background: `${T.gold}22`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "8px 14px" }}
-                >
-                  📷 Scan to check in
-                </button>
-              </div>
-            )}
             {skip ? (
               <p style={{ fontSize: 13, color: T.inkSoft }}>This class is skipped for this date — no attendance can be marked.</p>
             ) : (
-              <RosterEditor key={`${c.id}-${dateStr}-${refreshTick}`} cls={{ ...c, dateStr }} onChanged={onChanged} />
+              <RosterEditor cls={{ ...c, dateStr }} onChanged={onChanged} />
             )}
           </div>
         );
       })}
-      {scanningClass && (
-        <QrScanner
-          title={`Scan for ${scanningClass.label}`}
-          onDetected={(code) => checkInByCode(scanningClass, code)}
-          onClose={() => setScanningClass(null)}
-        />
-      )}
     </div>
   );
 }
@@ -323,8 +312,6 @@ export default function CalendarView() {
   const [bookingClass, setBookingClass] = useState(null);
   const [skippingClass, setSkippingClass] = useState(null);
   const [confirmUnskip, setConfirmUnskip] = useState(null);
-  const [scanningClass, setScanningClass] = useState(null);
-  const [scanDay, setScanDay] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -341,26 +328,6 @@ export default function CalendarView() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
-
-  // Same as DayView's check-in — surfaced here too so scanning doesn't require
-  // drilling into Day view first when browsing Month/Week/Fortnight.
-  const checkInByCode = async (cls, code) => {
-    const { data: student } = await supabase.from("students").select("id, name").eq("code", code).eq("archived", false).maybeSingle();
-    if (!student) return { ok: false, message: "Code not recognized" };
-
-    const { data: existingEnrollment } = await supabase.from("enrollments").select("id").eq("student_id", student.id).eq("class_id", cls.id).maybeSingle();
-    if (!existingEnrollment) {
-      await supabase.from("enrollments").insert({ student_id: student.id, class_id: cls.id });
-    }
-    const { data: existingAttendance } = await supabase.from("attendance").select("id, status").eq("student_id", student.id).eq("class_id", cls.id).eq("date", cls.dateStr).maybeSingle();
-    if (existingAttendance) {
-      if (existingAttendance.status !== "attended") await supabase.from("attendance").update({ status: "attended" }).eq("id", existingAttendance.id);
-    } else {
-      await supabase.from("attendance").insert({ student_id: student.id, class_id: cls.id, date: cls.dateStr, status: "attended" });
-    }
-    load();
-    return { ok: true, message: `${student.name} checked in ✓` };
-  };
 
   const unskip = async (id) => {
     await supabase.from("class_skips").delete().eq("id", id);
@@ -418,27 +385,14 @@ export default function CalendarView() {
             const dimmed = viewMode === "month" && !inMonth;
             return (
               <div key={i} style={{ background: isToday ? `${T.gold}18` : "#fff", border: `1px solid ${isToday ? T.gold : T.line}`, borderRadius: 8, padding: 8, minHeight: 80, opacity: dimmed ? 0.4 : 1 }}>
-                <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
-                  <button
-                    type="button"
-                    onClick={() => { setAnchor(new Date(date)); setViewMode("day"); }}
-                    style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, display: "block", textAlign: "left", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
-                    title="View this day"
-                  >
-                    {viewMode === "month" ? date.getDate() : `${dayName.slice(0, 3)} ${date.getDate()}`}
-                  </button>
-                  {dayClasses.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (dayClasses.length === 1) setScanningClass({ ...dayClasses[0], dateStr });
-                        else setScanDay({ dateStr, dayClasses, label: `${dayName} ${date.getDate()}` });
-                      }}
-                      title="Scan to check in"
-                      style={{ fontSize: 12, padding: "1px 3px", background: "transparent", border: "none", cursor: "pointer" }}
-                    >📷</button>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => { setAnchor(new Date(date)); setViewMode("day"); }}
+                  style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, marginBottom: 6, display: "block", textAlign: "left", background: "transparent", border: "none", padding: 0, cursor: "pointer", width: "100%" }}
+                  title="View this day"
+                >
+                  {viewMode === "month" ? date.getDate() : `${dayName.slice(0, 3)} ${date.getDate()}`}
+                </button>
                 {dayClasses.length === 0 && <div style={{ fontSize: 11, color: `${T.inkSoft}99` }}>—</div>}
                 {dayClasses.map((c) => {
                   const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
@@ -484,29 +438,6 @@ export default function CalendarView() {
           confirmLabel="Undo skip"
           onConfirm={() => unskip(confirmUnskip.id)}
           onCancel={() => setConfirmUnskip(null)}
-        />
-      )}
-      {scanDay && (
-        <Modal title={`Scan for ${scanDay.label}`} onClose={() => setScanDay(null)}>
-          <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 12 }}>Which class is this check-in for?</p>
-          <div className="grid gap-2">
-            {scanDay.dayClasses.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => { setScanningClass({ ...c, dateStr: scanDay.dateStr }); setScanDay(null); }}
-                style={{ textAlign: "left", border: `1px solid ${T.line}`, borderRadius: 8, padding: "10px 12px", background: "#fff", cursor: "pointer" }}
-              >
-                <div style={{ fontSize: 13, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
-              </button>
-            ))}
-          </div>
-        </Modal>
-      )}
-      {scanningClass && (
-        <QrScanner
-          title={`Scan for ${scanningClass.label}`}
-          onDetected={(code) => checkInByCode(scanningClass, code)}
-          onClose={() => setScanningClass(null)}
         />
       )}
     </div>
