@@ -59,8 +59,8 @@ export default function RenewForm() {
       }
 
       const selections = [
-        { code: student.code, tier_id: selectedTierId },
-        ...includedSiblingList.map((s) => ({ code: s.code, tier_id: siblingTierIds[s.id] })),
+        { code: student.code, tier_id: selectedTierId, is_sibling: false },
+        ...includedSiblingList.map((s) => ({ code: s.code, tier_id: siblingTierIds[s.id], is_sibling: true })),
       ];
 
       const { error: rpcErr } = await supabase.rpc("submit_family_renewal", {
