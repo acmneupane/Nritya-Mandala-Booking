@@ -1,0 +1,85 @@
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+import { T } from "../lib/theme";
+import { localDateStr } from "../lib/dates";
+import { isClassActiveOn, formatTimeRange } from "../lib/scheduling";
+
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+export default function HomeView({ counts, onNavigate }) {
+  const [todayClasses, setTodayClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const today = new Date();
+    const todayStr = localDateStr(today);
+    const dayName = DAYS[(today.getDay() + 6) % 7];
+
+    Promise.all([
+      supabase.from("classes").select("*"),
+      supabase.from("enrollments").select("class_id, start_date"),
+      supabase.from("class_skips").select("class_id, date").eq("date", todayStr),
+    ]).then(([cRes, eRes, skRes]) => {
+      const skippedIds = new Set((skRes.data || []).map((s) => s.class_id));
+      const classes = (cRes.data || [])
+        .filter((c) => c.day === dayName && isClassActiveOn(c, todayStr) && !skippedIds.has(c.id))
+        .sort((a, b) => a.time.localeCompare(b.time))
+        .map((c) => ({
+          ...c,
+          bookedCount: (eRes.data || []).filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= todayStr)).length,
+        }));
+      setTodayClasses(classes);
+      setLoading(false);
+    });
+  }, []);
+
+  const today = new Date();
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 4 }}>
+        {today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+      </h2>
+      <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 20 }}>Here's what's happening today, and what needs your attention.</p>
+
+      <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+        <button onClick={() => onNavigate("requests")} style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.terracotta}`, borderRadius: 10, padding: 16 }}>
+          <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}>NEW REQUESTS</div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>{counts.requests}</div>
+        </button>
+        <button onClick={() => onNavigate("renewals")} style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.gold}`, borderRadius: 10, padding: 16 }}>
+          <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}>RENEWALS DUE / PENDING</div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>{counts.renewals}</div>
+        </button>
+        <button onClick={() => onNavigate("students")} style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.sage}`, borderRadius: 10, padding: 16 }}>
+          <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}>ACTIVE STUDENTS</div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>{counts.students}</div>
+        </button>
+      </div>
+
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 10 }}>Today's classes</h3>
+      {loading ? (
+        <p style={{ color: T.inkSoft }}>Loading…</p>
+      ) : todayClasses.length === 0 ? (
+        <p style={{ color: T.inkSoft }}>No classes scheduled today.</p>
+      ) : (
+        <div className="grid gap-2">
+          {todayClasses.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => onNavigate("calendar")}
+              style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "10px 14px" }}
+              className="flex items-center justify-between"
+            >
+              <div>
+                <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>{c.label}</span>
+                <span style={{ fontSize: 12, color: T.inkSoft, marginLeft: 8 }}>{formatTimeRange(c.time, c.end_time)}</span>
+              </div>
+              <span style={{ fontSize: 12, color: T.inkSoft }}>{c.bookedCount} booked</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

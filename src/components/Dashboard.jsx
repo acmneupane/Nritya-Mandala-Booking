@@ -14,8 +14,10 @@ import ShareEnrollLink from "./ShareEnrollLink";
 import PackageTiersView from "./PackageTiersView";
 import RenewalsView from "./RenewalsView";
 import FinancesView from "./FinancesView";
+import HomeView from "./HomeView";
 
 const NAV = [
+  { id: "home", label: "Home" },
   { id: "calendar", label: "Calendar" },
   { id: "students", label: "Students", countKey: "students" },
   { id: "requests", label: "New Requests", countKey: "requests", urgent: true },
@@ -44,14 +46,14 @@ function NavBadge({ count, urgent }) {
 }
 
 export default function Dashboard() {
-  // Calendar is the "homepage" — the first thing you see, showing what's happening
-  // today/this week. Pending requests get their own always-visible badge in the nav
+  // Home is the landing page — a quick-glance summary of today's classes and what
+  // needs attention. Pending requests get their own always-visible badge in the nav
   // instead, so they're never missed regardless of which tab you land on. A
   // ?request=<id> link (from the notification email) overrides this and jumps
   // straight to that request.
   const focusRequestId = new URLSearchParams(window.location.search).get("request");
   const focusRenewalId = new URLSearchParams(window.location.search).get("renewal");
-  const [tab, setTab] = useState(focusRequestId ? "requests" : focusRenewalId ? "renewals" : "calendar");
+  const [tab, setTab] = useState(focusRequestId ? "requests" : focusRenewalId ? "renewals" : "home");
   const [menuOpen, setMenuOpen] = useState(false);
   const [counts, setCounts] = useState({ students: 0, classes: 0, requests: 0, renewals: 0 });
 
@@ -168,6 +170,7 @@ export default function Dashboard() {
           <ShareEnrollLink compact />
         </div>
         {tab === "students" && <StudentsView />}
+        {tab === "home" && <HomeView counts={counts} onNavigate={setTab} />}
         {tab === "calendar" && <CalendarView />}
         {tab === "requests" && <RequestsView focusRequestId={focusRequestId} />}
         {tab === "renewals" && <RenewalsView focusRenewalId={focusRenewalId} />}
