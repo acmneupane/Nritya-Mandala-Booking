@@ -19,6 +19,8 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [levelHistory, setLevelHistory] = useState([]);
   const [pkgSummary, setPkgSummary] = useState(null);
   const [siblings, setSiblings] = useState([]);
+  const [familyPackages, setFamilyPackages] = useState([]);
+  const [loadingReceipt, setLoadingReceipt] = useState(null);
   const [skips, setSkips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cardDataUrl, setCardDataUrl] = useState(null);
@@ -32,7 +34,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
   const load = async () => {
     setLoading(true);
-    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes] = await Promise.all([
+    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes, familyPkgsRes] = await Promise.all([
       student.level_id ? supabase.from("levels").select("id, name").eq("id", student.level_id).maybeSingle() : Promise.resolve({ data: null }),
       supabase.from("levels").select("id, name, order_num").order("order_num"),
       supabase.from("enrollments").select("class_id, classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
@@ -41,6 +43,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
       supabase.from("student_package_summary").select("classes_total, classes_used").eq("student_id", student.id).maybeSingle(),
       supabase.rpc("get_family_students", { p_code: student.code }),
       supabase.from("class_skips").select("class_id, date"),
+      supabase.rpc("get_family_packages", { p_code: student.code }),
     ]);
     setLevel(levelRes.data);
     setAllLevels(allLevelsRes.data || []);
@@ -50,7 +53,19 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     setPkgSummary(pkgRes.data);
     setSiblings((familyRes.data || []).filter((s) => s.id !== student.id));
     setSkips(skipsRes.data || []);
+    setFamilyPackages(familyPkgsRes.data || []);
     setLoading(false);
+  };
+
+  const viewReceipt = async (packageId) => {
+    setLoadingReceipt(packageId);
+    try {
+      const { data, error } = await supabase.functions.invoke("get-receipt-url", { body: { code: student.code, packageId } });
+      if (error || !data?.ok) { alert("Couldn't load the screenshot."); return; }
+      window.open(data.url, "_blank");
+    } finally {
+      setLoadingReceipt(null);
+    }
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [student.id]);
@@ -216,6 +231,38 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
               <div key={h.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", borderTop: `1px solid ${T.line}` }}>
                 <span>{h.levels?.name || "—"}</span>
                 <span style={{ color: T.inkSoft }}>{h.date}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {familyPackages.length > 0 && (
+          <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
+            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Payment History</h3>
+            {Object.entries(
+              familyPackages.reduce((groups, p) => {
+                (groups[p.student_name] ||= []).push(p);
+                return groups;
+              }, {})
+            ).map(([name, pkgs]) => (
+              <div key={name} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, marginBottom: 4 }}>{name}</div>
+                {pkgs.map((p) => (
+                  <div key={p.package_id} style={{ borderTop: `1px solid ${T.line}`, padding: "6px 0" }}>
+                    <div className="flex items-center justify-between">
+                      <span style={{ fontSize: 13, color: T.ink }}>{p.notes || `${p.classes_total} classes`} — {p.purchase_date}</span>
+                      {p.amount != null && <span style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>${Number(p.amount).toFixed(2)}</span>}
+                    </div>
+                    <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
+                      <span style={{ fontSize: 11, color: p.payment_confirmed ? T.sage : T.inkSoft, fontWeight: 600 }}>{p.payment_confirmed ? "Payment confirmed" : "Pending confirmation"}</span>
+                      {p.has_receipt && (
+                        <button onClick={() => viewReceipt(p.package_id)} disabled={loadingReceipt === p.package_id} style={{ fontSize: 11, color: T.gold, textDecoration: "underline" }}>
+                          {loadingReceipt === p.package_id ? "Loading…" : "View screenshot"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>

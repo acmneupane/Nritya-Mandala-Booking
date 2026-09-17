@@ -180,6 +180,26 @@ export default function FinancesView() {
     ? "All Time"
     : new Date(cursor.year, cursor.month, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
+  const exportCsv = () => {
+    if (!data) return;
+    const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = [["Type", "Student", "Description", "Date", "Amount", "Notes"]];
+    data.revenueLines.forEach((l) => rows.push(["Revenue (earned)", l.studentName, "Class delivered", l.date, l.amount.toFixed(2), ""]));
+    data.fees.forEach((f) => rows.push(["Revenue (fee)", f.students?.name || "Unknown", f.is_sibling ? "Additional student fee" : "Enrolment fee", f.charged_at, Number(f.amount).toFixed(2), ""]));
+    data.expenseLines.forEach((l) => rows.push(["Expense", "", l.expense.description, l.expense.start_date, l.total.toFixed(2), l.occurrences > 1 ? `${l.occurrences}x occurrences` : ""]));
+    rows.push(["Total revenue earned", "", "", "", data.totalRevenueEarned.toFixed(2), ""]);
+    rows.push(["Total expenses", "", "", "", data.totalExpenses.toFixed(2), ""]);
+    rows.push(["Profit/Loss", "", "", "", data.profit.toFixed(2), ""]);
+    const csv = rows.map((r) => r.map(esc).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `nritya-mandala-finances-${allTime ? "all-time" : rangeLabel.replace(" ", "-")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     setExpanded(null);
@@ -237,6 +257,13 @@ export default function FinancesView() {
             style={{ fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 999, border: `1px solid ${T.gold}`, background: allTime ? T.gold : "#fff", color: allTime ? T.maroonDark : T.gold }}
           >
             All Time
+          </button>
+          <button
+            onClick={exportCsv}
+            disabled={!data}
+            style={{ fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 999, border: `1px solid ${T.line}`, background: "#fff", color: T.maroon }}
+          >
+            ⬇ Export CSV
           </button>
         </div>
       </div>
