@@ -239,6 +239,90 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
   );
 }
 
+// A transfer request never creates a new student — it moves an existing one from
+// whatever class they're currently in to the one they picked on the form. Reuses the
+// same email-preview-then-send flow as a new enrolment (enrollment_approved
+// template), since "here's your new class" is the same message either way.
+function TransferApproveModal({ request, classById, skips, onClose, onApproved }) {
+  const [student, setStudent] = useState(undefined); // undefined = loading, null = not found
+  const [currentEnrollments, setCurrentEnrollments] = useState([]);
+  const [startDate, setStartDate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const target = (request.enrollment_request_students || [])[0];
+  const newClass = target?.preferred_class_id ? classById[target.preferred_class_id] : null;
+
+  useEffect(() => {
+    if (!request.transfer_student_code) { setStudent(null); return; }
+    supabase.from("students").select("*").eq("code", request.transfer_student_code).eq("archived", false).maybeSingle().then(({ data }) => {
+      setStudent(data || null);
+      if (data) {
+        supabase.from("enrollments").select("id, class_id, classes(label, day, time, end_time)").eq("student_id", data.id).then(({ data: enr }) => setCurrentEnrollments(enr || []));
+      }
+    });
+  }, [request.transfer_student_code]);
+
+  useEffect(() => {
+    if (newClass) {
+      const nextOcc = nextOccurrenceOf(newClass, skips, localDateStr);
+      setStartDate(nextOcc?.dateStr || localDateStr(new Date()));
+    }
+  }, [newClass, skips]);
+
+  const approveTransfer = async () => {
+    if (!student || !newClass) return;
+    setSaving(true);
+    setError("");
+    try {
+      for (const e of currentEnrollments) {
+        await supabase.from("enrollments").delete().eq("id", e.id);
+      }
+      const { error: insErr } = await supabase.from("enrollments").insert({ student_id: student.id, class_id: newClass.id, start_date: startDate || null });
+      if (insErr) throw insErr;
+      await supabase.from("enrollment_requests").update({ status: "approved", reviewed_at: new Date().toISOString() }).eq("id", request.id);
+
+      const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", student.id);
+      const guardianEmail = (guardianLinks || []).map((g) => g.guardians?.email).find((e) => e) || request.guardian_email || null;
+
+      onApproved({
+        guardianEmail,
+        emailStudents: [{ id: student.id, name: student.name, code: student.code, day: newClass.day, startDate, time: newClass.time, endTime: newClass.end_time }],
+      });
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title={`Approve class transfer · ${request.reference}`} onClose={onClose}>
+      {student === undefined ? (
+        <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>
+      ) : student === null ? (
+        <p style={{ fontSize: 13, color: T.terracotta }}>Couldn't find a student with code "{request.transfer_student_code}" — they may have been archived or the code is wrong. This won't create a new student; check with the family and handle it manually if needed.</p>
+      ) : !newClass ? (
+        <p style={{ fontSize: 13, color: T.terracotta }}>No destination class was selected on this request — nothing to transfer to.</p>
+      ) : (
+        <>
+          <p style={{ fontSize: 13, color: T.ink, marginBottom: 10 }}>
+            Moving <strong>{student.name}</strong> from{" "}
+            {currentEnrollments.length === 0 ? "no current class" : currentEnrollments.map((e) => e.classes?.label).filter(Boolean).join(", ") || "their current class"}{" "}
+            to <strong>{newClass.label}</strong> — {newClass.day} {formatTimeRange(newClass.time, newClass.end_time)}.
+          </p>
+          <Field label="Starting from"><input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
+          {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
+          <div className="flex justify-end gap-2 mt-2">
+            <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+            <Btn variant="success" onClick={approveTransfer} disabled={saving}>{saving ? "Transferring…" : "Confirm transfer"}</Btn>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
 export default function RequestsView({ focusRequestId }) {
   const [requests, setRequests] = useState([]);
   const [levels, setLevels] = useState([]);
@@ -249,6 +333,7 @@ export default function RequestsView({ focusRequestId }) {
   const [tierById, setTierById] = useState({});
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(null);
+  const [transferring, setTransferring] = useState(null);
   const [confirmReject, setConfirmReject] = useState(null);
   const [showHandled, setShowHandled] = useState(false);
   const [emailPreview, setEmailPreview] = useState(null);
@@ -336,7 +421,14 @@ export default function RequestsView({ focusRequestId }) {
             >
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <div style={{ fontSize: 11, color: T.gold, fontWeight: 700, letterSpacing: 0.5, marginBottom: 2 }}>{r.reference}</div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span style={{ fontSize: 11, color: T.gold, fontWeight: 700, letterSpacing: 0.5 }}>{r.reference}</span>
+                    {r.is_transfer ? (
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: `${T.gold}22`, color: T.gold }}>🔄 TRANSFER</span>
+                    ) : (
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: `${T.sage}22`, color: T.sage }}>✨ NEW STUDENT</span>
+                    )}
+                  </div>
                   {kids.map((k) => (
                     <div key={k.id} style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>
                       {k.student_name} {k.is_sibling && <span style={{ fontSize: 11, color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>(additional student)</span>}
@@ -372,7 +464,7 @@ export default function RequestsView({ focusRequestId }) {
                 {r.status === "pending" ? (
                   <div className="flex gap-2">
                     <Btn size="sm" variant="ghost" onClick={() => setConfirmReject(r)}>Reject</Btn>
-                    <Btn size="sm" onClick={() => setApproving(r)}>Approve</Btn>
+                    <Btn size="sm" onClick={() => (r.is_transfer ? setTransferring(r) : setApproving(r))}>{r.is_transfer ? "Approve transfer" : "Approve"}</Btn>
                   </div>
                 ) : (
                   <span style={{ fontSize: 12, fontWeight: 600, color: r.status === "approved" ? T.sage : T.terracotta, textTransform: "capitalize" }}>{r.status}</span>
@@ -394,6 +486,19 @@ export default function RequestsView({ focusRequestId }) {
           onClose={() => setApproving(null)}
           onApproved={({ guardianEmail, emailStudents }) => {
             setApproving(null);
+            load();
+            setEmailPreview({ guardianEmail, students: emailStudents });
+          }}
+        />
+      )}
+      {transferring && (
+        <TransferApproveModal
+          request={transferring}
+          classById={classById}
+          skips={skips}
+          onClose={() => setTransferring(null)}
+          onApproved={({ guardianEmail, emailStudents }) => {
+            setTransferring(null);
             load();
             setEmailPreview({ guardianEmail, students: emailStudents });
           }}

@@ -169,7 +169,7 @@ export default function EnrollForm() {
     supabase.from("student_public").select("name").eq("code", transferCode.trim().toUpperCase()).maybeSingle().then(({ data }) => {
       if (data) {
         setStudentName(data.name);
-        setNotes(`CLASS TRANSFER REQUEST — existing student, code ${transferCode.trim().toUpperCase()}. Please move them to the class selected above rather than creating a new student.`);
+        setNotes(`Class transfer request for ${data.name} (code ${transferCode.trim().toUpperCase()}) — move to the class selected above.`);
       }
     });
   }, [transferCode]);
@@ -292,6 +292,8 @@ export default function EnrollForm() {
         p_payment_screenshot_path: screenshotPath,
         p_reference: paymentReference,
         p_students: studentRows,
+        p_is_transfer: !!transferCode,
+        p_transfer_student_code: transferCode ? transferCode.trim().toUpperCase() : null,
       });
       if (rpcErr) throw rpcErr;
 
