@@ -726,9 +726,107 @@ function BookClassModal({ student, onClose, onBooked }) {
   );
 }
 
-// For a student who's already booked but never got a confirmation email (e.g. booked
-// then the preview was cancelled). Doesn't create a new booking — just picks which of
-// their current classes to confirm, then hands off to the same preview/send flow.
+// Moves a student from one class to another in one action, instead of manually
+// removing then re-adding. Deletes the old enrollment and creates a new one — so
+// past attendance history on the old class stays intact (attendance rows aren't
+// touched, only the enrollment record), but the roster reflects the change from
+// whatever start date is chosen.
+function TransferClassModal({ student, onClose, onTransferred }) {
+  const [currentEnrollments, setCurrentEnrollments] = useState([]); // [{id, classId, label}]
+  const [allClasses, setAllClasses] = useState([]);
+  const [skips, setSkips] = useState([]);
+  const [fromEnrollmentId, setFromEnrollmentId] = useState("");
+  const [toClassId, setToClassId] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from("enrollments").select("id, class_id, classes(id, label, day, time, end_time)").eq("student_id", student.id),
+      supabase.from("classes").select("*"),
+      supabase.from("class_skips").select("class_id, date"),
+    ]).then(([eRes, cRes, skRes]) => {
+      const enrolled = (eRes.data || []).filter((e) => e.classes).map((e) => ({ id: e.id, classId: e.class_id, label: `${e.classes.label} — ${e.classes.day} ${formatTimeRange(e.classes.time, e.classes.end_time)}` }));
+      setCurrentEnrollments(enrolled);
+      if (enrolled.length === 1) setFromEnrollmentId(enrolled[0].id);
+      setAllClasses((cRes.data || []).slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
+      setSkips(skRes.data || []);
+      setLoading(false);
+    });
+  }, [student.id]);
+
+  const fromClassId = currentEnrollments.find((e) => e.id === fromEnrollmentId)?.classId;
+  const availableTo = allClasses.filter((c) => c.id !== fromClassId && !currentEnrollments.some((e) => e.classId === c.id));
+
+  const selectTo = (classId) => {
+    setToClassId(classId);
+    const cls = allClasses.find((c) => c.id === classId);
+    const nextOcc = cls ? nextOccurrenceOf(cls, skips, localDateStr) : null;
+    setStartDate(nextOcc?.dateStr || localDateStr(new Date()));
+  };
+
+  const transfer = async () => {
+    if (!fromEnrollmentId || !toClassId) return;
+    setSaving(true);
+    setError("");
+    const { error: delErr } = await supabase.from("enrollments").delete().eq("id", fromEnrollmentId);
+    if (delErr) { setError(delErr.message); setSaving(false); return; }
+    const { error: insErr } = await supabase.from("enrollments").insert({ student_id: student.id, class_id: toClassId, start_date: startDate || null });
+    setSaving(false);
+    if (insErr) { setError(insErr.message); return; }
+    onTransferred();
+  };
+
+  return (
+    <Modal title={`Transfer ${student.name} to a different class`} onClose={onClose}>
+      {loading ? (
+        <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>
+      ) : currentEnrollments.length === 0 ? (
+        <p style={{ fontSize: 13, color: T.inkSoft }}>{student.name} isn't currently booked into any class — use "Book class" instead.</p>
+      ) : (
+        <>
+          {currentEnrollments.length > 1 && (
+            <Field label="Transfer from">
+              <select style={inputStyle} value={fromEnrollmentId} onChange={(e) => setFromEnrollmentId(e.target.value)}>
+                <option value="">Select which class…</option>
+                {currentEnrollments.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+              </select>
+            </Field>
+          )}
+          {fromEnrollmentId && (
+            availableTo.length === 0 ? (
+              <p style={{ fontSize: 13, color: T.inkSoft }}>No other classes to transfer into.</p>
+            ) : (
+              <>
+                <Field label="Transfer to">
+                  <select style={inputStyle} value={toClassId} onChange={(e) => selectTo(e.target.value)}>
+                    <option value="">Select a class…</option>
+                    {availableTo.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+                  </select>
+                </Field>
+                {toClassId && (
+                  <>
+                    <Field label="Starting from">
+                      <input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                    </Field>
+                    <p style={{ fontSize: 11, color: T.inkSoft, marginTop: -6, marginBottom: 10 }}>Their past attendance in the old class stays on record — only the current booking moves.</p>
+                  </>
+                )}
+              </>
+            )
+          )}
+          {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
+          <div className="flex justify-end gap-2 mt-2">
+            <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+            <Btn variant="success" onClick={transfer} disabled={saving || !fromEnrollmentId || !toClassId}>{saving ? "Transferring…" : "Transfer"}</Btn>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
 function SendConfirmationModal({ student, onClose, onReady }) {
   const [options, setOptions] = useState([]); // {classId, day, time, endTime, startDate}
   const [selected, setSelected] = useState("");
@@ -806,6 +904,8 @@ export default function StudentsView() {
   const [sendingConfirmation, setSendingConfirmation] = useState(null);
   const [sendingPackageReminder, setSendingPackageReminder] = useState(null);
   const [upgradingLevel, setUpgradingLevel] = useState(null);
+  const [transferring, setTransferring] = useState(null);
+  const [allClassesCount, setAllClassesCount] = useState(0);
   const [confirmResend, setConfirmResend] = useState(null);
   const [emailPreview, setEmailPreview] = useState(null);
   const [query, setQuery] = useState("");
@@ -816,11 +916,12 @@ export default function StudentsView() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [sRes, lRes, gRes, pRes] = await Promise.all([
+    const [sRes, lRes, gRes, pRes, cRes] = await Promise.all([
       supabase.from("students").select("*").order("name"),
       supabase.from("levels").select("*"),
       supabase.from("guardians").select("*").order("name"),
       supabase.from("student_package_summary").select("*"),
+      supabase.from("classes").select("id", { count: "exact", head: true }),
     ]);
     setStudents(sRes.data || []);
     setLevels(lRes.data || []);
@@ -828,6 +929,7 @@ export default function StudentsView() {
     const map = {};
     (pRes.data || []).forEach((p) => { map[p.student_id] = p; });
     setPkgSummaryByStudent(map);
+    setAllClassesCount(cRes.count || 0);
     setLoading(false);
   }, []);
 
@@ -948,6 +1050,9 @@ export default function StudentsView() {
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {!s.archived && <button onClick={() => setBooking(s)} style={{ ...actionBtnStyle, color: T.sage, borderColor: `${T.sage}55` }}>Book class</button>}
+                {!s.archived && allClassesCount > 1 && (
+                  <button onClick={() => setTransferring(s)} style={{ ...actionBtnStyle, color: T.gold, borderColor: `${T.gold}55` }}>⇄ Transfer</button>
+                )}
                 {!s.archived && !s.confirmation_email_sent && (
                   <button onClick={() => setSendingConfirmation(s)} style={{ ...actionBtnStyle, color: T.gold, borderColor: `${T.gold}55` }}>⚠ Send confirmation</button>
                 )}
@@ -1026,6 +1131,13 @@ export default function StudentsView() {
           levels={levels}
           onClose={() => setUpgradingLevel(null)}
           onUpgraded={() => { setUpgradingLevel(null); load(); }}
+        />
+      )}
+      {transferring && (
+        <TransferClassModal
+          student={transferring}
+          onClose={() => setTransferring(null)}
+          onTransferred={() => { setTransferring(null); load(); }}
         />
       )}
       {confirmResend && (
