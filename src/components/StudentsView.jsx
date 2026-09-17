@@ -887,7 +887,7 @@ function SendConfirmationModal({ student, onClose, onReady }) {
           )}
           <div className="flex justify-end gap-2 mt-2">
             <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-            <Btn variant="success" onClick={proceed} disabled={!selected}>Continue</Btn>
+            <Btn variant="success" onClick={proceed} disabled={!selected}>Preview email →</Btn>
           </div>
         </>
       )}
