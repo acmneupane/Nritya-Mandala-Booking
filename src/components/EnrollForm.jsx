@@ -162,6 +162,17 @@ export default function EnrollForm() {
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState(null);
   const [error, setError] = useState("");
+  const transferCode = new URLSearchParams(window.location.search).get("transfer");
+
+  useEffect(() => {
+    if (!transferCode) return;
+    supabase.from("student_public").select("name").eq("code", transferCode.trim().toUpperCase()).maybeSingle().then(({ data }) => {
+      if (data) {
+        setStudentName(data.name);
+        setNotes(`CLASS TRANSFER REQUEST — existing student, code ${transferCode.trim().toUpperCase()}. Please move them to the class selected above rather than creating a new student.`);
+      }
+    });
+  }, [transferCode]);
 
   useEffect(() => {
     Promise.all([
@@ -323,12 +334,21 @@ export default function EnrollForm() {
         </div>
 
         <div style={{ background: T.ivory, borderRadius: 12, padding: "24px 20px", boxSizing: "border-box", fontFamily: "Inter, sans-serif" }}>
-          <div style={{ marginBottom: 20 }}>
-            <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 19, color: T.maroonDark, marginBottom: 6 }}>Welcome to Nritya Mandala! 🪷</h2>
-            <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
-              We're so glad you're considering joining our dance class. Fill in a few details below and we'll be in touch to confirm everything.
-            </p>
-          </div>
+          {transferCode ? (
+            <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 10, padding: 16, marginBottom: 20 }}>
+              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 18, color: T.maroonDark, marginBottom: 6 }}>Requesting a class change</h2>
+              <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
+                We've filled in the student's name below — just pick the class you'd like to move to. The studio will review this and update the booking; nothing changes until then.
+              </p>
+            </div>
+          ) : (
+            <div style={{ marginBottom: 20 }}>
+              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 19, color: T.maroonDark, marginBottom: 6 }}>Welcome to Nritya Mandala! 🪷</h2>
+              <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
+                We're so glad you're considering joining our dance class. Fill in a few details below and we'll be in touch to confirm everything.
+              </p>
+            </div>
+          )}
 
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 12 }}>Student details</h3>
           <Field label="Student's name *"><input style={inputStyle} value={studentName} onChange={(e) => setStudentName(e.target.value)} /></Field>

@@ -21,6 +21,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [siblings, setSiblings] = useState([]);
   const [familyPackages, setFamilyPackages] = useState([]);
   const [loadingReceipt, setLoadingReceipt] = useState(null);
+  const [allClassesCount, setAllClassesCount] = useState(0);
   const [skips, setSkips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cardDataUrl, setCardDataUrl] = useState(null);
@@ -34,7 +35,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
   const load = async () => {
     setLoading(true);
-    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes, familyPkgsRes] = await Promise.all([
+    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes, familyPkgsRes, allClassesRes] = await Promise.all([
       student.level_id ? supabase.from("levels").select("id, name").eq("id", student.level_id).maybeSingle() : Promise.resolve({ data: null }),
       supabase.from("levels").select("id, name, order_num").order("order_num"),
       supabase.from("enrollments").select("class_id, classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
@@ -44,6 +45,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
       supabase.rpc("get_family_students", { p_code: student.code }),
       supabase.from("class_skips").select("class_id, date"),
       supabase.rpc("get_family_packages", { p_code: student.code }),
+      supabase.from("classes").select("id", { count: "exact", head: true }),
     ]);
     setLevel(levelRes.data);
     setAllLevels(allLevelsRes.data || []);
@@ -54,6 +56,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     setSiblings((familyRes.data || []).filter((s) => s.id !== student.id));
     setSkips(skipsRes.data || []);
     setFamilyPackages(familyPkgsRes.data || []);
+    setAllClassesCount(allClassesRes.count || 0);
     setLoading(false);
   };
 
@@ -266,6 +269,15 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
               </div>
             ))}
           </>
+        )}
+
+        {allClassesCount > 1 && (
+          <a
+            href={`/enroll?transfer=${encodeURIComponent(student.code)}`}
+            style={{ display: "block", textAlign: "center", fontSize: 13, color: T.gold, textDecoration: "underline", marginBottom: 16 }}
+          >
+            Request a class change
+          </a>
         )}
 
         {siblings.length > 0 && (
