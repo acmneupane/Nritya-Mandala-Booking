@@ -70,8 +70,9 @@ export default function HomeView({ counts, onNavigate }) {
       <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 20 }}>Here's what's happening today, and what needs your attention.</p>
 
       {notices.map((n) => (
-        <div key={n.id} style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 10, padding: "10px 16px", marginBottom: 14, fontSize: 13, color: T.ink, lineHeight: 1.5 }}>
-          📌 {n.message}
+        <div key={n.id} style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 10, padding: "10px 16px", marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: T.gold, letterSpacing: 0.4, marginBottom: 2, textTransform: "uppercase" }}>Current Announcement</div>
+          <div style={{ fontSize: 13, color: T.ink, lineHeight: 1.5 }}>{n.message}</div>
         </div>
       ))}
 

@@ -134,8 +134,9 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, color: T.maroonDark, marginBottom: 4 }}>{student.name}</h1>
 
         {activeNotices.map((n) => (
-          <div key={n.id} style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 10, padding: "10px 16px", marginBottom: 14, fontSize: 13, color: T.ink, lineHeight: 1.5 }}>
-            📌 {n.message}
+          <div key={n.id} style={{ background: T.gold, borderRadius: 10, padding: "14px 18px", marginBottom: 16, boxShadow: `0 2px 8px ${T.gold}55` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.maroonDark, letterSpacing: 0.6, marginBottom: 4, textTransform: "uppercase" }}>📣 Announcement</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.maroonDark, lineHeight: 1.4 }}>{n.message}</div>
           </div>
         ))}
 
@@ -314,9 +315,13 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 8 }}>Find us</h3>
           <p style={{ fontSize: 13, color: T.ink, marginBottom: 4 }}>70 Central Avenue, Oran Park</p>
           <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>Behind Oran Park Library — Sandown Room 1</p>
-          <div className="flex items-center justify-center gap-4">
-            <a href="https://maps.google.com/?q=70+Central+Avenue+Oran+Park+NSW" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Get directions</a>
-            <a href="mailto:nrityamandala93@gmail.com" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Message the studio</a>
+          <a href="https://maps.google.com/?q=70+Central+Avenue+Oran+Park+NSW" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Get directions</a>
+
+          <div style={{ borderTop: `1px solid ${T.line}`, marginTop: 14, paddingTop: 14 }}>
+            <h4 style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, marginBottom: 6, letterSpacing: 0.3 }}>CONTACT DETAILS</h4>
+            <p style={{ fontSize: 13, color: T.ink }}>
+              Email: <a href="mailto:nrityamandala93@gmail.com" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>nrityamandala93@gmail.com</a>
+            </p>
           </div>
         </div>
 
