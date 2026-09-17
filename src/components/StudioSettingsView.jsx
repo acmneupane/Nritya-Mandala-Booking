@@ -146,6 +146,43 @@ const BACKUP_TABLES = [
   "expenses", "settings", "email_templates", "audit_log",
 ];
 
+function EmailLimitEditor() {
+  const [limit, setLimit] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    supabase.from("settings").select("resend_daily_limit").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setLimit(String(data.resend_daily_limit));
+      setLoading(false);
+    });
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    await supabase.from("settings").update({ resend_daily_limit: Number(limit) }).eq("id", 1);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  if (loading) return <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>;
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginBottom: 16 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Daily email limit</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        Resend's free plan allows 100 emails per day. Once this many have been sent today (every recipient counted, including Bcc), Send buttons offer a "copy and send yourself" option instead of sending automatically. Update this if you upgrade your Resend plan.
+      </p>
+      <Field label="Emails per day"><input style={inputStyle} type="number" min={1} value={limit} onChange={(e) => setLimit(e.target.value)} /></Field>
+      {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
+      <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Btn>
+    </div>
+  );
+}
+
 function DataExport() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
@@ -221,7 +258,7 @@ export default function StudioSettingsView() {
 
       {section === "fee" && <EnrolmentFeesEditor />}
       {section === "capacity" && <CapacityEditor />}
-      {section === "data" && <DataExport />}
+      {section === "data" && (<><EmailLimitEditor /><DataExport /></>)}
       {section === "emails" && (
         <>
           <EmailTemplateEditor
