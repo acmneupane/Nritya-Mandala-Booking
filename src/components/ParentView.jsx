@@ -11,6 +11,15 @@ import MarkAbsentModal from "./MarkAbsentModal";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+function formatOrdinalDate(dateStr) {
+  const d = new Date(dateStr + "T00:00:00");
+  const n = d.getDate();
+  const suffixes = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  const suffix = suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0];
+  return `${n}${suffix} ${d.toLocaleDateString(undefined, { month: "long" })}, ${d.getFullYear()}`;
+}
+
 export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [level, setLevel] = useState(null);
   const [allLevels, setAllLevels] = useState([]);
@@ -84,6 +93,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   );
   const classById = useMemo(() => Object.fromEntries(classes.map((c) => [c.id, c])), [classes]);
   const remaining = pkgSummary ? pkgSummary.classes_total - pkgSummary.classes_used : 0;
+  const lastAttended = history.find((h) => h.status === "attended");
 
   const nextOccurrences = useMemo(() => {
     const map = {};
@@ -116,6 +126,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, color: T.maroonDark, marginBottom: 4 }}>{student.name}</h1>
         {allLevels.length > 0 && (
           <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 14 }}>
+            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 8 }}>Level Journey</h3>
             <div className="mb-2">
               <span style={{ fontSize: 13, fontWeight: 600, color: T.maroonDark }}>{level ? level.name : "Unassigned"}</span>
             </div>
@@ -128,6 +139,12 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {lastAttended && (
+          <div style={{ fontSize: 13, color: T.inkSoft, marginBottom: 14 }}>
+            Last attended: <strong style={{ color: T.ink }}>{formatOrdinalDate(lastAttended.date)}</strong>
           </div>
         )}
 
@@ -156,6 +173,21 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           </div>
         )}
 
+        {todaysClasses.length > 0 && (
+          <div style={{ background: "#fff", border: `2px solid ${T.gold}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
+            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Today — {todayDayName}</h3>
+            {todaysClasses.map((c) => {
+              const checkedIn = history.some((h) => h.class_id === c.id && h.date === todayStr && h.status === "attended");
+              return (
+                <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderTop: `1px solid ${T.line}` }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{formatTimeRange(c.time, c.end_time)}</div>
+                  {checkedIn && <span style={{ fontSize: 12, fontWeight: 600, color: T.sage }}>✓ Checked in</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }} className="flex flex-col items-center text-center">
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Your QR code</h3>
           <div style={{ border: `2px solid ${T.gold}`, borderRadius: 10, padding: 12, background: "#fff" }}>
@@ -172,18 +204,35 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           )}
         </div>
 
-        {todaysClasses.length > 0 && (
-          <div style={{ background: "#fff", border: `2px solid ${T.gold}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
-            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Today — {todayDayName}</h3>
-            {todaysClasses.map((c) => {
-              const checkedIn = history.some((h) => h.class_id === c.id && h.date === todayStr && h.status === "attended");
-              return (
-                <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderTop: `1px solid ${T.line}` }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{formatTimeRange(c.time, c.end_time)}</div>
-                  {checkedIn && <span style={{ fontSize: 12, fontWeight: 600, color: T.sage }}>✓ Checked in</span>}
-                </div>
-              );
-            })}
+        {familyPackages.length > 0 && (
+          <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
+            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Payment History</h3>
+            {Object.entries(
+              familyPackages.reduce((groups, p) => {
+                (groups[p.student_name] ||= []).push(p);
+                return groups;
+              }, {})
+            ).map(([name, pkgs]) => (
+              <div key={name} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, marginBottom: 4 }}>{name}</div>
+                {pkgs.map((p) => (
+                  <div key={p.package_id} style={{ borderTop: `1px solid ${T.line}`, padding: "6px 0" }}>
+                    <div className="flex items-center justify-between">
+                      <span style={{ fontSize: 13, color: T.ink }}>{p.notes || `${p.classes_total} classes`} — {p.purchase_date}</span>
+                      {p.amount != null && <span style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>${Number(p.amount).toFixed(2)}</span>}
+                    </div>
+                    <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
+                      <span style={{ fontSize: 11, color: p.payment_confirmed ? T.sage : T.inkSoft, fontWeight: 600 }}>{p.payment_confirmed ? "Payment confirmed" : "Pending confirmation"}</span>
+                      {p.has_receipt && (
+                        <button onClick={() => viewReceipt(p.package_id)} disabled={loadingReceipt === p.package_id} style={{ fontSize: 11, color: T.gold, textDecoration: "underline" }}>
+                          {loadingReceipt === p.package_id ? "Loading…" : "View screenshot"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
         )}
 
@@ -226,50 +275,6 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             );
           })}
         </div>
-
-        {levelHistory.length > 0 && (
-          <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
-            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Level journey</h3>
-            {levelHistory.map((h) => (
-              <div key={h.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", borderTop: `1px solid ${T.line}` }}>
-                <span>{h.levels?.name || "—"}</span>
-                <span style={{ color: T.inkSoft }}>{h.date}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {familyPackages.length > 0 && (
-          <>
-            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Payment History</h3>
-            {Object.entries(
-              familyPackages.reduce((groups, p) => {
-                (groups[p.student_name] ||= []).push(p);
-                return groups;
-              }, {})
-            ).map(([name, pkgs]) => (
-              <div key={name} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: T.maroonDark, marginBottom: 6 }}>{name}</div>
-                {pkgs.map((p) => (
-                  <div key={p.package_id} style={{ borderTop: `1px solid ${T.line}`, padding: "6px 0" }}>
-                    <div className="flex items-center justify-between">
-                      <span style={{ fontSize: 13, color: T.ink }}>{p.notes || `${p.classes_total} classes`} — {p.purchase_date}</span>
-                      {p.amount != null && <span style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>${Number(p.amount).toFixed(2)}</span>}
-                    </div>
-                    <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
-                      <span style={{ fontSize: 11, color: p.payment_confirmed ? T.sage : T.inkSoft, fontWeight: 600 }}>{p.payment_confirmed ? "Payment confirmed" : "Pending confirmation"}</span>
-                      {p.has_receipt && (
-                        <button onClick={() => viewReceipt(p.package_id)} disabled={loadingReceipt === p.package_id} style={{ fontSize: 11, color: T.gold, textDecoration: "underline" }}>
-                          {loadingReceipt === p.package_id ? "Loading…" : "View screenshot"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </>
-        )}
 
         {allClassesCount > 1 && (
           <a
