@@ -12,7 +12,6 @@ const VIEW_MODES = [
   { id: "week", label: "Week" },
   { id: "fortnight", label: "Fortnight" },
   { id: "month", label: "Month" },
-  { id: "utilization", label: "Utilization" },
 ];
 
 function mondayOf(date) {
@@ -70,7 +69,7 @@ function navAnchor(mode, anchor, dir) {
 
 function rangeLabel(mode, anchor, dates) {
   if (mode === "day") return anchor.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
-  if (mode === "month" || mode === "utilization") return anchor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  if (mode === "month") return anchor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const start = dates[0].date, end = dates[dates.length - 1].date;
   return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 }
@@ -278,7 +277,7 @@ function SkipModal({ cls, onClose, onSaved }) {
 
 // Full inline day view: every class scheduled that weekday, with its complete
 // roster and attendance controls right on the page — no click-through needed.
-function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged }) {
+function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged, utilCounts }) {
   const dateStr = localDateStr(date);
   const dayName = DAYS[(date.getDay() + 6) % 7];
   const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr)).sort((a, b) => a.time.localeCompare(b.time));
@@ -289,6 +288,12 @@ function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChange
 
   return (
     <div className="grid gap-4 mt-2">
+      {utilCounts && (
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: 12, color: T.inkSoft, fontWeight: 600 }}>Today:</span>
+          <UtilizationBadge counts={utilCounts} />
+        </div>
+      )}
       {dayClasses.map((c) => {
         const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
         return (
@@ -316,59 +321,19 @@ function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChange
   );
 }
 
-// Aggregate attendance counts per day across the visible month — how many attended,
-// missed, or were skipped — for spotting patterns (a consistently under-attended
-// class, a day that always has high no-shows) rather than managing one class's
-// roster at a time.
-function UtilizationView({ dates, classes }) {
-  const [counts, setCounts] = useState({}); // { [dateStr]: { attended, missed, skipped } }
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (dates.length === 0) return;
-    setLoading(true);
-    const startStr = localDateStr(dates[0].date);
-    const endStr = localDateStr(dates[dates.length - 1].date);
-    supabase.from("attendance").select("date, status").gte("date", startStr).lte("date", endStr).then(({ data }) => {
-      const map = {};
-      (data || []).forEach((a) => {
-        const c = (map[a.date] ||= { attended: 0, missed: 0, skipped: 0 });
-        if (a.status === "attended") c.attended++;
-        else if (a.status === "missed") c.missed++;
-        else if (a.status === "skipped") c.skipped++;
-      });
-      setCounts(map);
-      setLoading(false);
-    });
-  }, [dates]);
-
-  if (loading) return <p style={{ color: T.inkSoft, marginTop: 12 }}>Loading…</p>;
-
+// Small compact "✓3 !1 ⊘2" summary — attended/missed/skipped counts for one date —
+// dropped inline into a day cell or the day header, next to the existing booking
+// info, instead of taking over the whole view.
+function UtilizationBadge({ counts }) {
+  if (!counts) return null;
+  const { attended = 0, missed = 0, skipped = 0 } = counts;
+  if (attended + missed + skipped === 0) return null;
   return (
-    <div className="grid gap-2 grid-cols-3 md:grid-cols-6">
-      {dates.map(({ date, inMonth }, i) => {
-        const dateStr = localDateStr(date);
-        const dayName = DAYS[(date.getDay() + 6) % 7];
-        const hasClasses = classes.some((c) => c.day === dayName && isClassActiveOn(c, dateStr));
-        const c = counts[dateStr];
-        return (
-          <div key={i} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 8, minHeight: 70, opacity: inMonth ? 1 : 0.4 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: T.inkSoft, marginBottom: 6 }}>{date.getDate()}</div>
-            {!hasClasses ? (
-              <div style={{ fontSize: 11, color: `${T.inkSoft}99` }}>—</div>
-            ) : !c ? (
-              <div style={{ fontSize: 11, color: T.inkSoft }}>No records</div>
-            ) : (
-              <div style={{ fontSize: 12, lineHeight: 1.6 }}>
-                {c.attended > 0 && <div style={{ color: T.sage, fontWeight: 600 }}>✓ {c.attended} attended</div>}
-                {c.missed > 0 && <div style={{ color: T.terracotta, fontWeight: 600 }}>! {c.missed} missed</div>}
-                {c.skipped > 0 && <div style={{ color: T.gold, fontWeight: 600 }}>⊘ {c.skipped} skipped</div>}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
+    <span style={{ fontSize: 10.5, fontWeight: 600, whiteSpace: "nowrap" }}>
+      {attended > 0 && <span style={{ color: T.sage, marginRight: 5 }}>✓{attended}</span>}
+      {missed > 0 && <span style={{ color: T.terracotta, marginRight: 5 }}>!{missed}</span>}
+      {skipped > 0 && <span style={{ color: T.gold }}>⊘{skipped}</span>}
+    </span>
   );
 }
 
@@ -407,6 +372,25 @@ export default function CalendarView() {
   const today = new Date();
   const todayStr = localDateStr(today);
   const dates = datesForView(viewMode, anchor);
+
+  const [utilCounts, setUtilCounts] = useState({}); // { [dateStr]: { attended, missed, skipped } }
+  useEffect(() => {
+    if (dates.length === 0) return;
+    const startStr = localDateStr(dates[0].date);
+    const endStr = localDateStr(dates[dates.length - 1].date);
+    supabase.from("attendance").select("date, status").gte("date", startStr).lte("date", endStr).then(({ data }) => {
+      const map = {};
+      (data || []).forEach((a) => {
+        const c = (map[a.date] ||= { attended: 0, missed: 0, skipped: 0 });
+        if (a.status === "attended") c.attended++;
+        else if (a.status === "missed") c.missed++;
+        else if (a.status === "skipped") c.skipped++;
+      });
+      setUtilCounts(map);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, anchor.getTime()]);
+
   const isAnchorToday = viewMode === "day"
     ? localDateStr(anchor) === todayStr
     : localDateStr(dates[0].date) <= todayStr && todayStr <= localDateStr(dates[dates.length - 1].date);
@@ -443,9 +427,7 @@ export default function CalendarView() {
       </div>
 
       {viewMode === "day" ? (
-        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} />
-      ) : viewMode === "utilization" ? (
-        <UtilizationView dates={dates} classes={classes} />
+        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} utilCounts={utilCounts[localDateStr(anchor)]} />
       ) : (
         <div className="grid gap-2 grid-cols-3 md:grid-cols-6">
           {dates.map(({ date, inMonth }, i) => {
@@ -456,14 +438,17 @@ export default function CalendarView() {
             const dimmed = viewMode === "month" && !inMonth;
             return (
               <div key={i} style={{ background: isToday ? `${T.gold}18` : "#fff", border: `1px solid ${isToday ? T.gold : T.line}`, borderRadius: 8, padding: 8, minHeight: 80, opacity: dimmed ? 0.4 : 1 }}>
-                <button
-                  type="button"
-                  onClick={() => { setAnchor(new Date(date)); setViewMode("day"); }}
-                  style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, marginBottom: 6, display: "block", textAlign: "left", background: "transparent", border: "none", padding: 0, cursor: "pointer", width: "100%" }}
-                  title="View this day"
-                >
-                  {viewMode === "month" ? date.getDate() : `${dayName.slice(0, 3)} ${date.getDate()}`}
-                </button>
+                <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => { setAnchor(new Date(date)); setViewMode("day"); }}
+                    style={{ fontSize: 12, fontWeight: 600, color: isToday ? T.maroon : T.inkSoft, display: "block", textAlign: "left", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
+                    title="View this day"
+                  >
+                    {viewMode === "month" ? date.getDate() : `${dayName.slice(0, 3)} ${date.getDate()}`}
+                  </button>
+                  <UtilizationBadge counts={utilCounts[dateStr]} />
+                </div>
                 {dayClasses.length === 0 && <div style={{ fontSize: 11, color: `${T.inkSoft}99` }}>—</div>}
                 {dayClasses.map((c) => {
                   const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
