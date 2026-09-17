@@ -4,6 +4,7 @@ import Login from "./components/Login";
 import ParentLookup from "./components/ParentLookup";
 import EnrollForm from "./components/EnrollForm";
 import RenewForm from "./components/RenewForm";
+import TransferRequestForm from "./components/TransferRequestForm";
 import Dashboard from "./components/Dashboard";
 import { T } from "./lib/theme";
 
@@ -21,6 +22,7 @@ export default function App() {
   if (path === "/enroll") return <EnrollForm />;
   if (path === "/qr") return <ParentLookup />;
   if (path === "/renew" || path === "/renewal") return <RenewForm />;
+  if (path === "/transfer") return <TransferRequestForm />;
 
   if (session === undefined) {
     return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>Loading…</div>;

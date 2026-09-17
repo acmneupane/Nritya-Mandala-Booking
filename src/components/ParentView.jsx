@@ -278,7 +278,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
         {allClassesCount > 1 && (
           <a
-            href={`/enroll?transfer=${encodeURIComponent(student.code)}`}
+            href={`/transfer?code=${encodeURIComponent(student.code)}`}
             style={{ display: "block", textAlign: "center", fontSize: 13, color: T.gold, textDecoration: "underline", marginBottom: 16 }}
           >
             Request a class change

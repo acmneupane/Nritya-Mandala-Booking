@@ -275,6 +275,15 @@ function TransferApproveModal({ request, classById, skips, onClose, onApproved }
     setSaving(true);
     setError("");
     try {
+      const nameChanged = target?.student_name && target.student_name.trim() !== student.name;
+      const dobChanged = target?.student_dob && target.student_dob !== student.dob;
+      if (nameChanged || dobChanged) {
+        await supabase.from("students").update({
+          name: nameChanged ? target.student_name.trim() : student.name,
+          dob: dobChanged ? target.student_dob : student.dob,
+        }).eq("id", student.id);
+      }
+
       for (const e of currentEnrollments) {
         await supabase.from("enrollments").delete().eq("id", e.id);
       }
@@ -287,7 +296,7 @@ function TransferApproveModal({ request, classById, skips, onClose, onApproved }
 
       onApproved({
         guardianEmail,
-        emailStudents: [{ id: student.id, name: student.name, code: student.code, day: newClass.day, startDate, time: newClass.time, endTime: newClass.end_time }],
+        emailStudents: [{ id: student.id, name: nameChanged ? target.student_name.trim() : student.name, code: student.code, day: newClass.day, startDate, time: newClass.time, endTime: newClass.end_time }],
       });
     } catch (e) {
       setError(e.message);
@@ -310,6 +319,16 @@ function TransferApproveModal({ request, classById, skips, onClose, onApproved }
             Moving <strong>{student.name}</strong> from{" "}
             {currentEnrollments.length === 0 ? "no current class" : currentEnrollments.map((e) => e.classes?.label).filter(Boolean).join(", ") || "their current class"}{" "}
             to <strong>{newClass.label}</strong> — {newClass.day} {formatTimeRange(newClass.time, newClass.end_time)}.
+          </p>
+          {(target?.student_name && target.student_name.trim() !== student.name) && (
+            <p style={{ fontSize: 12, color: T.gold, marginBottom: 6 }}>They also asked to update the name on file to: <strong>{target.student_name}</strong></p>
+          )}
+          {(target?.student_dob && target.student_dob !== student.dob) && (
+            <p style={{ fontSize: 12, color: T.gold, marginBottom: 6 }}>They also asked to update DOB on file to: <strong>{target.student_dob}</strong></p>
+          )}
+          <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>
+            Requested by: {request.guardian_name}{request.guardian_relation ? ` (${request.guardian_relation})` : ""} · {request.guardian_phone}{request.guardian_email ? ` · ${request.guardian_email}` : ""}
+            {request.notes && <><br />Note: {request.notes}</>}
           </p>
           <Field label="Starting from"><input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
