@@ -690,10 +690,10 @@ function BookClassModal({ student, onClose, onBooked }) {
     const bookedClass = classes.find((c) => c.id === selected);
     const nextOcc = bookedClass ? nextOccurrenceOf(bookedClass, skips, localDateStr) : null;
     const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", student.id);
-    const guardianEmail = (guardianLinks || []).map((g) => g.guardians?.email).find((e) => e) || null;
+    const guardianEmails = [...new Set((guardianLinks || []).map((g) => g.guardians?.email).filter(Boolean))];
 
     onBooked({
-      guardianEmail,
+      guardianEmails,
       emailStudents: [{ id: student.id, name: student.name, code: student.code, day: bookedClass?.day || null, startDate: nextOcc?.dateStr || bookedClass?.start_date || null, time: bookedClass?.time || null, endTime: bookedClass?.end_time || null }],
     });
   };
@@ -860,9 +860,9 @@ function SendConfirmationModal({ student, onClose, onReady }) {
     const opt = options.find((o) => o.classId === selected);
     if (!opt) return;
     const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", student.id);
-    const guardianEmail = (guardianLinks || []).map((g) => g.guardians?.email).find((e) => e) || null;
+    const guardianEmails = [...new Set((guardianLinks || []).map((g) => g.guardians?.email).filter(Boolean))];
     onReady({
-      guardianEmail,
+      guardianEmails,
       emailStudents: [{ id: student.id, name: student.name, code: student.code, day: opt.day, startDate: opt.startDate, time: opt.time, endTime: opt.endTime }],
     });
   };
@@ -962,8 +962,8 @@ export default function StudentsView() {
 
   const openPackageReminder = async (s, pkg) => {
     const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", s.id);
-    const guardianEmail = (guardianLinks || []).map((g) => g.guardians?.email).find((e) => e) || null;
-    setSendingPackageReminder({ student: s, guardianEmail, packageSize: pkg.classes_total, classesUsed: pkg.classes_used });
+    const guardianEmails = [...new Set((guardianLinks || []).map((g) => g.guardians?.email).filter(Boolean))];
+    setSendingPackageReminder({ student: s, guardianEmails, packageSize: pkg.classes_total, classesUsed: pkg.classes_used });
   };
   const handlePaymentReminderClick = (s, pkg) => {
     if (s.last_renewal_reminder_sent_at) {
@@ -1103,10 +1103,10 @@ export default function StudentsView() {
         <BookClassModal
           student={booking}
           onClose={() => setBooking(null)}
-          onBooked={({ guardianEmail, emailStudents }) => {
+          onBooked={({ guardianEmails, emailStudents }) => {
             setBooking(null);
             load();
-            setEmailPreview({ guardianEmail, students: emailStudents });
+            setEmailPreview({ guardianEmails, students: emailStudents });
           }}
         />
       )}
@@ -1114,16 +1114,16 @@ export default function StudentsView() {
         <SendConfirmationModal
           student={sendingConfirmation}
           onClose={() => setSendingConfirmation(null)}
-          onReady={({ guardianEmail, emailStudents }) => {
+          onReady={({ guardianEmails, emailStudents }) => {
             setSendingConfirmation(null);
-            setEmailPreview({ guardianEmail, students: emailStudents });
+            setEmailPreview({ guardianEmails, students: emailStudents });
           }}
         />
       )}
       {sendingPackageReminder && (
         <PackageReminderModal
           student={sendingPackageReminder.student}
-          guardianEmail={sendingPackageReminder.guardianEmail}
+          guardianEmails={sendingPackageReminder.guardianEmails}
           packageSize={sendingPackageReminder.packageSize}
           classesUsed={sendingPackageReminder.classesUsed}
           onCancel={() => setSendingPackageReminder(null)}
@@ -1156,7 +1156,7 @@ export default function StudentsView() {
       )}
       {emailPreview && (
         <EmailPreviewModal
-          guardianEmail={emailPreview.guardianEmail}
+          guardianEmails={emailPreview.guardianEmails}
           students={emailPreview.students}
           onCancel={() => setEmailPreview(null)}
           onSent={() => { setEmailPreview(null); load(); }}

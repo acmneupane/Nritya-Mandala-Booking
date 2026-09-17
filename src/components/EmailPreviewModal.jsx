@@ -19,13 +19,16 @@ function fillTemplate(template, vars) {
   return template.replace(/{{\s*(\w+)\s*}}/g, (_, key) => vars[key] ?? "");
 }
 
-// Shows exactly what's about to be emailed — subject, recipient, body, and the QR
+// Shows exactly what's about to be emailed — subject, recipients, body, and the QR
 // attachment — before it actually sends, so nothing goes out by accident (e.g. while
-// testing, or for a request where no email was actually given).
-export default function EmailPreviewModal({ guardianEmail, students, onCancel, onSent }) {
+// testing, or for a request where no email was actually given). guardianEmails is
+// every distinct guardian email on file for these students — all checked by default
+// (everyone gets notified), but any can be unchecked to skip a particular recipient.
+export default function EmailPreviewModal({ guardianEmails, students, onCancel, onSent }) {
   const [template, setTemplate] = useState(null);
   const [bccEmail, setBccEmail] = useState(null);
   const [bccChecked, setBccChecked] = useState(false);
+  const [checkedEmails, setCheckedEmails] = useState(() => new Set(guardianEmails || []));
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -40,12 +43,14 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
 
   const eligible = students.filter((s) => s.day && s.startDate && s.code);
   const skipped = students.filter((s) => !(s.day && s.startDate && s.code));
+  const selectedEmails = (guardianEmails || []).filter((e) => checkedEmails.has(e));
+  const toggleEmail = (email) => setCheckedEmails((s) => { const next = new Set(s); next.has(email) ? next.delete(email) : next.add(email); return next; });
 
   const send = async () => {
     setSending(true);
     setError("");
     const { error: fnErr } = await supabase.functions.invoke("send-approval-email", {
-      body: { guardianEmail, students: eligible, includeBcc: bccChecked },
+      body: { guardianEmails: selectedEmails, students: eligible, includeBcc: bccChecked },
     });
     setSending(false);
     if (fnErr) { setError("Something went wrong sending — you can try again, or check with the parent directly."); return; }
@@ -53,10 +58,10 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
     setTimeout(() => onSent(), 1200);
   };
 
-  if (!guardianEmail) {
+  if (!guardianEmails || guardianEmails.length === 0) {
     return (
       <Modal title="No confirmation email sent" onClose={onCancel}>
-        <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.5 }}>This request didn't include a guardian email, so there's nothing to send to. The student{students.length > 1 ? "s were" : " was"} still created normally.</p>
+        <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.5 }}>No guardian email is on file for this request, so there's nothing to send to. The student{students.length > 1 ? "s were" : " was"} still created normally.</p>
         <div className="flex justify-end mt-4"><Btn onClick={onCancel}>Close</Btn></div>
       </Modal>
     );
@@ -73,9 +78,19 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
 
   return (
     <Modal title="Confirm before sending" onClose={onCancel} wide>
-      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10, lineHeight: 1.5 }}>
         Review exactly what will be emailed. Nothing sends until you confirm — safe to cancel if you're just testing, or if this shouldn't go out yet.
       </p>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 4 }}>Notify:</div>
+        {guardianEmails.map((email) => (
+          <label key={email} className="flex items-center gap-2" style={{ fontSize: 12.5, color: T.ink, marginBottom: 2 }}>
+            <input type="checkbox" checked={checkedEmails.has(email)} onChange={() => toggleEmail(email)} />
+            {email}
+          </label>
+        ))}
+      </div>
 
       {skipped.length > 0 && (
         <p style={{ fontSize: 12, color: T.gold, marginBottom: 10 }}>
@@ -110,7 +125,7 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
             return (
               <div key={s.code} style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 14 }}>
                 <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 6 }}>
-                  <div><strong>To:</strong> {guardianEmail}</div>
+                  <div><strong>To:</strong> {selectedEmails.join(", ") || "(nobody selected)"}</div>
                   {bccChecked && bccEmail && <div><strong>Bcc:</strong> {bccEmail}</div>}
                   <div><strong>Subject:</strong> {subject}</div>
                 </div>
@@ -134,7 +149,7 @@ export default function EmailPreviewModal({ guardianEmail, students, onCancel, o
       {sent && <p style={{ color: T.sage, fontSize: 13, marginTop: 10, fontWeight: 600 }}>Sent.</p>}
       <div className="flex justify-end gap-2 mt-4">
         <Btn variant="ghost" onClick={onCancel} disabled={sending}>Cancel — don't send</Btn>
-        <Btn variant="success" onClick={send} disabled={sending || sent || !template}>
+        <Btn variant="success" onClick={send} disabled={sending || sent || !template || selectedEmails.length === 0}>
           {sending ? "Sending…" : `Send ${eligible.length} email${eligible.length === 1 ? "" : "s"}`}
         </Btn>
       </div>

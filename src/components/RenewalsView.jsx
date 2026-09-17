@@ -64,8 +64,8 @@ function DueForRenewalSection({ onChanged }) {
 
   const openReminder = async (row) => {
     const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", row.student.id);
-    const guardianEmail = (guardianLinks || []).map((g) => g.guardians?.email).find((e) => e) || null;
-    setSendingTo({ student: row.student, guardianEmail, packageSize: row.packageSize, classesUsed: row.classesUsed });
+    const guardianEmails = [...new Set((guardianLinks || []).map((g) => g.guardians?.email).filter(Boolean))];
+    setSendingTo({ student: row.student, guardianEmails, packageSize: row.packageSize, classesUsed: row.classesUsed });
   };
 
   const handleSendClick = (row) => {
@@ -132,7 +132,7 @@ function DueForRenewalSection({ onChanged }) {
       {sendingTo && (
         <PackageReminderModal
           student={sendingTo.student}
-          guardianEmail={sendingTo.guardianEmail}
+          guardianEmails={sendingTo.guardianEmails}
           packageSize={sendingTo.packageSize}
           classesUsed={sendingTo.classesUsed}
           onCancel={() => setSendingTo(null)}

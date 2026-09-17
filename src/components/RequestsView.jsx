@@ -135,7 +135,12 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
       }).eq("id", request.id);
       if (updErr) throw updErr;
 
-      onApproved({ guardianEmail: request.guardian_email, emailStudents });
+      const createdIds = emailStudents.map((s) => s.id);
+      const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").in("student_id", createdIds);
+      const guardianEmails = [...new Set((guardianLinks || []).map((g) => g.guardians?.email).filter(Boolean))];
+      if (guardianEmails.length === 0 && request.guardian_email) guardianEmails.push(request.guardian_email);
+
+      onApproved({ guardianEmails, emailStudents });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -292,10 +297,11 @@ function TransferApproveModal({ request, classById, skips, onClose, onApproved }
       await supabase.from("enrollment_requests").update({ status: "approved", reviewed_at: new Date().toISOString() }).eq("id", request.id);
 
       const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", student.id);
-      const guardianEmail = (guardianLinks || []).map((g) => g.guardians?.email).find((e) => e) || request.guardian_email || null;
+      const guardianEmails = [...new Set((guardianLinks || []).map((g) => g.guardians?.email).filter(Boolean))];
+      if (guardianEmails.length === 0 && request.guardian_email) guardianEmails.push(request.guardian_email);
 
       onApproved({
-        guardianEmail,
+        guardianEmails,
         emailStudents: [{ id: student.id, name: nameChanged ? target.student_name.trim() : student.name, code: student.code, day: newClass.day, startDate, time: newClass.time, endTime: newClass.end_time }],
       });
     } catch (e) {
@@ -504,10 +510,10 @@ export default function RequestsView({ focusRequestId }) {
           skips={skips}
           tierById={tierById}
           onClose={() => setApproving(null)}
-          onApproved={({ guardianEmail, emailStudents }) => {
+          onApproved={({ guardianEmails, emailStudents }) => {
             setApproving(null);
             load();
-            setEmailPreview({ guardianEmail, students: emailStudents });
+            setEmailPreview({ guardianEmails, students: emailStudents });
           }}
         />
       )}
@@ -517,16 +523,16 @@ export default function RequestsView({ focusRequestId }) {
           classById={classById}
           skips={skips}
           onClose={() => setTransferring(null)}
-          onApproved={({ guardianEmail, emailStudents }) => {
+          onApproved={({ guardianEmails, emailStudents }) => {
             setTransferring(null);
             load();
-            setEmailPreview({ guardianEmail, students: emailStudents });
+            setEmailPreview({ guardianEmails, students: emailStudents });
           }}
         />
       )}
       {emailPreview && (
         <EmailPreviewModal
-          guardianEmail={emailPreview.guardianEmail}
+          guardianEmails={emailPreview.guardianEmails}
           students={emailPreview.students}
           onCancel={() => setEmailPreview(null)}
           onSent={() => { setEmailPreview(null); load(); }}
