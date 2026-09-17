@@ -182,9 +182,12 @@ function EmailLimitEditor() {
 
   return (
     <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginBottom: 16 }}>
-      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Email sending limits</h3>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Email Sending Limits (Free Plan)</h3>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        Resend's free plan allows 100 emails per day and 3,000 per month. Once either is reached (every recipient counted, including Bcc), Send buttons offer a "copy and send yourself" option instead of sending automatically. Update these if you upgrade your Resend plan.
+        Resend's free plan allows 100 emails per day and 3,000 per month. Once either is reached (every recipient counted, including Bcc), Send buttons offer a "copy and send yourself" option instead of sending automatically.
+      </p>
+      <p style={{ fontSize: 15, fontWeight: 700, color: T.terracotta, marginBottom: 14, lineHeight: 1.5 }}>
+        ⚠ Before changing these numbers, please check Resend.com's current free plan limits. Changing these without checking may cause emails to fail silently or unexpected charges.
       </p>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Emails per day"><input style={inputStyle} type="number" min={1} value={limit} onChange={(e) => setLimit(e.target.value)} /></Field>
