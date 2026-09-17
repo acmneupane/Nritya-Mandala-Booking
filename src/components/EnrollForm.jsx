@@ -98,7 +98,7 @@ function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
             {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
             <option value="none">No preference</option>
           </select>
-          <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>This is just a preference — the studio will confirm the actual class, which may differ.</p>
+          <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
         </Field>
       ) : (
         <Field label="Preferred day/time (optional)">
@@ -347,7 +347,7 @@ export default function EnrollForm() {
                   {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
                   <option value="none">No preference</option>
                 </select>
-                <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>This is just a preference — the studio will confirm the actual class, which may differ.</p>
+                <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
               </Field>
             </div>
           ) : (
@@ -529,7 +529,7 @@ export default function EnrollForm() {
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
           {agreedToInfo && (classes.length > 0 || fees.enabled) && (
             <p style={{ fontSize: 12, color: T.gold, marginTop: 10, lineHeight: 1.5 }}>
-              If you haven't marked your payment above, your request may take longer for us to process — it's not required to submit, but confirming it now helps us get to you faster.
+              Payment has not been confirmed above. A delay in confirming payment may result in a delay in processing this request. Confirming it now is not required to submit, but will help us process your request sooner.
             </p>
           )}
           {agreedToInfo && (
