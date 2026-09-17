@@ -13,6 +13,8 @@ export default function RenewForm() {
   const [selectedTierId, setSelectedTierId] = useState(""); // primary student's tier
   const [includedSiblings, setIncludedSiblings] = useState({}); // { [siblingId]: true }
   const [siblingTierIds, setSiblingTierIds] = useState({}); // { [siblingId]: tierId }
+  const [dobEdits, setDobEdits] = useState({}); // { [studentId]: "YYYY-MM-DD" } - current value shown, may differ from what's on file
+  const [originalDobs, setOriginalDobs] = useState({}); // { [studentId]: "YYYY-MM-DD" or "" } - what's actually on file, to detect a real change
   const [paymentClaimed, setPaymentClaimed] = useState(false);
   const [paymentFile, setPaymentFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -21,11 +23,22 @@ export default function RenewForm() {
 
   useEffect(() => {
     if (!code) { setStudent(null); return; }
-    supabase.from("student_public").select("id, code, name").eq("code", code.trim().toUpperCase()).maybeSingle()
-      .then(({ data }) => setStudent(data || null));
+    supabase.from("student_public").select("id, code, name, dob").eq("code", code.trim().toUpperCase()).maybeSingle()
+      .then(({ data }) => {
+        setStudent(data || null);
+        if (data) {
+          setDobEdits((m) => ({ ...m, [data.id]: data.dob || "" }));
+          setOriginalDobs((m) => ({ ...m, [data.id]: data.dob || "" }));
+        }
+      });
     supabase.from("package_tiers").select("*").eq("active", true).order("sort_order").then(({ data }) => setTiers(data || []));
     supabase.rpc("get_family_students", { p_code: code.trim().toUpperCase() }).then(({ data }) => {
-      setSiblings((data || []).filter((s) => s.code.toUpperCase() !== code.trim().toUpperCase()));
+      const others = (data || []).filter((s) => s.code.toUpperCase() !== code.trim().toUpperCase());
+      setSiblings(others);
+      const dobMap = {};
+      others.forEach((s) => { dobMap[s.id] = s.dob || ""; });
+      setDobEdits((m) => ({ ...m, ...dobMap }));
+      setOriginalDobs((m) => ({ ...m, ...dobMap }));
     });
   }, [code]);
 
@@ -60,8 +73,8 @@ export default function RenewForm() {
       }
 
       const selections = [
-        { code: student.code, tier_id: selectedTierId, is_sibling: false },
-        ...includedSiblingList.map((s) => ({ code: s.code, tier_id: siblingTierIds[s.id], is_sibling: true })),
+        { code: student.code, tier_id: selectedTierId, is_sibling: false, corrected_dob: dobEdits[student.id] !== originalDobs[student.id] ? (dobEdits[student.id] || null) : null },
+        ...includedSiblingList.map((s) => ({ code: s.code, tier_id: siblingTierIds[s.id], is_sibling: true, corrected_dob: dobEdits[s.id] !== originalDobs[s.id] ? (dobEdits[s.id] || null) : null })),
       ];
 
       const { error: rpcErr } = await supabase.rpc("submit_family_renewal", {
@@ -113,7 +126,14 @@ export default function RenewForm() {
         </div>
 
         <div style={{ background: T.ivory, borderRadius: 12, padding: "24px 20px", boxSizing: "border-box", fontFamily: "Inter, sans-serif" }}>
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 4 }}>{student.name}</h3>
+          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 6 }}>Is this correct?</h3>
+          <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>Update the date of birth below if it isn't right.</p>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <Field label="Student's name"><input style={inputStyle} value={student.name} disabled /></Field>
+            <Field label="Date of birth"><input style={inputStyle} type="date" value={dobEdits[student.id] || ""} onChange={(e) => setDobEdits((m) => ({ ...m, [student.id]: e.target.value }))} /></Field>
+          </div>
+
+          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 4 }}>Select a package</h3>
           {tiers.length === 0 ? (
             <p style={{ fontSize: 13, color: T.inkSoft }}>No packages are available to select right now — please contact the studio directly.</p>
           ) : (
@@ -149,7 +169,11 @@ export default function RenewForm() {
                     Also renew for {s.name}
                   </label>
                   {includedSiblings[s.id] && (
-                    <div className="grid gap-2">
+                    <>
+                      <Field label={`${s.name}'s date of birth`}>
+                        <input style={inputStyle} type="date" value={dobEdits[s.id] || ""} onChange={(e) => setDobEdits((m) => ({ ...m, [s.id]: e.target.value }))} />
+                      </Field>
+                      <div className="grid gap-2">
                       {tiers.map((t) => {
                         const p = siblingPrice(t);
                         const checked = siblingTierIds[s.id] === t.id;
@@ -170,6 +194,7 @@ export default function RenewForm() {
                         );
                       })}
                     </div>
+                    </>
                   )}
                 </div>
               ))}

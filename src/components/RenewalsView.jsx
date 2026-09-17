@@ -157,6 +157,9 @@ function ApproveRenewalModal({ request, onClose, onApprove }) {
       <p style={{ fontSize: 13, color: T.ink, marginBottom: 14 }}>
         This will add a package to <strong>{request.students?.name || "this student"}</strong>'s balance — {request.tier_name_snapshot}.
       </p>
+      {request.corrected_dob && (
+        <p style={{ fontSize: 12, color: T.gold, marginBottom: 10 }}>They also asked to update DOB on file to: <strong>{request.corrected_dob}</strong> — this will be applied on approval.</p>
+      )}
       <div className="grid grid-cols-2 gap-3 mb-2">
         <Field label="Classes"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
         <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
@@ -224,6 +227,9 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
     const classesTotal = overrides?.classesTotal ?? r.classes_count_snapshot;
     const amount = overrides?.amount ?? r.price_snapshot;
     setApproving(r.id);
+    if (r.corrected_dob) {
+      await supabase.from("students").update({ dob: r.corrected_dob }).eq("id", r.student_id);
+    }
     await supabase.from("packages").insert({
       student_id: r.student_id, classes_total: classesTotal, amount, tier_name: r.tier_name_snapshot,
       payment_confirmed: ps.confirmed, payment_method: ps.method || null, renewal_request_id: r.id,
