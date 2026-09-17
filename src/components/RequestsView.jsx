@@ -172,7 +172,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
           {s.preferredClassId && classById[s.preferredClassId] && (
             <p style={{ fontSize: 11, color: T.sage }}>Requested: {classById[s.preferredClassId].label} — {classById[s.preferredClassId].day} {formatTimeRange(classById[s.preferredClassId].time, classById[s.preferredClassId].end_time)}</p>
           )}
-          <PendingPackagesEditor pendingPackages={s.pendingPackages || []} setPendingPackages={setStudentPackages(i)} onDirtyChange={(dirty) => setDirtyPackages((d) => ({ ...d, [i]: dirty }))} />
+          <PendingPackagesEditor pendingPackages={s.pendingPackages || []} setPendingPackages={setStudentPackages(i)} onDirtyChange={(dirty) => setDirtyPackages((d) => ({ ...d, [i]: dirty }))} showPayment={false} />
         </div>
       ))}
 

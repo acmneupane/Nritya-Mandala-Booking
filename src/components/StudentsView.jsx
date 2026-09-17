@@ -512,6 +512,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
         for (const p of pendingPackages) {
           await supabase.from("packages").insert({
             student_id: studentId, classes_total: p.classesTotal, amount: p.amount, notes: p.note,
+            payment_confirmed: p.paymentConfirmed || false, payment_method: p.paymentMethod || null,
           });
         }
       }

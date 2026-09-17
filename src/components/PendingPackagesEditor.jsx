@@ -13,7 +13,7 @@ import { Btn, Field } from "./ui";
 // real save happens later when the student itself is saved/approved. onDirtyChange
 // lets the parent know when there's an open, unsaved package form, so it can warn
 // before letting that outer save proceed and silently lose it.
-export default function PendingPackagesEditor({ pendingPackages, setPendingPackages, onDirtyChange }) {
+export default function PendingPackagesEditor({ pendingPackages, setPendingPackages, onDirtyChange, showPayment = true }) {
   const [adding, setAdding] = useState(pendingPackages.length === 0);
   const [editingIndex, setEditingIndex] = useState(null);
   const [tiers, setTiers] = useState([]);
@@ -21,6 +21,8 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
   const [classesTotal, setClassesTotal] = useState(10);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("");
 
   useEffect(() => {
     supabase.from("package_tiers").select("*").eq("active", true).order("sort_order").then(({ data }) => setTiers(data || []));
@@ -30,7 +32,7 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
     onDirtyChange && onDirtyChange(adding || editingIndex !== null);
   }, [adding, editingIndex, onDirtyChange]);
 
-  const resetForm = () => { setSelectedTierId(""); setClassesTotal(10); setAmount(""); setNote(""); };
+  const resetForm = () => { setSelectedTierId(""); setClassesTotal(10); setAmount(""); setNote(""); setPaymentConfirmed(false); setPaymentMethod(""); };
 
   const applyTier = (tierId) => {
     setSelectedTierId(tierId);
@@ -40,7 +42,10 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
 
   const addPackage = () => {
     if (!classesTotal || Number(classesTotal) <= 0) return;
-    setPendingPackages((ps) => [...ps, { classesTotal: Number(classesTotal), amount: amount ? Number(amount) : null, note: note.trim() }]);
+    setPendingPackages((ps) => [...ps, {
+      classesTotal: Number(classesTotal), amount: amount ? Number(amount) : null, note: note.trim(),
+      paymentConfirmed, paymentMethod: paymentConfirmed ? (paymentMethod || null) : null,
+    }]);
     setAdding(false);
     resetForm();
   };
@@ -52,10 +57,15 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
     setClassesTotal(p.classesTotal);
     setAmount(p.amount != null ? String(p.amount) : "");
     setNote(p.note || "");
+    setPaymentConfirmed(p.paymentConfirmed || false);
+    setPaymentMethod(p.paymentMethod || "");
   };
   const saveEdit = () => {
     if (!classesTotal || Number(classesTotal) <= 0) return;
-    setPendingPackages((ps) => ps.map((p, idx) => (idx === editingIndex ? { ...p, classesTotal: Number(classesTotal), amount: amount ? Number(amount) : null, note: note.trim() } : p)));
+    setPendingPackages((ps) => ps.map((p, idx) => (idx === editingIndex ? {
+      ...p, classesTotal: Number(classesTotal), amount: amount ? Number(amount) : null, note: note.trim(),
+      paymentConfirmed, paymentMethod: paymentConfirmed ? (paymentMethod || null) : null,
+    } : p)));
     setEditingIndex(null);
     resetForm();
   };
@@ -67,6 +77,25 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
         {tiers.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.classes_count} classes — ${Number(t.price).toFixed(2)}</option>)}
       </select>
     </Field>
+  );
+
+  const paymentFields = showPayment && (
+    <>
+      <label className="flex items-center gap-2 mb-2" style={{ fontSize: 12, color: T.ink, fontWeight: 500 }}>
+        <input type="checkbox" checked={paymentConfirmed} onChange={(e) => setPaymentConfirmed(e.target.checked)} /> Payment confirmed
+      </label>
+      {paymentConfirmed && (
+        <Field label="Payment method">
+          <select style={inputStyle} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+            <option value="">Not specified</option>
+            <option value="bank_transfer">Bank transfer</option>
+            <option value="cash">Cash</option>
+            <option value="card">Card</option>
+            <option value="other">Other</option>
+          </select>
+        </Field>
+      )}
+    </>
   );
 
   return (
@@ -81,6 +110,7 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
               <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
             </div>
             <Field label="Note"><input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+            {paymentFields}
             <div className="flex justify-end gap-2 mt-1">
               <Btn variant="ghost" size="sm" onClick={() => { setEditingIndex(null); resetForm(); }}>Cancel</Btn>
               <Btn size="sm" onClick={saveEdit}>Save changes</Btn>
@@ -91,6 +121,7 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
             <div>
               <span style={{ fontWeight: 600 }}>{p.classesTotal} classes</span>
               {p.amount != null && <span style={{ color: T.inkSoft, marginLeft: 6 }}>· ${Number(p.amount).toFixed(2)}</span>}
+              {showPayment && <span style={{ marginLeft: 6, color: p.paymentConfirmed ? T.sage : T.terracotta, fontWeight: 600 }}>· {p.paymentConfirmed ? "Confirmed" : "Unconfirmed"}</span>}
               {p.note && <div style={{ color: T.inkSoft, marginTop: 2 }}>{p.note}</div>}
             </div>
             <div className="flex items-center gap-2">
@@ -108,6 +139,7 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
             <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 90.00" /></Field>
           </div>
           <Field label="Note"><input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. 5-week package" /></Field>
+          {paymentFields}
           <div className="flex justify-end gap-2 mt-1">
             {pendingPackages.length > 0 && <Btn variant="ghost" size="sm" onClick={() => setAdding(false)}>Cancel</Btn>}
             <Btn size="sm" onClick={addPackage}>Add package</Btn>
