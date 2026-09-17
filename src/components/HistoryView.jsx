@@ -44,11 +44,11 @@ function EmailsSection() {
       supabase.from("email_log").select("*", { count: "exact" }).order("sent_at", { ascending: false }).range(from, to),
       supabase.from("email_log").select("id", { count: "exact", head: true }).gte("sent_at", startOfDay.toISOString()),
       supabase.from("email_log").select("id", { count: "exact", head: true }).gte("sent_at", startOfMonth.toISOString()),
-      supabase.from("settings").select("resend_daily_limit").eq("id", 1).maybeSingle(),
+      supabase.from("settings").select("resend_daily_limit, resend_monthly_limit").eq("id", 1).maybeSingle(),
     ]);
     setRows(listRes.data || []);
     setTotal(listRes.count || 0);
-    setSummary({ today: todayRes.count || 0, month: monthRes.count || 0, dailyLimit: settingsRes.data?.resend_daily_limit || 100 });
+    setSummary({ today: todayRes.count || 0, month: monthRes.count || 0, dailyLimit: settingsRes.data?.resend_daily_limit || 100, monthlyLimit: settingsRes.data?.resend_monthly_limit || 3000 });
     setLoading(false);
   }, [page]);
 
@@ -64,9 +64,9 @@ function EmailsSection() {
             <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}>SENT TODAY</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>{summary.today} <span style={{ fontSize: 13, color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>/ {summary.dailyLimit}</span></div>
           </div>
-          <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.gold}`, borderRadius: 10, padding: 14 }}>
+          <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${summary.month >= summary.monthlyLimit ? T.terracotta : summary.month >= summary.monthlyLimit * 0.8 ? T.gold : T.sage}`, borderRadius: 10, padding: 14 }}>
             <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}>SENT THIS MONTH</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>{summary.month}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>{summary.month} <span style={{ fontSize: 13, color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>/ {summary.monthlyLimit}</span></div>
           </div>
           <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.maroon}`, borderRadius: 10, padding: 14 }}>
             <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}>ALL TIME (LOGGED)</div>

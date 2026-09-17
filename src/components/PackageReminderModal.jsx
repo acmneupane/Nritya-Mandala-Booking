@@ -30,7 +30,7 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
     supabase.functions.invoke("send-package-reminder-email", { method: "GET" })
       .then(({ data }) => {
         setBccEmail(data?.bccEmail || null);
-        if (typeof data?.todayCount === "number") setLimitInfo({ todayCount: data.todayCount, dailyLimit: data.dailyLimit });
+        if (typeof data?.todayCount === "number") setLimitInfo({ todayCount: data.todayCount, dailyLimit: data.dailyLimit, monthCount: data.monthCount, monthLimit: data.monthLimit });
       })
       .catch(() => setBccEmail(null))
       .finally(() => setLimitLoaded(true));
@@ -40,8 +40,13 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
   const toggleEmail = (email) => setCheckedEmails((s) => { const next = new Set(s); next.has(email) ? next.delete(email) : next.add(email); return next; });
 
   const plannedRecipientRows = selectedEmails.length + (bccChecked && bccEmail ? 1 : 0);
-  const wouldExceed = limitInfo && (limitInfo.todayCount + plannedRecipientRows > limitInfo.dailyLimit);
-  const nearLimit = limitInfo && !wouldExceed && (limitInfo.todayCount + plannedRecipientRows >= limitInfo.dailyLimit * 0.8);
+  const wouldExceedDay = limitInfo && (limitInfo.todayCount + plannedRecipientRows > limitInfo.dailyLimit);
+  const wouldExceedMonth = limitInfo && (limitInfo.monthCount + plannedRecipientRows > limitInfo.monthLimit);
+  const wouldExceed = wouldExceedDay || wouldExceedMonth;
+  const nearLimit = limitInfo && !wouldExceed && (
+    (limitInfo.todayCount + plannedRecipientRows >= limitInfo.dailyLimit * 0.8) ||
+    (limitInfo.monthCount + plannedRecipientRows >= limitInfo.monthLimit * 0.8)
+  );
 
   const send = async () => {
     setSending(true);
@@ -102,7 +107,9 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
       {wouldExceed && (
         <div style={{ background: `${T.terracotta}18`, border: `1px solid ${T.terracotta}55`, borderRadius: 8, padding: "10px 14px", marginBottom: 12 }}>
           <p style={{ fontSize: 12.5, color: T.terracotta, fontWeight: 600, marginBottom: 6 }}>
-            Today's email limit ({limitInfo.dailyLimit}/day) would be exceeded — {limitInfo.todayCount} sent already, this would add {plannedRecipientRows} more.
+            {wouldExceedDay
+              ? `Today's email limit (${limitInfo.dailyLimit}/day) would be exceeded — ${limitInfo.todayCount} sent already, this would add ${plannedRecipientRows} more.`
+              : `This month's email limit (${limitInfo.monthLimit}/month) would be exceeded — ${limitInfo.monthCount} sent already, this would add ${plannedRecipientRows} more.`}
           </p>
           <p style={{ fontSize: 12, color: T.ink, marginBottom: 8 }}>This can't be sent automatically right now. Copy the content below and send it yourself instead.</p>
           <Btn size="sm" variant="ghost" onClick={copyContent} disabled={!template}>{copied ? "Copied ✓" : "📋 Copy email content"}</Btn>
@@ -110,7 +117,7 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
       )}
       {nearLimit && (
         <p style={{ fontSize: 12, color: T.gold, marginBottom: 12 }}>
-          ⚠ Getting close to today's email limit — {limitInfo.todayCount + plannedRecipientRows} of {limitInfo.dailyLimit} after this send.
+          ⚠ Getting close to the email limit — {limitInfo.todayCount + plannedRecipientRows} of {limitInfo.dailyLimit} today, {limitInfo.monthCount + plannedRecipientRows} of {limitInfo.monthLimit} this month.
         </p>
       )}
 

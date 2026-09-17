@@ -157,13 +157,14 @@ const BACKUP_TABLES = [
 
 function EmailLimitEditor() {
   const [limit, setLimit] = useState("");
+  const [monthlyLimit, setMonthlyLimit] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    supabase.from("settings").select("resend_daily_limit").eq("id", 1).maybeSingle().then(({ data }) => {
-      if (data) setLimit(String(data.resend_daily_limit));
+    supabase.from("settings").select("resend_daily_limit, resend_monthly_limit").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) { setLimit(String(data.resend_daily_limit)); setMonthlyLimit(String(data.resend_monthly_limit)); }
       setLoading(false);
     });
   }, []);
@@ -171,7 +172,7 @@ function EmailLimitEditor() {
   const save = async () => {
     setSaving(true);
     setSaved(false);
-    await supabase.from("settings").update({ resend_daily_limit: Number(limit) }).eq("id", 1);
+    await supabase.from("settings").update({ resend_daily_limit: Number(limit), resend_monthly_limit: Number(monthlyLimit) }).eq("id", 1);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -181,11 +182,14 @@ function EmailLimitEditor() {
 
   return (
     <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginBottom: 16 }}>
-      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Daily email limit</h3>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Email sending limits</h3>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        Resend's free plan allows 100 emails per day. Once this many have been sent today (every recipient counted, including Bcc), Send buttons offer a "copy and send yourself" option instead of sending automatically. Update this if you upgrade your Resend plan.
+        Resend's free plan allows 100 emails per day and 3,000 per month. Once either is reached (every recipient counted, including Bcc), Send buttons offer a "copy and send yourself" option instead of sending automatically. Update these if you upgrade your Resend plan.
       </p>
-      <Field label="Emails per day"><input style={inputStyle} type="number" min={1} value={limit} onChange={(e) => setLimit(e.target.value)} /></Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Emails per day"><input style={inputStyle} type="number" min={1} value={limit} onChange={(e) => setLimit(e.target.value)} /></Field>
+        <Field label="Emails per month"><input style={inputStyle} type="number" min={1} value={monthlyLimit} onChange={(e) => setMonthlyLimit(e.target.value)} /></Field>
+      </div>
       {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
       <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Btn>
     </div>
