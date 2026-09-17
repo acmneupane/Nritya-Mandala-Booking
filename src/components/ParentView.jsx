@@ -138,12 +138,14 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           </div>
           <button
             onClick={() => setShowQr(true)}
-            title="Show QR code"
-            style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 10, border: `2px solid ${T.gold}`, background: "#fff", fontSize: 20, marginTop: 2 }}
+            title="Tap to enlarge your QR code"
+            style={{ flexShrink: 0, position: "relative", padding: 6, borderRadius: 12, border: `2px solid ${T.gold}`, background: "#fff", marginTop: 2, lineHeight: 0 }}
           >
-            ▦
+            <QrCanvas text={`${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`} size={72} />
+            <span style={{ position: "absolute", bottom: -6, right: -6, width: 22, height: 22, borderRadius: "50%", background: T.gold, color: T.maroonDark, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>🔍</span>
           </button>
         </div>
+        <p style={{ fontSize: 11, color: T.gold, textAlign: "right", fontWeight: 600, marginTop: -2, marginBottom: 4 }}>Tap QR code to enlarge</p>
 
         {activeNotices.map((n) => (
           <div key={n.id} style={{ background: T.gold, borderRadius: 10, padding: "14px 18px", marginBottom: 16, boxShadow: `0 2px 8px ${T.gold}55` }}>
