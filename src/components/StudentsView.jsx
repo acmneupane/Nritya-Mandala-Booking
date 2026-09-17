@@ -191,6 +191,7 @@ function PackageBadge({ remaining, hasAny }) {
 // This is what tracks "how many classes has this student booked for, based on payment."
 function PackagesSection({ studentId }) {
   const [packages, setPackages] = useState([]);
+  const [receiptByPackage, setReceiptByPackage] = useState({});
   const [used, setUsed] = useState(0);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -202,6 +203,7 @@ function PackagesSection({ studentId }) {
   const [note, setNote] = useState("");
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [receiptFile, setReceiptFile] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -214,16 +216,27 @@ function PackagesSection({ studentId }) {
     setPackages(pRes.data || []);
     setUsed(sRes.data?.classes_used || 0);
     setTiers(tRes.data || []);
+    const ids = (pRes.data || []).map((p) => p.id);
+    if (ids.length) {
+      const { data: receiptRows } = await supabase.from("package_effective_receipts").select("*").in("package_id", ids);
+      setReceiptByPackage(Object.fromEntries((receiptRows || []).map((r) => [r.package_id, r.receipt_path])));
+    }
     setLoading(false);
   }, [studentId]);
 
   useEffect(() => { load(); }, [load]);
 
+  const viewReceipt = async (path) => {
+    const { data, error } = await supabase.storage.from("payment-screenshots").createSignedUrl(path, 300);
+    if (error || !data) { alert("Couldn't load the screenshot."); return; }
+    window.open(data.signedUrl, "_blank");
+  };
+
   const total = packages.reduce((sum, p) => sum + p.classes_total, 0);
   const remaining = total - used;
 
   const resetForm = () => {
-    setSelectedTierId(""); setClassesTotal(10); setAmount(""); setNote(""); setPaymentConfirmed(false); setPaymentMethod("");
+    setSelectedTierId(""); setClassesTotal(10); setAmount(""); setNote(""); setPaymentConfirmed(false); setPaymentMethod(""); setReceiptFile(null);
   };
 
   const applyTier = (tierId) => {
@@ -232,9 +245,18 @@ function PackagesSection({ studentId }) {
     if (tier) { setClassesTotal(tier.classes_count); setAmount(String(tier.price)); setNote(tier.name); }
   };
 
+  const uploadReceiptIfAny = async () => {
+    if (!receiptFile) return null;
+    const ext = receiptFile.name.split(".").pop() || "png";
+    const path = `${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from("payment-screenshots").upload(path, receiptFile);
+    return error ? null : path;
+  };
+
   const addPackage = async () => {
     if (!classesTotal || Number(classesTotal) <= 0) return;
     setSaving(true);
+    const receiptPath = await uploadReceiptIfAny();
     await supabase.from("packages").insert({
       student_id: studentId,
       classes_total: Number(classesTotal),
@@ -242,6 +264,7 @@ function PackagesSection({ studentId }) {
       notes: note.trim(),
       payment_confirmed: paymentConfirmed,
       payment_method: paymentConfirmed ? (paymentMethod || null) : null,
+      receipt_path: receiptPath,
     });
     setSaving(false);
     setAdding(false);
@@ -257,18 +280,22 @@ function PackagesSection({ studentId }) {
     setNote(p.notes || "");
     setPaymentConfirmed(p.payment_confirmed || false);
     setPaymentMethod(p.payment_method || "");
+    setReceiptFile(null);
   };
 
   const saveEdit = async () => {
     if (!classesTotal || Number(classesTotal) <= 0) return;
     setSaving(true);
-    await supabase.from("packages").update({
+    const receiptPath = await uploadReceiptIfAny();
+    const payload = {
       classes_total: Number(classesTotal),
       amount: amount ? Number(amount) : null,
       notes: note.trim(),
       payment_confirmed: paymentConfirmed,
       payment_method: paymentConfirmed ? (paymentMethod || null) : null,
-    }).eq("id", editingId);
+    };
+    if (receiptPath) payload.receipt_path = receiptPath;
+    await supabase.from("packages").update(payload).eq("id", editingId);
     setSaving(false);
     setEditingId(null);
     resetForm();
@@ -323,6 +350,10 @@ function PackagesSection({ studentId }) {
               <input type="checkbox" checked={paymentConfirmed} onChange={(e) => setPaymentConfirmed(e.target.checked)} /> Payment confirmed
             </label>
             {paymentConfirmed && paymentMethodSelect}
+            <Field label="Payment screenshot (optional)">
+              <input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] || null)} style={{ fontSize: 12 }} />
+              {receiptByPackage[p.id] && !receiptFile && <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>A screenshot is already attached — choosing a new file will replace it.</p>}
+            </Field>
             <div className="flex justify-end gap-2 mt-1">
               <Btn variant="ghost" size="sm" onClick={() => { setEditingId(null); resetForm(); }}>Cancel</Btn>
               <Btn size="sm" onClick={saveEdit} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Btn>
@@ -335,6 +366,9 @@ function PackagesSection({ studentId }) {
               {p.amount != null && <span style={{ color: T.inkSoft, marginLeft: 6 }}>· ${Number(p.amount).toFixed(2)}</span>}
               <span style={{ color: T.inkSoft, marginLeft: 6 }}>· {p.purchase_date}</span>
               <span style={{ marginLeft: 6, color: p.payment_confirmed ? T.sage : T.terracotta, fontWeight: 600 }}>· {p.payment_confirmed ? "Confirmed" : "Unconfirmed"}</span>
+              {receiptByPackage[p.id] && (
+                <button onClick={() => viewReceipt(receiptByPackage[p.id])} style={{ marginLeft: 6, color: T.gold, textDecoration: "underline" }}>View screenshot</button>
+              )}
               {p.notes && <div style={{ color: T.inkSoft, marginTop: 2 }}>{p.notes}</div>}
             </div>
             <div className="flex items-center gap-2">
@@ -356,6 +390,9 @@ function PackagesSection({ studentId }) {
             <input type="checkbox" checked={paymentConfirmed} onChange={(e) => setPaymentConfirmed(e.target.checked)} /> Payment confirmed
           </label>
           {paymentConfirmed && paymentMethodSelect}
+          <Field label="Payment screenshot (optional)">
+            <input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] || null)} style={{ fontSize: 12 }} />
+          </Field>
           <div className="flex justify-end gap-2 mt-1">
             <Btn variant="ghost" size="sm" onClick={() => { setAdding(false); resetForm(); }}>Cancel</Btn>
             <Btn size="sm" onClick={addPackage} disabled={saving}>{saving ? "Saving…" : "Add package"}</Btn>

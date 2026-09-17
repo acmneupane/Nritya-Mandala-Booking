@@ -108,6 +108,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
           await supabase.from("packages").insert({
             student_id: created.id, classes_total: p.classesTotal, amount: p.amount, notes: p.note,
             payment_confirmed: paymentConfirmed, payment_method: paymentMethod || null, is_sibling_price: !!p.isSiblingPrice,
+            enrollment_request_student_id: s.id,
           });
         }
 
@@ -115,6 +116,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
           await supabase.from("enrolment_fee_charges").insert({
             student_id: created.id, amount: s.isSibling ? fees.sibling : fees.primary, is_sibling: s.isSibling,
             payment_confirmed: paymentConfirmed, payment_method: paymentMethod || null,
+            enrollment_request_student_id: s.id,
           });
         }
 

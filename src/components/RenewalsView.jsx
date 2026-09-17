@@ -190,7 +190,7 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
     setApproving(r.id);
     await supabase.from("packages").insert({
       student_id: r.student_id, classes_total: r.classes_count_snapshot, amount: r.price_snapshot, notes: r.tier_name_snapshot,
-      payment_confirmed: ps.confirmed, payment_method: ps.method || null,
+      payment_confirmed: ps.confirmed, payment_method: ps.method || null, renewal_request_id: r.id,
     });
     await supabase.from("package_renewal_requests").update({ status: "approved", reviewed_at: new Date().toISOString() }).eq("id", r.id);
     setApproving(null);
@@ -207,6 +207,17 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
   const filtered = requests.filter((r) => (showHandled ? r.status !== "pending" : r.status === "pending"));
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
+  // Group by family_submission_id (older requests predate this and have none — each
+  // just forms its own group of one, same as before).
+  const groups = [];
+  const seen = new Set();
+  filtered.forEach((r) => {
+    const key = r.family_submission_id || r.id;
+    if (seen.has(key)) return;
+    seen.add(key);
+    groups.push(filtered.filter((x) => (x.family_submission_id || x.id) === key));
+  });
+
   if (loading) return <p style={{ color: T.inkSoft }}>Loading…</p>;
 
   return (
@@ -221,7 +232,10 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
       {filtered.length === 0 && <p style={{ color: T.inkSoft }}>{showHandled ? "No handled submissions yet." : "No submissions waiting."}</p>}
 
       <div className="grid gap-3">
-        {filtered.map((r) => {
+        {groups.map((group) => {
+          const groupKey = group[0].family_submission_id || group[0].id;
+          const together = group.length > 1;
+          const cards = group.map((r) => {
           const isFocused = r.id === focusRenewalId;
           return (
             <div
@@ -285,6 +299,15 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
                 </div>
               )}
             </div>
+          );
+          });
+          return together ? (
+            <div key={groupKey} style={{ border: `1px dashed ${T.gold}`, borderRadius: 10, padding: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: T.gold, marginBottom: 8, marginLeft: 4 }}>SUBMITTED TOGETHER — {group.length} students</div>
+              <div className="grid gap-3">{cards}</div>
+            </div>
+          ) : (
+            <div key={groupKey}>{cards}</div>
           );
         })}
       </div>

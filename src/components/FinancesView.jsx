@@ -99,6 +99,11 @@ async function computeFinances(rangeStart, rangeEnd) {
   const packageRevenueEarned = revenueLines.reduce((sum, l) => sum + l.amount, 0);
   const packagesCash = pkgCashRes.data || [];
   const cashCollected = packagesCash.reduce((sum, p) => sum + Number(p.amount), 0) + feeRevenue;
+  let receiptByPackage = {};
+  if (packagesCash.length) {
+    const { data: receiptRows } = await supabase.from("package_effective_receipts").select("*").in("package_id", packagesCash.map((p) => p.id));
+    receiptByPackage = Object.fromEntries((receiptRows || []).map((r) => [r.package_id, r.receipt_path]));
+  }
 
   const classById = Object.fromEntries((classRes.data || []).map((c) => [c.id, c]));
   const skips = skipRes.data || [];
@@ -129,7 +134,7 @@ async function computeFinances(rangeStart, rangeEnd) {
 
   return {
     packageRevenueEarned, feeRevenue, totalRevenueEarned, cashCollected,
-    revenueLines, fees, packagesCash, expenseLines, totalExpenses,
+    revenueLines, fees, packagesCash, receiptByPackage, expenseLines, totalExpenses,
     profit: totalRevenueEarned - totalExpenses,
   };
 }
@@ -164,6 +169,12 @@ export default function FinancesView() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null); // 'revenue' | 'cash' | 'expenses' | null
   const [trend, setTrend] = useState([]);
+
+  const viewReceipt = async (path) => {
+    const { data, error } = await supabase.storage.from("payment-screenshots").createSignedUrl(path, 300);
+    if (error || !data) { alert("Couldn't load the screenshot."); return; }
+    window.open(data.signedUrl, "_blank");
+  };
 
   const rangeLabel = allTime
     ? "All Time"
@@ -303,7 +314,12 @@ export default function FinancesView() {
                     </div>
                     {group.packages.slice().sort((a, b) => a.purchase_date.localeCompare(b.purchase_date)).map((p) => (
                       <div key={p.id} className="flex justify-between" style={{ fontSize: 12, color: T.inkSoft, padding: "3px 0 3px 12px" }}>
-                        <span>{p.notes || "Package"} ({p.purchase_date})</span>
+                        <span>
+                          {p.notes || "Package"} ({p.purchase_date})
+                          {data.receiptByPackage[p.id] && (
+                            <button onClick={() => viewReceipt(data.receiptByPackage[p.id])} style={{ marginLeft: 6, color: T.gold, textDecoration: "underline" }}>View screenshot</button>
+                          )}
+                        </span>
                         <span>${Number(p.amount).toFixed(2)}</span>
                       </div>
                     ))}
