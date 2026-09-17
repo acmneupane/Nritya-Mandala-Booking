@@ -328,6 +328,7 @@ function TransferApproveModal({ request, classById, skips, onClose, onApproved }
           )}
           <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>
             Requested by: {request.guardian_name}{request.guardian_relation ? ` (${request.guardian_relation})` : ""} · {request.guardian_phone}{request.guardian_email ? ` · ${request.guardian_email}` : ""}
+            {" · "}Emergency contact: <span style={{ fontWeight: 600, color: request.emergency_same ? T.sage : T.inkSoft }}>{request.emergency_same ? "Yes" : "No"}</span>
             {request.notes && <><br />Note: {request.notes}</>}
           </p>
           <Field label="Starting from"><input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
