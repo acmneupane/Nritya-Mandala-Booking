@@ -23,7 +23,6 @@ export default function ComingSoonPage() {
             📋 Look up your booking / QR code
           </a>
         </div>
-        <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 28 }}>Studio staff — head to admin.nrityamandala.com</p>
       </div>
     </div>
   );
