@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
+import { classesLabel } from "../lib/format";
 import { Btn, Field, Modal, TypeToConfirmModal } from "./ui";
 
 function TierModal({ initial, onClose, onSaved }) {
@@ -97,7 +98,7 @@ export default function PackageTiersView() {
             <div>
               <div style={{ fontFamily: "Fraunces, serif", fontSize: 18, color: T.maroonDark }}>{t.name}{!t.active && <span style={{ fontSize: 12, color: T.inkSoft, fontFamily: "Inter, sans-serif", marginLeft: 8 }}>(inactive)</span>}</div>
               <div style={{ fontSize: 13, color: T.inkSoft }}>
-                {t.classes_count} classes · ${Number(t.price).toFixed(2)}
+                {classesLabel(t.classes_count)} · ${Number(t.price).toFixed(2)}
                 {t.sibling_price != null && (
                   <span> · Additional Student: ${Number(t.sibling_price).toFixed(2)}{t.sibling_price_label ? ` (${t.sibling_price_label})` : ""}</span>
                 )}

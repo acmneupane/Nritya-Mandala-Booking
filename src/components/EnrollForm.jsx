@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
+import { classesLabel } from "../lib/format";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn, Field, ConfirmModal } from "./ui";
 import { RELATION_OPTIONS } from "../lib/relations";
@@ -123,7 +124,7 @@ function PackageTierPicker({ tiers, selectedId, onSelect, sibling }) {
           >
             <div className="flex items-center gap-2">
               <input type="radio" checked={checked} onChange={() => onSelect(t.id)} />
-              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({t.classes_count} classes){sibling && t.sibling_price != null && t.sibling_price_label ? ` — ${t.sibling_price_label}` : ""}</span>
+              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({classesLabel(t.classes_count)}){sibling && t.sibling_price != null && t.sibling_price_label ? ` — ${t.sibling_price_label}` : ""}</span>
             </div>
             <span style={{ fontSize: 14, fontWeight: 700, color: T.maroonDark }}>${price.toFixed(2)}</span>
           </label>

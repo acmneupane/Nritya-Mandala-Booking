@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
+import { classesLabel } from "../lib/format";
 import { Btn, Modal } from "./ui";
 
 function fillTemplate(template, vars) {
@@ -62,7 +63,7 @@ export default function PackageReminderModal({ student, guardianEmail, packageSi
   return (
     <Modal title="Confirm before sending" onClose={onCancel}>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        {packageSize > 0 ? `${student.name}'s package (${packageSize} classes) ${vars.status_text}.` : `${student.name} ${vars.status_text}.`} Review before sending a payment reminder.
+        {packageSize > 0 ? `${student.name}'s package (${classesLabel(packageSize)}) ${vars.status_text}.` : `${student.name} ${vars.status_text}.`} Review before sending a payment reminder.
       </p>
 
       {bccEmail && (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
+import { classesLabel } from "../lib/format";
 import { Btn, Field } from "./ui";
 
 // A local (not-yet-saved) list of packages to create once a student exists — used
@@ -80,7 +81,7 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
     <Field label="Package (optional — or enter custom below)">
       <select style={inputStyle} value={selectedTierId} onChange={(e) => applyTier(e.target.value)}>
         <option value="">Custom…</option>
-        {tiers.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.classes_count} classes — ${Number(t.price).toFixed(2)}</option>)}
+        {tiers.map((t) => <option key={t.id} value={t.id}>{t.name} — {classesLabel(t.classes_count)} — ${Number(t.price).toFixed(2)}</option>)}
       </select>
     </Field>
   );
@@ -125,7 +126,7 @@ export default function PendingPackagesEditor({ pendingPackages, setPendingPacka
         ) : (
           <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${T.line}`, borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 12 }}>
             <div>
-              <span style={{ fontWeight: 600 }}>{p.tierName ? `${p.tierName} — ` : ""}{p.classesTotal} classes</span>
+              <span style={{ fontWeight: 600 }}>{p.tierName ? `${p.tierName} — ` : ""}{classesLabel(p.classesTotal)}</span>
               {p.amount != null && <span style={{ color: T.inkSoft, marginLeft: 6 }}>· ${Number(p.amount).toFixed(2)}</span>}
               {showPayment && <span style={{ marginLeft: 6, color: p.paymentConfirmed ? T.sage : T.terracotta, fontWeight: 600 }}>· {p.paymentConfirmed ? "Confirmed" : "Unconfirmed"}</span>}
               {p.note && <div style={{ color: T.inkSoft, marginTop: 2 }}><em>Internal note:</em> {p.note}</div>}

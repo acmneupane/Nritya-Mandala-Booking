@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn, Field } from "./ui";
+import { classesLabel } from "../lib/format";
 
 export default function RenewForm() {
   const code = new URLSearchParams(window.location.search).get("code") || "";
@@ -129,7 +130,7 @@ export default function RenewForm() {
                     <input type="radio" name="tier" checked={selectedTierId === t.id} onChange={() => setSelectedTierId(t.id)} />
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{t.name}</div>
-                      <div style={{ fontSize: 12, color: T.inkSoft }}>{t.classes_count} classes</div>
+                      <div style={{ fontSize: 12, color: T.inkSoft }}>{classesLabel(t.classes_count)}</div>
                     </div>
                   </div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: T.maroonDark }}>${Number(t.price).toFixed(2)}</div>
@@ -162,7 +163,7 @@ export default function RenewForm() {
                           >
                             <div className="flex items-center gap-2">
                               <input type="radio" name={`tier-${s.id}`} checked={checked} onChange={() => setSiblingTierIds((m) => ({ ...m, [s.id]: t.id }))} />
-                              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({t.classes_count} classes){t.sibling_price != null && t.sibling_price_label ? ` — ${t.sibling_price_label}` : ""}</span>
+                              <span style={{ fontSize: 13, color: T.ink }}>{t.name} ({classesLabel(t.classes_count)}){t.sibling_price != null && t.sibling_price_label ? ` — ${t.sibling_price_label}` : ""}</span>
                             </div>
                             <span style={{ fontSize: 14, fontWeight: 700, color: T.maroonDark }}>${p.toFixed(2)}</span>
                           </label>

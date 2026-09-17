@@ -7,6 +7,7 @@ import { localDateStr } from "../lib/dates";
 import { buildQrCardDataUrl } from "../lib/qrCard";
 import { QrCanvas } from "./QrCode";
 import { nextOccurrenceOf, formatTimeRange, isClassActiveOn } from "../lib/scheduling";
+import { classesLabel } from "../lib/format";
 import MarkAbsentModal from "./MarkAbsentModal";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -218,7 +219,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
                 {pkgs.map((p) => (
                   <div key={p.package_id} style={{ borderTop: `1px solid ${T.line}`, padding: "6px 0" }}>
                     <div className="flex items-center justify-between">
-                      <span style={{ fontSize: 13, color: T.ink }}>{p.tier_name ? `${p.tier_name} (${p.classes_total} classes)` : `${p.classes_total} classes`} — {p.purchase_date}</span>
+                      <span style={{ fontSize: 13, color: T.ink }}>{p.tier_name ? `${p.tier_name} (${classesLabel(p.classes_total)})` : classesLabel(p.classes_total)} — {p.purchase_date}</span>
                       {p.amount != null && <span style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>${Number(p.amount).toFixed(2)}</span>}
                     </div>
                     <div className="flex items-center gap-2" style={{ marginTop: 2 }}>

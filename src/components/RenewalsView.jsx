@@ -4,6 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, ConfirmModal, Modal, Field } from "./ui";
 import PackageReminderModal from "./PackageReminderModal";
 import { localDateStr } from "../lib/dates";
+import { classesLabel } from "../lib/format";
 
 const DUE_THRESHOLD = 2; // classes remaining at or below this counts as "coming due"
 
@@ -162,7 +163,7 @@ function ApproveRenewalModal({ request, onClose, onApprove }) {
       </div>
       {changed && (
         <p style={{ fontSize: 11, color: T.gold, marginTop: -6, marginBottom: 10 }}>
-          Differs from what was requested ({request.classes_count_snapshot} classes, ${Number(request.price_snapshot).toFixed(2)}) — adjust if under/overpaid or the original request had a mistake.
+          Differs from what was requested ({classesLabel(request.classes_count_snapshot)}, ${Number(request.price_snapshot).toFixed(2)}) — adjust if under/overpaid or the original request had a mistake.
         </p>
       )}
       <div className="flex justify-end gap-2 mt-2">
@@ -287,7 +288,7 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
                 <div>
                   <div style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>{r.students?.name || "Unknown student"}</div>
                   <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 2 }}>
-                    {r.tier_name_snapshot} · {r.classes_count_snapshot} classes · ${Number(r.price_snapshot).toFixed(2)}
+                    {r.tier_name_snapshot} · {classesLabel(r.classes_count_snapshot)} · ${Number(r.price_snapshot).toFixed(2)}
                   </div>
                   <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>
                     Payment: <span style={{ color: r.payment_claimed ? T.sage : T.inkSoft, fontWeight: 600 }}>{r.payment_claimed ? "Claimed paid" : "Not marked paid"}</span>

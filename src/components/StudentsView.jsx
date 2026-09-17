@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, TypeToConfirmModal, ConfirmModal } from "./ui";
 import QrModal from "./QrCode";
+import { classesLabel } from "../lib/format";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { computeAge } from "../lib/age";
 import { generateStudentCode } from "../lib/studentCode";
@@ -315,7 +316,7 @@ function PackagesSection({ studentId }) {
     <Field label="Package (optional — or enter custom below)">
       <select style={inputStyle} value={selectedTierId} onChange={(e) => applyTier(e.target.value)}>
         <option value="">Custom…</option>
-        {tiers.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.classes_count} classes — ${Number(t.price).toFixed(2)}</option>)}
+        {tiers.map((t) => <option key={t.id} value={t.id}>{t.name} — {classesLabel(t.classes_count)} — ${Number(t.price).toFixed(2)}</option>)}
       </select>
     </Field>
   );
@@ -338,7 +339,7 @@ function PackagesSection({ studentId }) {
     <div className="mt-2 mb-1">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-medium" style={{ color: T.inkSoft }}>Packages &amp; payments</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: remaining > 0 ? T.sage : T.terracotta }}>{remaining} of {total} classes remaining</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: remaining > 0 ? T.sage : T.terracotta }}>{remaining} of {total} class{total === 1 ? "" : "es"} remaining</span>
       </div>
       {packages.length === 0 && !adding && <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8 }}>No packages on file yet.</p>}
       {packages.map((p) => (
@@ -366,7 +367,7 @@ function PackagesSection({ studentId }) {
         ) : (
           <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${T.line}`, borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 12 }}>
             <div>
-              <span style={{ fontWeight: 600 }}>{p.tier_name ? `${p.tier_name} — ` : ""}{p.classes_total} classes</span>
+              <span style={{ fontWeight: 600 }}>{p.tier_name ? `${p.tier_name} — ` : ""}{classesLabel(p.classes_total)}</span>
               {p.amount != null && <span style={{ color: T.inkSoft, marginLeft: 6 }}>· ${Number(p.amount).toFixed(2)}</span>}
               <span style={{ color: T.inkSoft, marginLeft: 6 }}>· {p.purchase_date}</span>
               <span style={{ marginLeft: 6, color: p.payment_confirmed ? T.sage : T.terracotta, fontWeight: 600 }}>· {p.payment_confirmed ? "Confirmed" : "Unconfirmed"}</span>
