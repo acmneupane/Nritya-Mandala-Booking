@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { T } from "../lib/theme";
-import { Btn, ConfirmModal } from "./ui";
+import { T, inputStyle } from "../lib/theme";
+import { Btn, ConfirmModal, Modal, Field } from "./ui";
 import PackageReminderModal from "./PackageReminderModal";
 import { localDateStr } from "../lib/dates";
 
@@ -142,6 +142,39 @@ function DueForRenewalSection({ onChanged }) {
   );
 }
 
+// Review-before-approve: shows exactly what package this creates, but lets the
+// admin correct the classes or amount right here if what was actually paid doesn't
+// match what was originally requested — under/overpaid, a mistake in the original
+// submission, etc. — instead of approving blindly and fixing it after the fact.
+function ApproveRenewalModal({ request, onClose, onApprove }) {
+  const [classesTotal, setClassesTotal] = useState(request.classes_count_snapshot);
+  const [amount, setAmount] = useState(request.price_snapshot);
+  const changed = Number(classesTotal) !== request.classes_count_snapshot || Number(amount) !== request.price_snapshot;
+
+  return (
+    <Modal title="Approve this renewal?" onClose={onClose}>
+      <p style={{ fontSize: 13, color: T.ink, marginBottom: 14 }}>
+        This will add a package to <strong>{request.students?.name || "this student"}</strong>'s balance — {request.tier_name_snapshot}.
+      </p>
+      <div className="grid grid-cols-2 gap-3 mb-2">
+        <Field label="Classes"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
+        <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
+      </div>
+      {changed && (
+        <p style={{ fontSize: 11, color: T.gold, marginTop: -6, marginBottom: 10 }}>
+          Differs from what was requested ({request.classes_count_snapshot} classes, ${Number(request.price_snapshot).toFixed(2)}) — adjust if under/overpaid or the original request had a mistake.
+        </p>
+      )}
+      <div className="flex justify-end gap-2 mt-2">
+        <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+        <Btn variant="success" onClick={() => onApprove({ classesTotal: Number(classesTotal), amount: Number(amount) })} disabled={!classesTotal || Number(classesTotal) <= 0}>
+          Confirm &amp; approve
+        </Btn>
+      </div>
+    </Modal>
+  );
+}
+
 function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -185,11 +218,13 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
 
   const setPaymentField = (id, field, val) => setPaymentSettings((s) => ({ ...s, [id]: { ...s[id], [field]: val } }));
 
-  const approve = async (r) => {
+  const approve = async (r, overrides) => {
     const ps = paymentSettings[r.id] || { confirmed: false, method: "" };
+    const classesTotal = overrides?.classesTotal ?? r.classes_count_snapshot;
+    const amount = overrides?.amount ?? r.price_snapshot;
     setApproving(r.id);
     await supabase.from("packages").insert({
-      student_id: r.student_id, classes_total: r.classes_count_snapshot, amount: r.price_snapshot, notes: r.tier_name_snapshot,
+      student_id: r.student_id, classes_total: classesTotal, amount, notes: r.tier_name_snapshot,
       payment_confirmed: ps.confirmed, payment_method: ps.method || null, renewal_request_id: r.id,
     });
     await supabase.from("package_renewal_requests").update({ status: "approved", reviewed_at: new Date().toISOString() }).eq("id", r.id);
@@ -322,12 +357,10 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
         />
       )}
       {confirmApprove && (
-        <ConfirmModal
-          title="Approve this renewal?"
-          message={`This will add ${confirmApprove.tier_name_snapshot} (${confirmApprove.classes_count_snapshot} classes) to ${confirmApprove.students?.name || "this student"}'s package balance.`}
-          confirmLabel="Approve"
-          onConfirm={() => { const r = confirmApprove; setConfirmApprove(null); approve(r); }}
-          onCancel={() => setConfirmApprove(null)}
+        <ApproveRenewalModal
+          request={confirmApprove}
+          onClose={() => setConfirmApprove(null)}
+          onApprove={(overrides) => { const r = confirmApprove; setConfirmApprove(null); approve(r, overrides); }}
         />
       )}
     </div>
