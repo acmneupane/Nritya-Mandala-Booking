@@ -32,6 +32,8 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [familyPackages, setFamilyPackages] = useState([]);
   const [loadingReceipt, setLoadingReceipt] = useState(null);
   const [allClassesCount, setAllClassesCount] = useState(0);
+  const [dueThreshold, setDueThreshold] = useState(2);
+  const [activeNotices, setActiveNotices] = useState([]);
   const [skips, setSkips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cardDataUrl, setCardDataUrl] = useState(null);
@@ -45,7 +47,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
   const load = async () => {
     setLoading(true);
-    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes, familyPkgsRes, allClassesRes] = await Promise.all([
+    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes, familyPkgsRes, allClassesRes, settingsRes, noticesRes] = await Promise.all([
       student.level_id ? supabase.from("levels").select("id, name").eq("id", student.level_id).maybeSingle() : Promise.resolve({ data: null }),
       supabase.from("levels").select("id, name, order_num").order("order_num"),
       supabase.from("enrollments").select("class_id, classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
@@ -56,6 +58,8 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
       supabase.from("class_skips").select("class_id, date"),
       supabase.rpc("get_family_packages", { p_code: student.code }),
       supabase.from("classes").select("id", { count: "exact", head: true }),
+      supabase.from("settings").select("due_threshold").eq("id", 1).maybeSingle(),
+      supabase.from("studio_notices").select("*").lte("start_date", localDateStr(new Date())).gte("end_date", localDateStr(new Date())).order("start_date"),
     ]);
     setLevel(levelRes.data);
     setAllLevels(allLevelsRes.data || []);
@@ -67,6 +71,8 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     setSkips(skipsRes.data || []);
     setFamilyPackages(familyPkgsRes.data || []);
     setAllClassesCount(allClassesRes.count || 0);
+    setDueThreshold(settingsRes.data?.due_threshold ?? 2);
+    setActiveNotices(noticesRes.data || []);
     setLoading(false);
   };
 
@@ -95,6 +101,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const classById = useMemo(() => Object.fromEntries(classes.map((c) => [c.id, c])), [classes]);
   const remaining = pkgSummary ? pkgSummary.classes_total - pkgSummary.classes_used : 0;
   const lastAttended = history.find((h) => h.status === "attended");
+  const recentLevelUp = levelHistory[0] && (Date.now() - new Date(levelHistory[0].date).getTime()) / 86400000 <= 14 ? levelHistory[0] : null;
 
   const nextOccurrences = useMemo(() => {
     const map = {};
@@ -125,6 +132,13 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
         <img src={LOGO_DATA_URI} alt="" style={{ width: 40, height: 40, borderRadius: "50%", marginBottom: 8 }} />
         <p style={{ fontSize: 12, color: T.gold, fontWeight: 600, marginBottom: 4 }}>Nritya Mandala</p>
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, color: T.maroonDark, marginBottom: 4 }}>{student.name}</h1>
+
+        {activeNotices.map((n) => (
+          <div key={n.id} style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 10, padding: "10px 16px", marginBottom: 14, fontSize: 13, color: T.ink, lineHeight: 1.5 }}>
+            📌 {n.message}
+          </div>
+        ))}
+
         {allLevels.length > 0 && (
           <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 14 }}>
             <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 8 }}>Level Journey</h3>
@@ -140,6 +154,12 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {recentLevelUp && (
+          <div style={{ fontSize: 13, color: T.sage, fontWeight: 600, marginBottom: 14 }}>
+            🎉 Moved up to {recentLevelUp.levels?.name || "a new level"} on {formatOrdinalDate(recentLevelUp.date)}
           </div>
         )}
 
@@ -165,8 +185,11 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
         )}
 
         {pkgSummary && pkgSummary.classes_total > 0 ? (
-          <div style={{ background: remaining > 0 ? `${T.sage}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 13, fontWeight: 600, color: remaining > 0 ? T.sage : T.terracotta }}>
-            {remaining} class{remaining === 1 ? "" : "es"} remaining on your package
+          <div style={{ background: remaining > 0 ? `${T.sage}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 13, fontWeight: 600, color: remaining > 0 ? T.sage : T.terracotta }} className="flex items-center justify-between flex-wrap gap-2">
+            <span>{classesLabel(remaining)} remaining on your package</span>
+            {remaining <= dueThreshold && (
+              <a href={`/renew?code=${encodeURIComponent(student.code)}`} style={{ color: T.gold, textDecoration: "underline", fontSize: 12.5 }}>Renew now →</a>
+            )}
           </div>
         ) : (
           <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 13, fontWeight: 600, color: T.gold }}>
@@ -286,6 +309,16 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             Request a class change
           </a>
         )}
+
+        <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16, textAlign: "center" }}>
+          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 8 }}>Find us</h3>
+          <p style={{ fontSize: 13, color: T.ink, marginBottom: 4 }}>70 Central Avenue, Oran Park</p>
+          <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>Behind Oran Park Library — Sandown Room 1</p>
+          <div className="flex items-center justify-center gap-4">
+            <a href="https://maps.google.com/?q=70+Central+Avenue+Oran+Park+NSW" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Get directions</a>
+            <a href="mailto:nrityamandala93@gmail.com" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Message the studio</a>
+          </div>
+        </div>
 
         {siblings.length > 0 && (
           <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>

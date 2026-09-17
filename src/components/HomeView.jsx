@@ -9,6 +9,7 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 
 export default function HomeView({ counts, onNavigate }) {
   const [todayClasses, setTodayClasses] = useState([]);
+  const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scanningClass, setScanningClass] = useState(null);
   const todayStr = localDateStr(new Date());
@@ -21,7 +22,8 @@ export default function HomeView({ counts, onNavigate }) {
       supabase.from("classes").select("*"),
       supabase.from("enrollments").select("class_id, start_date"),
       supabase.from("class_skips").select("class_id, date").eq("date", todayStr),
-    ]).then(([cRes, eRes, skRes]) => {
+      supabase.from("studio_notices").select("*").lte("start_date", todayStr).gte("end_date", todayStr).order("start_date"),
+    ]).then(([cRes, eRes, skRes, noticesRes]) => {
       const skippedIds = new Set((skRes.data || []).map((s) => s.class_id));
       const classes = (cRes.data || [])
         .filter((c) => c.day === dayName && isClassActiveOn(c, todayStr) && !skippedIds.has(c.id))
@@ -31,6 +33,7 @@ export default function HomeView({ counts, onNavigate }) {
           bookedCount: (eRes.data || []).filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= todayStr)).length,
         }));
       setTodayClasses(classes);
+      setNotices(noticesRes.data || []);
       setLoading(false);
     });
   };
@@ -65,6 +68,12 @@ export default function HomeView({ counts, onNavigate }) {
         {today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
       </h2>
       <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 20 }}>Here's what's happening today, and what needs your attention.</p>
+
+      {notices.map((n) => (
+        <div key={n.id} style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 10, padding: "10px 16px", marginBottom: 14, fontSize: 13, color: T.ink, lineHeight: 1.5 }}>
+          📌 {n.message}
+        </div>
+      ))}
 
       <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
         <button onClick={() => onNavigate("requests")} style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.terracotta}`, borderRadius: 10, padding: 16 }}>

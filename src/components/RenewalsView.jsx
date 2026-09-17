@@ -21,7 +21,13 @@ function DueForRenewalSection({ onChanged }) {
   const [loading, setLoading] = useState(true);
   const [sendingTo, setSendingTo] = useState(null);
   const [confirmResend, setConfirmResend] = useState(null);
-  const [threshold, setThreshold] = useState(2);
+  const [threshold, setThreshold] = useState(null); // null until the studio's default loads
+
+  useEffect(() => {
+    supabase.from("settings").select("due_threshold").eq("id", 1).maybeSingle().then(({ data }) => {
+      setThreshold(data?.due_threshold ?? DUE_THRESHOLD);
+    });
+  }, []);
 
   const load = useCallback(async (limit) => {
     setLoading(true);
@@ -60,7 +66,7 @@ function DueForRenewalSection({ onChanged }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(threshold); }, [load, threshold]);
+  useEffect(() => { if (threshold !== null) load(threshold); }, [load, threshold]);
 
   const openReminder = async (row) => {
     const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", row.student.id);
@@ -81,7 +87,7 @@ function DueForRenewalSection({ onChanged }) {
       <div className="flex items-center gap-2 mb-4 flex-wrap" style={{ fontSize: 13, color: T.ink }}>
         <span>Show students with</span>
         <input
-          type="number" min={0} value={threshold}
+          type="number" min={0} value={threshold ?? ""}
           onChange={(e) => setThreshold(Math.max(0, Number(e.target.value) || 0))}
           style={{ width: 56, padding: "4px 8px", borderRadius: 6, border: `1px solid ${T.line}`, textAlign: "center", fontSize: 13 }}
         />
@@ -380,17 +386,19 @@ export default function RenewalsView({ focusRenewalId }) {
   const [submittedCount, setSubmittedCount] = useState(0);
 
   const loadCounts = useCallback(async () => {
-    const [studentsRes, pkgRes, renRes] = await Promise.all([
+    const [studentsRes, pkgRes, renRes, settingsRes] = await Promise.all([
       supabase.from("students").select("id").eq("archived", false),
       supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
       supabase.from("package_renewal_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("settings").select("due_threshold").eq("id", 1).maybeSingle(),
     ]);
+    const dueThreshold = settingsRes.data?.due_threshold ?? DUE_THRESHOLD;
     const pkgByStudent = Object.fromEntries((pkgRes.data || []).map((p) => [p.student_id, p]));
     const due = (studentsRes.data || []).filter((s) => {
       const pkg = pkgByStudent[s.id];
       const hasPackage = pkg && pkg.classes_total > 0;
       if (!hasPackage) return true;
-      return (pkg.classes_total - pkg.classes_used) <= DUE_THRESHOLD;
+      return (pkg.classes_total - pkg.classes_used) <= dueThreshold;
     }).length;
     setDueCount(due);
     setSubmittedCount(renRes.count || 0);

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field } from "./ui";
+import { localDateStr } from "../lib/dates";
 
 function EmailTemplateEditor({ templateKey, title, description, placeholders }) {
   const [subject, setSubject] = useState("");
@@ -103,13 +104,14 @@ function EnrolmentFeesEditor() {
 
 function CapacityEditor() {
   const [days, setDays] = useState("");
+  const [dueThreshold, setDueThreshold] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    supabase.from("settings").select("renewal_grace_period_days").eq("id", 1).maybeSingle().then(({ data }) => {
-      if (data) setDays(String(data.renewal_grace_period_days));
+    supabase.from("settings").select("renewal_grace_period_days, due_threshold").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) { setDays(String(data.renewal_grace_period_days)); setDueThreshold(String(data.due_threshold)); }
       setLoading(false);
     });
   }, []);
@@ -117,7 +119,7 @@ function CapacityEditor() {
   const save = async () => {
     setSaving(true);
     setSaved(false);
-    await supabase.from("settings").update({ renewal_grace_period_days: Number(days) }).eq("id", 1);
+    await supabase.from("settings").update({ renewal_grace_period_days: Number(days), due_threshold: Number(dueThreshold) }).eq("id", 1);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -132,6 +134,13 @@ function CapacityEditor() {
         When a student's package runs out, they keep their spot in the class for this many days before it's counted as available to a new enrolment. Set to 0 to free the spot immediately once their package is empty.
       </p>
       <Field label="Grace period (days)"><input style={inputStyle} type="number" min={0} value={days} onChange={(e) => setDays(e.target.value)} /></Field>
+
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6, marginTop: 16 }}>"Coming due" threshold</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        A student counts as due for renewal once their remaining classes drop to this number or fewer. Used as the default in Renewal Requests → Due for renewal (which can still be adjusted there for a one-off look), the renewals count badge, and the "running low" notice on the parent page.
+      </p>
+      <Field label="Classes remaining"><input style={inputStyle} type="number" min={0} value={dueThreshold} onChange={(e) => setDueThreshold(e.target.value)} /></Field>
+
       {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
       <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Btn>
     </div>
@@ -179,6 +188,116 @@ function EmailLimitEditor() {
       <Field label="Emails per day"><input style={inputStyle} type="number" min={1} value={limit} onChange={(e) => setLimit(e.target.value)} /></Field>
       {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
       <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Btn>
+    </div>
+  );
+}
+
+function NoticeBoardEditor() {
+  const [notices, setNotices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [message, setMessage] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("studio_notices").select("*").order("start_date", { ascending: false });
+    setNotices(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const todayStr = localDateStr(new Date());
+  const resetForm = () => { setMessage(""); setStartDate(todayStr); setEndDate(todayStr); };
+
+  const startAdd = () => { resetForm(); setAdding(true); setEditingId(null); };
+  const startEdit = (n) => { setMessage(n.message); setStartDate(n.start_date); setEndDate(n.end_date); setEditingId(n.id); setAdding(false); };
+
+  const save = async () => {
+    if (!message.trim() || !startDate || !endDate) return;
+    setSaving(true);
+    const payload = { message: message.trim(), start_date: startDate, end_date: endDate };
+    if (editingId) {
+      await supabase.from("studio_notices").update(payload).eq("id", editingId);
+    } else {
+      await supabase.from("studio_notices").insert(payload);
+    }
+    setSaving(false);
+    setAdding(false);
+    setEditingId(null);
+    load();
+  };
+
+  const remove = async (id) => {
+    await supabase.from("studio_notices").delete().eq("id", id);
+    load();
+  };
+
+  const isActive = (n) => n.start_date <= todayStr && todayStr <= n.end_date;
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Notice board</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        Shows on the Home dashboard and the parent page for any day within the date range you set — a single day, a whole week, whatever fits. Multiple notices can be active at once.
+      </p>
+
+      {loading ? (
+        <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>
+      ) : (
+        <div className="grid gap-2 mb-4">
+          {notices.length === 0 && <p style={{ fontSize: 13, color: T.inkSoft }}>No notices yet.</p>}
+          {notices.map((n) => (
+            editingId === n.id ? (
+              <div key={n.id} style={{ border: `1px solid ${T.gold}`, borderRadius: 8, padding: 10 }}>
+                <Field label="Message"><input style={inputStyle} value={message} onChange={(e) => setMessage(e.target.value)} /></Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="From"><input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
+                  <Field label="To"><input style={inputStyle} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></Field>
+                </div>
+                <div className="flex justify-end gap-2 mt-1">
+                  <Btn variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Btn>
+                  <Btn size="sm" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Btn>
+                </div>
+              </div>
+            ) : (
+              <div key={n.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${T.line}`, borderLeft: `3px solid ${isActive(n) ? T.sage : T.line}`, borderRadius: 6, padding: "8px 12px", fontSize: 13 }}>
+                <div>
+                  <span style={{ color: T.ink }}>{n.message}</span>
+                  <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>
+                    {n.start_date === n.end_date ? n.start_date : `${n.start_date} – ${n.end_date}`}
+                    {isActive(n) && <span style={{ color: T.sage, fontWeight: 600 }}> · Active now</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => startEdit(n)} style={{ color: T.maroon, fontSize: 12 }}>Edit</button>
+                  <button onClick={() => remove(n.id)} style={{ color: T.terracotta, fontSize: 12 }}>Delete</button>
+                </div>
+              </div>
+            )
+          ))}
+        </div>
+      )}
+
+      {adding ? (
+        <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 10 }}>
+          <Field label="Message"><input style={inputStyle} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="e.g. No classes this Friday — public holiday" /></Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="From"><input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
+            <Field label="To"><input style={inputStyle} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></Field>
+          </div>
+          <div className="flex justify-end gap-2 mt-1">
+            <Btn variant="ghost" size="sm" onClick={() => setAdding(false)}>Cancel</Btn>
+            <Btn size="sm" onClick={save} disabled={saving}>{saving ? "Saving…" : "Add notice"}</Btn>
+          </div>
+        </div>
+      ) : (
+        <Btn size="sm" variant="ghost" onClick={startAdd}>+ Add notice</Btn>
+      )}
     </div>
   );
 }
@@ -249,6 +368,12 @@ export default function StudioSettingsView() {
           Email templates
         </button>
         <button
+          onClick={() => setSection("notices")}
+          style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "notices" ? "#fff" : "transparent", color: section === "notices" ? T.maroonDark : T.inkSoft, fontWeight: section === "notices" ? 600 : 400 }}
+        >
+          Notices
+        </button>
+        <button
           onClick={() => setSection("data")}
           style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "data" ? "#fff" : "transparent", color: section === "data" ? T.maroonDark : T.inkSoft, fontWeight: section === "data" ? 600 : 400 }}
         >
@@ -258,6 +383,7 @@ export default function StudioSettingsView() {
 
       {section === "fee" && <EnrolmentFeesEditor />}
       {section === "capacity" && <CapacityEditor />}
+      {section === "notices" && <NoticeBoardEditor />}
       {section === "data" && (<><EmailLimitEditor /><DataExport /></>)}
       {section === "emails" && (
         <>

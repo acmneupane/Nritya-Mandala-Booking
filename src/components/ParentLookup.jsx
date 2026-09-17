@@ -8,20 +8,31 @@ import ParentView from "./ParentView";
 export default function ParentLookup() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [archived, setArchived] = useState(false);
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const lookup = async (rawCode) => {
     setError("");
+    setArchived(false);
     setLoading(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("student_public")
       .select("id, code, name, level_id")
       .eq("code", rawCode.trim().toUpperCase())
       .maybeSingle();
+    if (data) {
+      setLoading(false);
+      setStudent(data);
+      return;
+    }
+    const { data: status } = await supabase.rpc("check_student_code", { p_code: rawCode.trim() });
     setLoading(false);
-    if (error || !data) { setError("Code not found — check with the studio."); return; }
-    setStudent(data);
+    if (status === "archived") {
+      setArchived(true);
+    } else {
+      setError("Code not found — check with the studio.");
+    }
   };
 
   // A QR scan lands here with ?code=XXXX already filled in — skip the typing step.
@@ -44,13 +55,21 @@ export default function ParentLookup() {
         <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 24 }}>Enter your student's code to see their bookings</p>
         <input
           value={code}
-          onChange={(e) => { setCode(e.target.value); setError(""); }}
+          onChange={(e) => { setCode(e.target.value); setError(""); setArchived(false); }}
           placeholder="Code"
           style={{ ...inputStyle, textAlign: "center", letterSpacing: 4, fontSize: 18, textTransform: "uppercase", marginBottom: 16 }}
           onKeyDown={(e) => e.key === "Enter" && submit()}
           autoFocus
         />
         {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 12 }}>{error}</p>}
+        {archived && (
+          <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "12px 14px", marginBottom: 16, textAlign: "left" }}>
+            <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, marginBottom: 8 }}>
+              🪷 Looks like you've taken a break from dancing with us! We'd love to have you back — head over to re-enrol and we'll get you set up again.
+            </p>
+            <a href="/enroll" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Re-enrol here</a>
+          </div>
+        )}
         <Btn onClick={submit} size="lg" disabled={loading}>{loading ? "Looking up…" : "View"}</Btn>
       </div>
     </div>

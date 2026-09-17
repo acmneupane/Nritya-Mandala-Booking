@@ -242,11 +242,11 @@ export default function EnrollForm() {
     const validationError = validate();
     if (validationError) { setError(validationError); return; }
     setError("");
-    // Nothing to pay right now, or they've already indicated payment — go straight
-    // through. Otherwise, a quick check-in first, since an unpaid submission may
-    // take longer to process.
+    // Nothing to pay right now, or they've already claimed payment AND attached
+    // proof — go straight through. Otherwise, flag exactly what's missing before
+    // letting them submit anyway (delayed processing is their choice to accept).
     const somethingToPay = classes.length > 0 || fees.enabled;
-    if (somethingToPay && !paymentClaimed) {
+    if (somethingToPay && (!paymentClaimed || !paymentFile)) {
       setConfirmUnpaid(true);
       return;
     }
@@ -527,11 +527,6 @@ export default function EnrollForm() {
           </label>
 
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
-          {agreedToInfo && (classes.length > 0 || fees.enabled) && (
-            <p style={{ fontSize: 12, color: T.gold, marginTop: 10, lineHeight: 1.5 }}>
-              Payment has not been confirmed above. A delay in confirming payment may result in a delay in processing this request. Confirming it now is not required to submit, but will help us process your request sooner.
-            </p>
-          )}
           {agreedToInfo && (
             <div style={{ marginTop: 10, textAlign: "right" }}>
               <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
@@ -544,8 +539,8 @@ export default function EnrollForm() {
       </div>
       {confirmUnpaid && (
         <ConfirmModal
-          title="Submit without confirming payment?"
-          message="You haven't marked this as paid yet. That's completely fine — you can still submit now and pay afterward — but it may take a little longer for us to process your enrolment until payment is confirmed. Continue anyway?"
+          title="Payment details incomplete"
+          message={`You haven't ${!paymentClaimed && !paymentFile ? "specified your payment details or attached a screenshot" : !paymentClaimed ? "marked your payment as made" : "attached a payment screenshot"}. Payment has not been confirmed above. A delay in confirming payment may result in a delay in processing this request. If you'd like to submit anyway, we will reach out to you afterward regarding payment.`}
           confirmLabel="Submit anyway"
           onConfirm={submit}
           onCancel={() => setConfirmUnpaid(false)}
