@@ -237,7 +237,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
         )}
 
         {familyPackages.length > 0 && (
-          <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
+          <>
             <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Payment History</h3>
             {Object.entries(
               familyPackages.reduce((groups, p) => {
@@ -245,8 +245,8 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
                 return groups;
               }, {})
             ).map(([name, pkgs]) => (
-              <div key={name} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, marginBottom: 4 }}>{name}</div>
+              <div key={name} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: T.maroonDark, marginBottom: 6 }}>{name}</div>
                 {pkgs.map((p) => (
                   <div key={p.package_id} style={{ borderTop: `1px solid ${T.line}`, padding: "6px 0" }}>
                     <div className="flex items-center justify-between">
@@ -265,7 +265,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
                 ))}
               </div>
             ))}
-          </div>
+          </>
         )}
 
         {siblings.length > 0 && (
