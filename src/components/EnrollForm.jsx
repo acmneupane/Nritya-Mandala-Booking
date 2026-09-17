@@ -94,9 +94,11 @@ function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
       {classes.length > 0 ? (
         <Field label="Preferred class">
           <select style={inputStyle} value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
-            <option value="">Not sure</option>
+            <option value="" disabled>Select a class…</option>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+            <option value="none">No preference</option>
           </select>
+          <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>This is just a preference — the studio will confirm the actual class, which may differ.</p>
         </Field>
       ) : (
         <Field label="Preferred day/time (optional)">
@@ -226,6 +228,9 @@ export default function EnrollForm() {
       return "Please confirm you've read the Important Information above.";
     }
     if (classes.length > 0) {
+      if (!preferredClassId) return "Please select a preferred class for " + (studentName || "the student") + " — or choose \"No preference\" if any works.";
+      const missingSiblingClass = namedSiblings.find((s) => !s.classId);
+      if (missingSiblingClass) return `Please select a preferred class for ${missingSiblingClass.name} — or choose "No preference" if any works.`;
       if (!packageTierId) return "Please select a package for " + (studentName || "the student") + ".";
       const missingSiblingPackage = namedSiblings.find((s) => !s.packageTierId);
       if (missingSiblingPackage) return `Please select a package for ${missingSiblingPackage.name}.`;
@@ -262,9 +267,9 @@ export default function EnrollForm() {
       }
 
       const studentRows = [
-        { name: studentName.trim(), dob: studentDob || null, preferred_class_id: preferredClassId || null, preferred_class_text: preferredClassText.trim() || null, selected_package_tier_id: packageTierId || null, is_sibling: false, sort_order: 0 },
+        { name: studentName.trim(), dob: studentDob || null, preferred_class_id: (preferredClassId && preferredClassId !== "none") ? preferredClassId : null, preferred_class_text: preferredClassText.trim() || null, selected_package_tier_id: packageTierId || null, is_sibling: false, sort_order: 0 },
         ...namedSiblings.map((s, i) => ({
-          name: s.name.trim(), dob: s.dob || null, preferred_class_id: s.classId || null, preferred_class_text: (s.classText || "").trim() || null, selected_package_tier_id: s.packageTierId || null, is_sibling: true, sort_order: i + 1,
+          name: s.name.trim(), dob: s.dob || null, preferred_class_id: (s.classId && s.classId !== "none") ? s.classId : null, preferred_class_text: (s.classText || "").trim() || null, selected_package_tier_id: s.packageTierId || null, is_sibling: true, sort_order: i + 1,
         })),
       ];
 
@@ -338,9 +343,11 @@ export default function EnrollForm() {
               <Field label="Date of birth"><input style={inputStyle} type="date" value={studentDob} onChange={(e) => setStudentDob(e.target.value)} /></Field>
               <Field label="Preferred class">
                 <select style={inputStyle} value={preferredClassId} onChange={(e) => setPreferredClassId(e.target.value)}>
-                  <option value="">Not sure</option>
+                  <option value="" disabled>Select a class…</option>
                   {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+                  <option value="none">No preference</option>
                 </select>
+                <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>This is just a preference — the studio will confirm the actual class, which may differ.</p>
               </Field>
             </div>
           ) : (
@@ -520,6 +527,11 @@ export default function EnrollForm() {
           </label>
 
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
+          {agreedToInfo && (classes.length > 0 || fees.enabled) && (
+            <p style={{ fontSize: 12, color: T.gold, marginTop: 10, lineHeight: 1.5 }}>
+              If you haven't marked your payment above, your request may take longer for us to process — it's not required to submit, but confirming it now helps us get to you faster.
+            </p>
+          )}
           {agreedToInfo && (
             <div style={{ marginTop: 10, textAlign: "right" }}>
               <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
