@@ -277,7 +277,7 @@ function SkipModal({ cls, onClose, onSaved }) {
 
 // Full inline day view: every class scheduled that weekday, with its complete
 // roster and attendance controls right on the page — no click-through needed.
-function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged, utilCounts }) {
+function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged, utilCounts, recordedByClassDate }) {
   const dateStr = localDateStr(date);
   const dayName = DAYS[(date.getDay() + 6) % 7];
   const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr)).sort((a, b) => a.time.localeCompare(b.time));
@@ -296,6 +296,7 @@ function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChange
       )}
       {dayClasses.map((c) => {
         const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
+        const alreadyRecorded = recordedByClassDate?.[`${c.id}|${dateStr}`];
         return (
           <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 16 }}>
             <div className="flex items-center justify-between mb-2">
@@ -305,6 +306,8 @@ function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChange
               </div>
               {skip ? (
                 <button onClick={() => onUnskip(skip)} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skipped{skip.reason ? ` — ${skip.reason}` : ""} · Undo</button>
+              ) : alreadyRecorded ? (
+                <span style={{ fontSize: 11, color: T.inkSoft }} title="Someone's already been marked attended or missed — this class already happened">Can't skip — attendance recorded</span>
               ) : (
                 <button onClick={() => onSkip({ ...c, dateStr, bookedCount: enrollments.filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= dateStr)).length })} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skip this date</button>
               )}
@@ -374,19 +377,23 @@ export default function CalendarView() {
   const dates = datesForView(viewMode, anchor);
 
   const [utilCounts, setUtilCounts] = useState({}); // { [dateStr]: { attended, missed, skipped } }
+  const [recordedByClassDate, setRecordedByClassDate] = useState({}); // { [`${class_id}|${date}`]: true } if attended/missed already recorded
   useEffect(() => {
     if (dates.length === 0) return;
     const startStr = localDateStr(dates[0].date);
     const endStr = localDateStr(dates[dates.length - 1].date);
-    supabase.from("attendance").select("date, status").gte("date", startStr).lte("date", endStr).then(({ data }) => {
+    supabase.from("attendance").select("date, status, class_id").gte("date", startStr).lte("date", endStr).then(({ data }) => {
       const map = {};
+      const recorded = {};
       (data || []).forEach((a) => {
         const c = (map[a.date] ||= { attended: 0, missed: 0, skipped: 0 });
         if (a.status === "attended") c.attended++;
         else if (a.status === "missed") c.missed++;
         else if (a.status === "skipped") c.skipped++;
+        if (a.status === "attended" || a.status === "missed") recorded[`${a.class_id}|${a.date}`] = true;
       });
       setUtilCounts(map);
+      setRecordedByClassDate(recorded);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, anchor.getTime()]);
@@ -427,7 +434,7 @@ export default function CalendarView() {
       </div>
 
       {viewMode === "day" ? (
-        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} utilCounts={utilCounts[localDateStr(anchor)]} />
+        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} utilCounts={utilCounts[localDateStr(anchor)]} recordedByClassDate={recordedByClassDate} />
       ) : (
         <div className="grid gap-2 grid-cols-3 md:grid-cols-6">
           {dates.map(({ date, inMonth }, i) => {
@@ -468,7 +475,11 @@ export default function CalendarView() {
                         <div style={{ fontSize: 11, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
                         <div style={{ fontSize: 10, color: T.inkSoft }}>{bookedCount} booked</div>
                       </button>
-                      <button type="button" onClick={() => setSkippingClass({ ...c, dateStr, bookedCount })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
+                      {recordedByClassDate[`${c.id}|${dateStr}`] ? (
+                        <span style={{ fontSize: 10, color: T.inkSoft }} title="Attendance already recorded — this class already happened">Can't skip</span>
+                      ) : (
+                        <button type="button" onClick={() => setSkippingClass({ ...c, dateStr, bookedCount })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
+                      )}
                     </div>
                   );
                 })}
