@@ -40,6 +40,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [markingBusy, setMarkingBusy] = useState(null);
   const [markAbsentOpen, setMarkAbsentOpen] = useState(false);
   const [singleMarkAbsent, setSingleMarkAbsent] = useState(null);
+  const [showQr, setShowQr] = useState(false);
 
   const today = new Date();
   const todayStr = localDateStr(today);
@@ -129,9 +130,20 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   return (
     <div style={{ minHeight: "100vh", background: T.ivory, fontFamily: "Inter, sans-serif", padding: "32px 16px" }}>
       <div style={{ maxWidth: 480, margin: "0 auto" }}>
-        <img src={LOGO_DATA_URI} alt="" style={{ width: 40, height: 40, borderRadius: "50%", marginBottom: 8 }} />
-        <p style={{ fontSize: 12, color: T.gold, fontWeight: 600, marginBottom: 4 }}>Nritya Mandala</p>
-        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, color: T.maroonDark, marginBottom: 4 }}>{student.name}</h1>
+        <div className="flex items-start justify-between">
+          <div>
+            <img src={LOGO_DATA_URI} alt="" style={{ width: 40, height: 40, borderRadius: "50%", marginBottom: 8 }} />
+            <p style={{ fontSize: 12, color: T.gold, fontWeight: 600, marginBottom: 4 }}>Nritya Mandala</p>
+            <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, color: T.maroonDark, marginBottom: 4 }}>{student.name}</h1>
+          </div>
+          <button
+            onClick={() => setShowQr(true)}
+            title="Show QR code"
+            style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 10, border: `2px solid ${T.gold}`, background: "#fff", fontSize: 20, marginTop: 2 }}
+          >
+            ▦
+          </button>
+        </div>
 
         {activeNotices.map((n) => (
           <div key={n.id} style={{ background: T.gold, borderRadius: 10, padding: "14px 18px", marginBottom: 16, boxShadow: `0 2px 8px ${T.gold}55` }}>
@@ -213,21 +225,32 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           </div>
         )}
 
-        <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }} className="flex flex-col items-center text-center">
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Your QR code</h3>
-          <div style={{ border: `2px solid ${T.gold}`, borderRadius: 10, padding: 12, background: "#fff" }}>
-            <QrCanvas text={`${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`} size={180} />
+        {showQr && (
+          <div
+            onClick={() => setShowQr(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
+          >
+            <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 24, maxWidth: 320, width: "100%", textAlign: "center" }}>
+              <div className="flex items-center justify-between mb-2">
+                <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>Your QR code</h3>
+                <button onClick={() => setShowQr(false)} style={{ fontSize: 20, color: T.inkSoft, lineHeight: 1 }}>✕</button>
+              </div>
+              <div style={{ border: `2px solid ${T.gold}`, borderRadius: 10, padding: 12, background: "#fff", display: "inline-block" }}>
+                <QrCanvas text={`${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`} size={200} />
+              </div>
+              <div style={{ marginTop: 14, background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 20px" }}>
+                <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Code</div>
+                <div style={{ fontFamily: "Fraunces, serif", fontSize: 26, letterSpacing: 4, fontWeight: 700, color: T.maroonDark }}>{student.code}</div>
+              </div>
+              {cardDataUrl && (
+                <a href={cardDataUrl} download={`${student.name.replace(/\s+/g, "-")}-qr-card.png`} className="mt-4 block">
+                  <Btn variant="ghost">Download QR code</Btn>
+                </a>
+              )}
+            </div>
           </div>
-          <div style={{ marginTop: 14, background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 20px" }}>
-            <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Code</div>
-            <div style={{ fontFamily: "Fraunces, serif", fontSize: 26, letterSpacing: 4, fontWeight: 700, color: T.maroonDark }}>{student.code}</div>
-          </div>
-          {cardDataUrl && (
-            <a href={cardDataUrl} download={`${student.name.replace(/\s+/g, "-")}-qr-card.png`} className="mt-4">
-              <Btn variant="ghost">Download QR code</Btn>
-            </a>
-          )}
-        </div>
+        )}
+
 
         {familyPackages.length > 0 && (
           <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
@@ -284,6 +307,14 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
               </div>
             );
           })}
+          {allClassesCount > 1 && (
+            <a
+              href={`/transfer?code=${encodeURIComponent(student.code)}`}
+              style={{ display: "block", textAlign: "center", fontSize: 13, color: T.gold, textDecoration: "underline", marginTop: 12, paddingTop: 10, borderTop: `1px solid ${T.line}` }}
+            >
+              Request a class change
+            </a>
+          )}
         </div>
 
         <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
@@ -301,15 +332,6 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             );
           })}
         </div>
-
-        {allClassesCount > 1 && (
-          <a
-            href={`/transfer?code=${encodeURIComponent(student.code)}`}
-            style={{ display: "block", textAlign: "center", fontSize: 13, color: T.gold, textDecoration: "underline", marginBottom: 16 }}
-          >
-            Request a class change
-          </a>
-        )}
 
         <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16, textAlign: "center" }}>
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 8 }}>Find us</h3>
