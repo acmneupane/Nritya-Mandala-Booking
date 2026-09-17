@@ -3,16 +3,18 @@ import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
 import { localDateStr } from "../lib/dates";
 import { isClassActiveOn, formatTimeRange } from "../lib/scheduling";
+import QrScanner from "./QrScanner";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default function HomeView({ counts, onNavigate }) {
   const [todayClasses, setTodayClasses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [scanningClass, setScanningClass] = useState(null);
+  const todayStr = localDateStr(new Date());
 
-  useEffect(() => {
+  const load = () => {
     const today = new Date();
-    const todayStr = localDateStr(today);
     const dayName = DAYS[(today.getDay() + 6) % 7];
 
     Promise.all([
@@ -31,7 +33,29 @@ export default function HomeView({ counts, onNavigate }) {
       setTodayClasses(classes);
       setLoading(false);
     });
-  }, []);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  // Same check-in logic as the roster editor — looks up the scanned code, books the
+  // student in if they weren't already (a walk-in), and marks them attended today.
+  const checkInByCode = async (cls, code) => {
+    const { data: student } = await supabase.from("students").select("id, name").eq("code", code).eq("archived", false).maybeSingle();
+    if (!student) return { ok: false, message: "Code not recognized" };
+
+    const { data: existingEnrollment } = await supabase.from("enrollments").select("id").eq("student_id", student.id).eq("class_id", cls.id).maybeSingle();
+    if (!existingEnrollment) {
+      await supabase.from("enrollments").insert({ student_id: student.id, class_id: cls.id, start_date: todayStr });
+    }
+    const { data: existingAttendance } = await supabase.from("attendance").select("id, status").eq("student_id", student.id).eq("class_id", cls.id).eq("date", todayStr).maybeSingle();
+    if (existingAttendance) {
+      if (existingAttendance.status !== "attended") await supabase.from("attendance").update({ status: "attended" }).eq("id", existingAttendance.id);
+    } else {
+      await supabase.from("attendance").insert({ student_id: student.id, class_id: cls.id, date: todayStr, status: "attended" });
+    }
+    load();
+    return { ok: true, message: `${student.name} checked in ✓` };
+  };
 
   const today = new Date();
 
@@ -65,20 +89,25 @@ export default function HomeView({ counts, onNavigate }) {
       ) : (
         <div className="grid gap-2">
           {todayClasses.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => onNavigate("calendar")}
-              style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "10px 14px" }}
-              className="flex items-center justify-between"
-            >
-              <div>
-                <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>{c.label}</span>
-                <span style={{ fontSize: 12, color: T.inkSoft, marginLeft: 8 }}>{formatTimeRange(c.time, c.end_time)}</span>
-              </div>
-              <span style={{ fontSize: 12, color: T.inkSoft }}>{c.bookedCount} booked</span>
-            </button>
+            <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "10px 14px" }} className="flex items-center justify-between gap-2">
+              <button onClick={() => onNavigate("calendar")} style={{ textAlign: "left", background: "transparent", border: "none", flex: 1, minWidth: 0, cursor: "pointer" }} className="flex items-center justify-between">
+                <div>
+                  <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>{c.label}</span>
+                  <span style={{ fontSize: 12, color: T.inkSoft, marginLeft: 8 }}>{formatTimeRange(c.time, c.end_time)}</span>
+                </div>
+                <span style={{ fontSize: 12, color: T.inkSoft }}>{c.bookedCount} booked</span>
+              </button>
+              <button onClick={() => setScanningClass(c)} title="Scan to check in" style={{ fontSize: 15, padding: "4px 6px", background: "transparent", border: "none", cursor: "pointer", flexShrink: 0 }}>📷</button>
+            </div>
           ))}
         </div>
+      )}
+      {scanningClass && (
+        <QrScanner
+          title={`Scan for ${scanningClass.label}`}
+          onDetected={(code) => checkInByCode(scanningClass, code)}
+          onClose={() => setScanningClass(null)}
+        />
       )}
     </div>
   );
