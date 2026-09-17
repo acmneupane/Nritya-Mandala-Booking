@@ -29,22 +29,44 @@ export default function EmailPreviewModal({ guardianEmails, students, onCancel, 
   const [bccEmail, setBccEmail] = useState(null);
   const [bccChecked, setBccChecked] = useState(false);
   const [checkedEmails, setCheckedEmails] = useState(() => new Set(guardianEmails || []));
+  const [limitInfo, setLimitInfo] = useState(null); // { todayCount, dailyLimit }
+  const [limitLoaded, setLimitLoaded] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     supabase.from("email_templates").select("subject, body").eq("key", "enrollment_approved").maybeSingle()
       .then(({ data }) => setTemplate(data));
     supabase.functions.invoke("send-approval-email", { method: "GET" })
-      .then(({ data }) => setBccEmail(data?.bccEmail || null))
-      .catch(() => setBccEmail(null));
+      .then(({ data }) => {
+        setBccEmail(data?.bccEmail || null);
+        if (typeof data?.todayCount === "number") setLimitInfo({ todayCount: data.todayCount, dailyLimit: data.dailyLimit });
+      })
+      .catch(() => setBccEmail(null))
+      .finally(() => setLimitLoaded(true));
   }, []);
 
   const eligible = students.filter((s) => s.day && s.startDate && s.code);
   const skipped = students.filter((s) => !(s.day && s.startDate && s.code));
   const selectedEmails = (guardianEmails || []).filter((e) => checkedEmails.has(e));
   const toggleEmail = (email) => setCheckedEmails((s) => { const next = new Set(s); next.has(email) ? next.delete(email) : next.add(email); return next; });
+
+  const plannedRecipientRows = eligible.length * (selectedEmails.length + (bccChecked && bccEmail ? 1 : 0));
+  const wouldExceed = limitInfo && (limitInfo.todayCount + plannedRecipientRows > limitInfo.dailyLimit);
+  const nearLimit = limitInfo && !wouldExceed && (limitInfo.todayCount + plannedRecipientRows >= limitInfo.dailyLimit * 0.8);
+
+  const copyContent = () => {
+    if (!template) return;
+    const text = eligible.map((s) => {
+      const vars = { student_name: s.name, day: s.day, time: formatTimeRange(s.time, s.endTime), start_date: formatDate(s.startDate), access_code: s.code, qr_link: `${window.location.origin}/qr?code=${encodeURIComponent(s.code)}`, qr_code_image: "" };
+      return `To: ${selectedEmails.join(", ")}\nSubject: ${fillTemplate(template.subject, vars)}\n\n${fillTemplate(template.body, vars)}`;
+    }).join("\n\n---\n\n");
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const send = async () => {
     setSending(true);
@@ -91,6 +113,21 @@ export default function EmailPreviewModal({ guardianEmails, students, onCancel, 
           </label>
         ))}
       </div>
+
+      {wouldExceed && (
+        <div style={{ background: `${T.terracotta}18`, border: `1px solid ${T.terracotta}55`, borderRadius: 8, padding: "10px 14px", marginBottom: 12 }}>
+          <p style={{ fontSize: 12.5, color: T.terracotta, fontWeight: 600, marginBottom: 6 }}>
+            Today's email limit ({limitInfo.dailyLimit}/day) would be exceeded — {limitInfo.todayCount} sent already, this would add {plannedRecipientRows} more.
+          </p>
+          <p style={{ fontSize: 12, color: T.ink, marginBottom: 8 }}>This can't be sent automatically right now. Copy the content below and send it yourself instead.</p>
+          <Btn size="sm" variant="ghost" onClick={copyContent} disabled={!template}>{copied ? "Copied ✓" : "📋 Copy email content"}</Btn>
+        </div>
+      )}
+      {nearLimit && (
+        <p style={{ fontSize: 12, color: T.gold, marginBottom: 12 }}>
+          ⚠ Getting close to today's email limit — {limitInfo.todayCount + plannedRecipientRows} of {limitInfo.dailyLimit} after this send.
+        </p>
+      )}
 
       {skipped.length > 0 && (
         <p style={{ fontSize: 12, color: T.gold, marginBottom: 10 }}>
@@ -149,8 +186,8 @@ export default function EmailPreviewModal({ guardianEmails, students, onCancel, 
       {sent && <p style={{ color: T.sage, fontSize: 13, marginTop: 10, fontWeight: 600 }}>Sent.</p>}
       <div className="flex justify-end gap-2 mt-4">
         <Btn variant="ghost" onClick={onCancel} disabled={sending}>Cancel — don't send</Btn>
-        <Btn variant="success" onClick={send} disabled={sending || sent || !template || selectedEmails.length === 0}>
-          {sending ? "Sending…" : `Send ${eligible.length} email${eligible.length === 1 ? "" : "s"}`}
+        <Btn variant="success" onClick={send} disabled={sending || sent || !template || !limitLoaded || selectedEmails.length === 0 || wouldExceed}>
+          {sending ? "Sending…" : !template || !limitLoaded ? "Loading…" : `Send ${eligible.length} email${eligible.length === 1 ? "" : "s"}`}
         </Btn>
       </div>
     </Modal>
