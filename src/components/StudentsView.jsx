@@ -346,6 +346,7 @@ function PackagesSection({ studentId }) {
         editingId === p.id ? (
           <div key={p.id} style={{ border: `1px solid ${T.gold}`, borderRadius: 8, padding: 10, marginBottom: 6 }}>
             {tierPicker}
+            <Field label="Package name (shown to parents)"><input style={inputStyle} value={tierName} onChange={(e) => setTierName(e.target.value)} placeholder="e.g. पाँच कदम" /></Field>
             <div className="grid grid-cols-2 gap-2 mb-2">
               <Field label="Classes bought"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
               <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
@@ -386,6 +387,7 @@ function PackagesSection({ studentId }) {
       {adding ? (
         <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 10, marginTop: 6 }}>
           {tierPicker}
+          <Field label="Package name (shown to parents)"><input style={inputStyle} value={tierName} onChange={(e) => setTierName(e.target.value)} placeholder="e.g. पाँच कदम" /></Field>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <Field label="Classes bought"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
             <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 120.00" /></Field>

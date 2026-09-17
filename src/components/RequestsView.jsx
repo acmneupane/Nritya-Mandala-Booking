@@ -31,6 +31,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
   const [emergencyPhone, setEmergencyPhone] = useState(request.emergency_phone || "");
   const [paymentConfirmed, setPaymentConfirmed] = useState(request.payment_claimed || false);
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [receiptFile, setReceiptFile] = useState(null);
   const [fees, setFees] = useState({ enabled: false, primary: 0, sibling: 0 });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -64,6 +65,15 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
     setSaving(true);
     setError("");
     try {
+      let manualReceiptPath = null;
+      if (receiptFile) {
+        const ext = receiptFile.name.split(".").pop() || "png";
+        const path = `${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("payment-screenshots").upload(path, receiptFile);
+        if (upErr) throw new Error("Couldn't upload the payment screenshot — please try again.");
+        manualReceiptPath = path;
+      }
+
       const { data: primaryGuardian, error: gErr } = await supabase.from("guardians").insert({
         name: guardianName.trim(), phone: guardianPhone.trim(), email: guardianEmail.trim(),
       }).select().single();
@@ -108,7 +118,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
           await supabase.from("packages").insert({
             student_id: created.id, classes_total: p.classesTotal, amount: p.amount, tier_name: p.tierName || null, notes: p.note || null,
             payment_confirmed: paymentConfirmed, payment_method: paymentMethod || null, is_sibling_price: !!p.isSiblingPrice,
-            enrollment_request_student_id: s.id,
+            enrollment_request_student_id: s.id, receipt_path: manualReceiptPath,
           });
         }
 
@@ -223,6 +233,10 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
             </select>
           </Field>
         )}
+        <Field label="Payment screenshot (optional — if the parent sent it separately, e.g. WhatsApp)">
+          <input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] || null)} style={{ fontSize: 12 }} />
+          {request.payment_screenshot_path && !receiptFile && <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>A screenshot was already attached to this request — only add one here if there's a different one to attach.</p>}
+        </Field>
       </div>
 
       {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}

@@ -216,7 +216,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             ).map(([name, pkgs]) => (
               <div key={name} style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, marginBottom: 4 }}>{name}</div>
-                {pkgs.map((p) => (
+                {pkgs.slice(0, 5).map((p) => (
                   <div key={p.package_id} style={{ borderTop: `1px solid ${T.line}`, padding: "6px 0" }}>
                     <div className="flex items-center justify-between">
                       <span style={{ fontSize: 13, color: T.ink }}>{p.tier_name ? `${p.tier_name} (${classesLabel(p.classes_total)})` : classesLabel(p.classes_total)} — {p.purchase_date}</span>
@@ -232,6 +232,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
                     </div>
                   </div>
                 ))}
+                {pkgs.length > 5 && <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>Showing the 5 most recent — contact the studio for older records.</p>}
               </div>
             ))}
           </div>
