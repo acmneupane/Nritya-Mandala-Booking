@@ -87,7 +87,7 @@ async function computeFinances(rangeStart, rangeEnd) {
     computeRevenueEarned(rangeStart, rangeEnd),
     supabase.from("enrolment_fee_charges").select("id, amount, charged_at, is_sibling, students(name)")
       .eq("payment_confirmed", true).gte("charged_at", rangeStart).lte("charged_at", rangeEnd),
-    supabase.from("packages").select("id, student_id, amount, purchase_date, notes, students(name)")
+    supabase.from("packages").select("id, student_id, amount, purchase_date, tier_name, notes, students(name)")
       .eq("payment_confirmed", true).gte("purchase_date", rangeStart).lte("purchase_date", rangeEnd),
     supabase.from("expenses").select("*"),
     supabase.from("classes").select("*"),
@@ -342,7 +342,8 @@ export default function FinancesView() {
                     {group.packages.slice().sort((a, b) => a.purchase_date.localeCompare(b.purchase_date)).map((p) => (
                       <div key={p.id} className="flex justify-between" style={{ fontSize: 12, color: T.inkSoft, padding: "3px 0 3px 12px" }}>
                         <span>
-                          {p.notes || "Package"} ({p.purchase_date})
+                          {p.tier_name || "Package"} ({p.purchase_date})
+                          {p.notes && <span style={{ fontStyle: "italic" }}> — internal note: {p.notes}</span>}
                           {data.receiptByPackage[p.id] && (
                             <button onClick={() => viewReceipt(data.receiptByPackage[p.id])} style={{ marginLeft: 6, color: T.gold, textDecoration: "underline" }}>View screenshot</button>
                           )}

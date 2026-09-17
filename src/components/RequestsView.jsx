@@ -19,7 +19,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
         const tierPrice = selectedTier ? (isSiblingPrice ? Number(selectedTier.sibling_price) : Number(selectedTier.price)) : 0;
         return {
           id: s.id, name: s.student_name, dob: s.student_dob || "", levelId: "", preferredClassId: s.preferred_class_id || "", isSibling: s.is_sibling,
-          pendingPackages: selectedTier ? [{ classesTotal: selectedTier.classes_count, amount: tierPrice, note: `Requested at enrolment: ${selectedTier.name}`, isSiblingPrice }] : [],
+          pendingPackages: selectedTier ? [{ classesTotal: selectedTier.classes_count, amount: tierPrice, tierName: selectedTier.name, note: "Requested at enrolment", isSiblingPrice }] : [],
         };
       })
   );
@@ -106,7 +106,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
 
         for (const p of s.pendingPackages || []) {
           await supabase.from("packages").insert({
-            student_id: created.id, classes_total: p.classesTotal, amount: p.amount, notes: p.note,
+            student_id: created.id, classes_total: p.classesTotal, amount: p.amount, tier_name: p.tierName || null, notes: p.note || null,
             payment_confirmed: paymentConfirmed, payment_method: paymentMethod || null, is_sibling_price: !!p.isSiblingPrice,
             enrollment_request_student_id: s.id,
           });

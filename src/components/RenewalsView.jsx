@@ -224,7 +224,7 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
     const amount = overrides?.amount ?? r.price_snapshot;
     setApproving(r.id);
     await supabase.from("packages").insert({
-      student_id: r.student_id, classes_total: classesTotal, amount, notes: r.tier_name_snapshot,
+      student_id: r.student_id, classes_total: classesTotal, amount, tier_name: r.tier_name_snapshot,
       payment_confirmed: ps.confirmed, payment_method: ps.method || null, renewal_request_id: r.id,
     });
     await supabase.from("package_renewal_requests").update({ status: "approved", reviewed_at: new Date().toISOString() }).eq("id", r.id);

@@ -200,6 +200,7 @@ function PackagesSection({ studentId }) {
   const [selectedTierId, setSelectedTierId] = useState("");
   const [classesTotal, setClassesTotal] = useState(10);
   const [amount, setAmount] = useState("");
+  const [tierName, setTierName] = useState("");
   const [note, setNote] = useState("");
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("");
@@ -236,13 +237,13 @@ function PackagesSection({ studentId }) {
   const remaining = total - used;
 
   const resetForm = () => {
-    setSelectedTierId(""); setClassesTotal(10); setAmount(""); setNote(""); setPaymentConfirmed(false); setPaymentMethod(""); setReceiptFile(null);
+    setSelectedTierId(""); setClassesTotal(10); setAmount(""); setTierName(""); setNote(""); setPaymentConfirmed(false); setPaymentMethod(""); setReceiptFile(null);
   };
 
   const applyTier = (tierId) => {
     setSelectedTierId(tierId);
     const tier = tiers.find((t) => t.id === tierId);
-    if (tier) { setClassesTotal(tier.classes_count); setAmount(String(tier.price)); setNote(tier.name); }
+    if (tier) { setClassesTotal(tier.classes_count); setAmount(String(tier.price)); setTierName(tier.name); }
   };
 
   const uploadReceiptIfAny = async () => {
@@ -261,7 +262,8 @@ function PackagesSection({ studentId }) {
       student_id: studentId,
       classes_total: Number(classesTotal),
       amount: amount ? Number(amount) : null,
-      notes: note.trim(),
+      tier_name: tierName.trim() || null,
+      notes: note.trim() || null,
       payment_confirmed: paymentConfirmed,
       payment_method: paymentConfirmed ? (paymentMethod || null) : null,
       receipt_path: receiptPath,
@@ -277,6 +279,7 @@ function PackagesSection({ studentId }) {
     setSelectedTierId("");
     setClassesTotal(p.classes_total);
     setAmount(p.amount != null ? String(p.amount) : "");
+    setTierName(p.tier_name || "");
     setNote(p.notes || "");
     setPaymentConfirmed(p.payment_confirmed || false);
     setPaymentMethod(p.payment_method || "");
@@ -290,7 +293,8 @@ function PackagesSection({ studentId }) {
     const payload = {
       classes_total: Number(classesTotal),
       amount: amount ? Number(amount) : null,
-      notes: note.trim(),
+      tier_name: tierName.trim() || null,
+      notes: note.trim() || null,
       payment_confirmed: paymentConfirmed,
       payment_method: paymentConfirmed ? (paymentMethod || null) : null,
     };
@@ -345,7 +349,7 @@ function PackagesSection({ studentId }) {
               <Field label="Classes bought"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
               <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
             </div>
-            <Field label="Note"><input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+            <Field label="Internal notes (admin only, not shown to parents)"><input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
             <label className="flex items-center gap-2 mb-2" style={{ fontSize: 12, color: T.ink, fontWeight: 500 }}>
               <input type="checkbox" checked={paymentConfirmed} onChange={(e) => setPaymentConfirmed(e.target.checked)} /> Payment confirmed
             </label>
@@ -362,14 +366,14 @@ function PackagesSection({ studentId }) {
         ) : (
           <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${T.line}`, borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 12 }}>
             <div>
-              <span style={{ fontWeight: 600 }}>{p.classes_total} classes</span>
+              <span style={{ fontWeight: 600 }}>{p.tier_name ? `${p.tier_name} — ` : ""}{p.classes_total} classes</span>
               {p.amount != null && <span style={{ color: T.inkSoft, marginLeft: 6 }}>· ${Number(p.amount).toFixed(2)}</span>}
               <span style={{ color: T.inkSoft, marginLeft: 6 }}>· {p.purchase_date}</span>
               <span style={{ marginLeft: 6, color: p.payment_confirmed ? T.sage : T.terracotta, fontWeight: 600 }}>· {p.payment_confirmed ? "Confirmed" : "Unconfirmed"}</span>
               {receiptByPackage[p.id] && (
                 <button onClick={() => viewReceipt(receiptByPackage[p.id])} style={{ marginLeft: 6, color: T.gold, textDecoration: "underline" }}>View screenshot</button>
               )}
-              {p.notes && <div style={{ color: T.inkSoft, marginTop: 2 }}>{p.notes}</div>}
+              {p.notes && <div style={{ color: T.inkSoft, marginTop: 2 }}><em>Internal note:</em> {p.notes}</div>}
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => startEdit(p)} style={{ color: T.maroon }}>Edit</button>
@@ -385,7 +389,7 @@ function PackagesSection({ studentId }) {
             <Field label="Classes bought"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
             <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 120.00" /></Field>
           </div>
-          <Field label="Note"><input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. paid cash, 10-class pack" /></Field>
+          <Field label="Internal notes (admin only, not shown to parents)"><input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. paid cash, in two instalments" /></Field>
           <label className="flex items-center gap-2 mb-2" style={{ fontSize: 12, color: T.ink, fontWeight: 500 }}>
             <input type="checkbox" checked={paymentConfirmed} onChange={(e) => setPaymentConfirmed(e.target.checked)} /> Payment confirmed
           </label>
@@ -511,7 +515,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
 
         for (const p of pendingPackages) {
           await supabase.from("packages").insert({
-            student_id: studentId, classes_total: p.classesTotal, amount: p.amount, notes: p.note,
+            student_id: studentId, classes_total: p.classesTotal, amount: p.amount, tier_name: p.tierName || null, notes: p.note || null,
             payment_confirmed: p.paymentConfirmed || false, payment_method: p.paymentMethod || null,
           });
         }
