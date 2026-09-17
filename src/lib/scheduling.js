@@ -15,6 +15,15 @@ export function formatTimeRange(start, end) {
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+// Sorts classes by actual weekday order (Monday..Sunday), then by time within the
+// same day. Plain string sort on the day name alphabetizes it instead (Friday,
+// Monday, Saturday, Thursday, Tuesday, Wednesday...) which is wrong for a schedule.
+export function compareClassSchedule(a, b) {
+  const dayDiff = WEEKDAYS.indexOf(a.day) - WEEKDAYS.indexOf(b.day);
+  if (dayDiff !== 0) return dayDiff;
+  return (a.time || "").localeCompare(b.time || "");
+}
+
 // Finds up to `count` upcoming occurrences of a weekly-recurring class — same rules
 // as above (active date range, skipped dates, today only counts if not yet finished).
 export function upcomingOccurrencesOf(cls, skips, localDateStrFn, { count = 8, lookaheadDays = 180 } = {}) {

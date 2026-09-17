@@ -5,7 +5,7 @@ import { classesLabel } from "../lib/format";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn, Field, ConfirmModal } from "./ui";
 import { RELATION_OPTIONS } from "../lib/relations";
-import { formatTimeRange } from "../lib/scheduling";
+import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
 
 const MAX_SIBLINGS = 2;
 
@@ -172,7 +172,7 @@ export default function EnrollForm() {
       const counts = {};
       (eRes.data || []).forEach((row) => { counts[row.class_id] = Number(row.effective_count); });
       const open = (cRes.data || []).filter((c) => (counts[c.id] || 0) < c.capacity);
-      setClasses(open.slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
+      setClasses(open.slice().sort(compareClassSchedule));
     });
     supabase.from("package_tiers").select("*").eq("active", true).order("sort_order").then(({ data }) => setPackageTiers(data || []));
     supabase.from("settings").select("enrolment_fee_enabled, enrolment_fee_label, enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {

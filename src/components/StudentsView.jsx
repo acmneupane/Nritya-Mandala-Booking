@@ -7,7 +7,7 @@ import { classesLabel } from "../lib/format";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { computeAge } from "../lib/age";
 import { generateStudentCode } from "../lib/studentCode";
-import { formatTimeRange, nextOccurrenceOf } from "../lib/scheduling";
+import { formatTimeRange, nextOccurrenceOf, compareClassSchedule } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
 import EmailPreviewModal from "./EmailPreviewModal";
 import PendingPackagesEditor from "./PendingPackagesEditor";
@@ -663,7 +663,7 @@ function BookClassModal({ student, onClose, onBooked }) {
       supabase.from("enrollments").select("class_id").eq("student_id", student.id),
       supabase.from("class_skips").select("class_id, date"),
     ]).then(([cRes, eRes, skRes]) => {
-      setClasses((cRes.data || []).slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
+      setClasses((cRes.data || []).slice().sort(compareClassSchedule));
       setEnrolledIds((eRes.data || []).map((e) => e.class_id));
       setSkips(skRes.data || []);
       setLoading(false);
@@ -756,7 +756,7 @@ function TransferClassModal({ student, onClose, onTransferred }) {
       const enrolled = (eRes.data || []).filter((e) => e.classes).map((e) => ({ id: e.id, classId: e.class_id, label: `${e.classes.label} — ${e.classes.day} ${formatTimeRange(e.classes.time, e.classes.end_time)}` }));
       setCurrentEnrollments(enrolled);
       if (enrolled.length === 1) setFromEnrollmentId(enrolled[0].id);
-      setAllClasses((cRes.data || []).slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
+      setAllClasses((cRes.data || []).slice().sort(compareClassSchedule));
       setSkips(skRes.data || []);
       setLoading(false);
     });

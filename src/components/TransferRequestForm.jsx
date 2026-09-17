@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn, Field } from "./ui";
-import { formatTimeRange } from "../lib/scheduling";
+import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
 
 const RELATION_OPTIONS = ["Mother", "Father", "Guardian", "Grandparent", "Other"];
 
@@ -40,7 +40,7 @@ export default function TransferRequestForm() {
       setStudent(sRes.data);
       setStudentName(sRes.data.name);
       setStudentDob(sRes.data.dob || "");
-      setAllClasses((cRes.data || []).slice().sort((a, b) => a.day.localeCompare(b.day) || a.time.localeCompare(b.time)));
+      setAllClasses((cRes.data || []).slice().sort(compareClassSchedule));
       setGuardians(gRes.data || []);
       supabase.from("enrollments").select("class_id").eq("student_id", sRes.data.id).then(({ data }) => {
         setCurrentClasses((data || []).map((e) => e.class_id));
