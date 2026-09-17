@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn, Field } from "./ui";
+import TurnstileWidget from "./TurnstileWidget";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
 
 const RELATION_OPTIONS = ["Mother", "Father", "Guardian", "Grandparent", "Other"];
@@ -24,6 +25,7 @@ export default function TransferRequestForm() {
   const [newIsEmergency, setNewIsEmergency] = useState(null); // true/false, unanswered = null
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -73,24 +75,30 @@ export default function TransferRequestForm() {
         isEmergency = g.is_emergency;
       }
 
-      const { error: rpcErr } = await supabase.rpc("submit_enrollment_request", {
-        p_guardian_name: requester.name,
-        p_guardian_relation: requester.relation,
-        p_guardian_email: requester.email,
-        p_guardian_phone: requester.phone,
-        p_emergency_same: isEmergency,
-        p_emergency_name: "",
-        p_emergency_phone: "",
-        p_video_consent: null,
-        p_notes: notes.trim() || null,
-        p_students: [{ name: studentName.trim(), dob: studentDob || null, preferred_class_id: newClassId, is_sibling: false, sort_order: 0 }],
-        p_is_transfer: true,
-        p_transfer_student_code: student.code,
+      const { data: fnData, error: fnErr } = await supabase.functions.invoke("submit-form", {
+        body: {
+          turnstileToken,
+          formType: "enrollment",
+          params: {
+            p_guardian_name: requester.name,
+            p_guardian_relation: requester.relation,
+            p_guardian_email: requester.email,
+            p_guardian_phone: requester.phone,
+            p_emergency_same: isEmergency,
+            p_emergency_name: "",
+            p_emergency_phone: "",
+            p_video_consent: null,
+            p_notes: notes.trim() || null,
+            p_students: [{ name: studentName.trim(), dob: studentDob || null, preferred_class_id: newClassId, is_sibling: false, sort_order: 0 }],
+            p_is_transfer: true,
+            p_transfer_student_code: student.code,
+          },
+        },
       });
-      if (rpcErr) throw rpcErr;
+      if (fnErr || !fnData?.ok) throw new Error(fnData?.error || "Something went wrong submitting — please try again.");
       setDone(true);
     } catch (e) {
-      setError("Something went wrong submitting — please try again.");
+      setError(e.message || "Something went wrong submitting — please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -191,8 +199,9 @@ export default function TransferRequestForm() {
               <Field label="Anything else?"><textarea style={{ ...inputStyle, minHeight: 60 }} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
 
               {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6, marginBottom: 6 }}>{error}</p>}
+              <TurnstileWidget onVerify={setTurnstileToken} />
               <div style={{ marginTop: 10, textAlign: "right" }}>
-                <Btn variant="success" onClick={submit} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+                <Btn variant="success" onClick={submit} size="lg" disabled={submitting || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
               </div>
             </>
           )}

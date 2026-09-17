@@ -4,6 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { classesLabel } from "../lib/format";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn, Field, ConfirmModal } from "./ui";
+import TurnstileWidget from "./TurnstileWidget";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
 
@@ -164,6 +165,7 @@ export default function EnrollForm() {
   const [generatingReference, setGeneratingReference] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -273,26 +275,32 @@ export default function EnrollForm() {
         })),
       ];
 
-      const { data, error: rpcErr } = await supabase.rpc("submit_enrollment_request", {
-        p_guardian_name: guardianName.trim(),
-        p_guardian_relation: guardianRelation === "Other" ? (guardianRelationOther.trim() || "Other") : guardianRelation,
-        p_guardian_email: guardianEmail.trim(),
-        p_guardian_phone: guardianPhone.trim(),
-        p_emergency_same: emergencySame,
-        p_emergency_name: emergencySame ? "" : emergencyName.trim(),
-        p_emergency_phone: emergencySame ? "" : emergencyPhone.trim(),
-        p_video_consent: videoConsent,
-        p_notes: notes.trim(),
-        p_payment_claimed: paymentClaimed,
-        p_payment_screenshot_path: screenshotPath,
-        p_reference: paymentReference,
-        p_students: studentRows,
+      const { data: fnData, error: fnErr } = await supabase.functions.invoke("submit-form", {
+        body: {
+          turnstileToken,
+          formType: "enrollment",
+          params: {
+            p_guardian_name: guardianName.trim(),
+            p_guardian_relation: guardianRelation === "Other" ? (guardianRelationOther.trim() || "Other") : guardianRelation,
+            p_guardian_email: guardianEmail.trim(),
+            p_guardian_phone: guardianPhone.trim(),
+            p_emergency_same: emergencySame,
+            p_emergency_name: emergencySame ? "" : emergencyName.trim(),
+            p_emergency_phone: emergencySame ? "" : emergencyPhone.trim(),
+            p_video_consent: videoConsent,
+            p_notes: notes.trim(),
+            p_payment_claimed: paymentClaimed,
+            p_payment_screenshot_path: screenshotPath,
+            p_reference: paymentReference,
+            p_students: studentRows,
+          },
+        },
       });
-      if (rpcErr) throw rpcErr;
+      if (fnErr || !fnData?.ok) throw new Error(fnData?.error || "Something went wrong submitting — please try again.");
 
-      setReference(data.reference);
+      setReference(fnData.data.reference);
     } catch (e) {
-      setError(e.message && e.message.startsWith("Couldn't upload") ? e.message : "Something went wrong submitting — please try again.");
+      setError(e.message && e.message.startsWith("Couldn't upload") ? e.message : e.message || "Something went wrong submitting — please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -528,9 +536,12 @@ export default function EnrollForm() {
 
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
           {agreedToInfo && (
-            <div style={{ marginTop: 10, textAlign: "right" }}>
-              <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
-            </div>
+            <>
+              <TurnstileWidget onVerify={setTurnstileToken} />
+              <div style={{ marginTop: 10, textAlign: "right" }}>
+                <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+              </div>
+            </>
           )}
           <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 14 }}>
             <a href="/parent" style={{ color: T.inkSoft, textDecoration: "underline" }}>Already enrolled? Look up bookings</a>

@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn, Field } from "./ui";
+import TurnstileWidget from "./TurnstileWidget";
 import { classesLabel } from "../lib/format";
 
 export default function RenewForm() {
@@ -18,6 +19,7 @@ export default function RenewForm() {
   const [paymentClaimed, setPaymentClaimed] = useState(false);
   const [paymentFile, setPaymentFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(null);
 
@@ -77,13 +79,17 @@ export default function RenewForm() {
         ...includedSiblingList.map((s) => ({ code: s.code, tier_id: siblingTierIds[s.id], is_sibling: true, corrected_dob: dobEdits[s.id] !== originalDobs[s.id] ? (dobEdits[s.id] || null) : null })),
       ];
 
-      const { error: rpcErr } = await supabase.rpc("submit_family_renewal", {
-        p_selections: selections, p_payment_claimed: paymentClaimed, p_payment_screenshot_path: screenshotPath,
+      const { data: fnData, error: fnErr } = await supabase.functions.invoke("submit-form", {
+        body: {
+          turnstileToken,
+          formType: "renewal",
+          params: { p_selections: selections, p_payment_claimed: paymentClaimed, p_payment_screenshot_path: screenshotPath },
+        },
       });
-      if (rpcErr) throw rpcErr;
+      if (fnErr || !fnData?.ok) throw new Error(fnData?.error || "Something went wrong submitting — please try again.");
       setDone(true);
     } catch (e) {
-      setError(e.message && e.message.startsWith("Couldn't upload") ? e.message : "Something went wrong submitting — please try again.");
+      setError(e.message && e.message.startsWith("Couldn't upload") ? e.message : e.message || "Something went wrong submitting — please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -231,8 +237,9 @@ export default function RenewForm() {
           )}
 
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 10 }}>{error}</p>}
+          <TurnstileWidget onVerify={setTurnstileToken} />
           <div style={{ marginTop: 14 }}>
-            <Btn variant="success" onClick={submit} size="lg" disabled={submitting || tiers.length === 0}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+            <Btn variant="success" onClick={submit} size="lg" disabled={submitting || tiers.length === 0 || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
           </div>
         </div>
       </div>
