@@ -138,6 +138,55 @@ function CapacityEditor() {
   );
 }
 
+const BACKUP_TABLES = [
+  "students", "guardians", "student_guardians", "levels", "level_history",
+  "classes", "enrollments", "attendance", "class_skips",
+  "packages", "package_tiers", "enrolment_fee_charges",
+  "enrollment_requests", "enrollment_request_students", "package_renewal_requests",
+  "expenses", "settings", "email_templates", "audit_log",
+];
+
+function DataExport() {
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState("");
+
+  const exportAll = async () => {
+    setExporting(true);
+    setError("");
+    try {
+      const backup = { exported_at: new Date().toISOString() };
+      for (const table of BACKUP_TABLES) {
+        const { data, error } = await supabase.from(table).select("*");
+        if (error) throw new Error(`Couldn't export ${table}: ${error.message}`);
+        backup[table] = data || [];
+      }
+      const json = JSON.stringify(backup, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nritya-mandala-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Download everything</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        Exports every table in the system — students, classes, attendance, packages, renewals, finances, and more — as one JSON file. Useful as a safety-net backup you keep for yourself, separate from what's stored online.
+      </p>
+      {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 10 }}>{error}</p>}
+      <Btn onClick={exportAll} disabled={exporting}>{exporting ? "Exporting…" : "⬇ Download all data (.json)"}</Btn>
+    </div>
+  );
+}
+
 export default function StudioSettingsView() {
   const [section, setSection] = useState("fee");
 
@@ -162,10 +211,17 @@ export default function StudioSettingsView() {
         >
           Email templates
         </button>
+        <button
+          onClick={() => setSection("data")}
+          style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "data" ? "#fff" : "transparent", color: section === "data" ? T.maroonDark : T.inkSoft, fontWeight: section === "data" ? 600 : 400 }}
+        >
+          Data
+        </button>
       </div>
 
       {section === "fee" && <EnrolmentFeesEditor />}
       {section === "capacity" && <CapacityEditor />}
+      {section === "data" && <DataExport />}
       {section === "emails" && (
         <>
           <EmailTemplateEditor
