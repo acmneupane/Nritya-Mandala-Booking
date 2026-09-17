@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
-import { Btn, Field } from "./ui";
+import { Btn, Field, ConfirmModal } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import { classesLabel } from "../lib/format";
 
@@ -19,6 +19,7 @@ export default function RenewForm() {
   const [paymentClaimed, setPaymentClaimed] = useState(false);
   const [paymentFile, setPaymentFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmUnpaid, setConfirmUnpaid] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(null);
@@ -58,11 +59,20 @@ export default function RenewForm() {
     if (!checked) setSiblingTierIds((m) => { const next = { ...m }; delete next[id]; return next; });
   };
 
-  const submit = async () => {
+  const handleSubmitClick = () => {
     if (!selectedTierId) { setError("Please select a package."); return; }
     const missingSibling = includedSiblingList.find((s) => !siblingTierIds[s.id]);
     if (missingSibling) { setError(`Please select a package for ${missingSibling.name}, or untick them.`); return; }
+    setError("");
+    if (!paymentClaimed || !paymentFile) {
+      setConfirmUnpaid(true);
+      return;
+    }
+    submit();
+  };
 
+  const submit = async () => {
+    setConfirmUnpaid(false);
     setSubmitting(true);
     setError("");
     try {
@@ -239,10 +249,19 @@ export default function RenewForm() {
           {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 10 }}>{error}</p>}
           <TurnstileWidget onVerify={setTurnstileToken} />
           <div style={{ marginTop: 14 }}>
-            <Btn variant="success" onClick={submit} size="lg" disabled={submitting || tiers.length === 0 || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+            <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting || tiers.length === 0 || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
           </div>
         </div>
       </div>
+      {confirmUnpaid && (
+        <ConfirmModal
+          title="Payment details incomplete"
+          message={`You haven't ${!paymentClaimed && !paymentFile ? "specified your payment details or attached a screenshot" : !paymentClaimed ? "marked your payment as made" : "attached a payment screenshot"}. Payment has not been confirmed above. A delay in confirming payment may result in a delay in processing this renewal. If you'd like to submit anyway, we will reach out to you afterward regarding payment.`}
+          confirmLabel="Submit anyway"
+          onConfirm={submit}
+          onCancel={() => setConfirmUnpaid(false)}
+        />
+      )}
     </div>
   );
 }
