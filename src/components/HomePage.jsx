@@ -140,6 +140,7 @@ export default function HomePage() {
   const [instructors, setInstructors] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
   const [faqs, setFaqs] = useState([]);
+  const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -154,7 +155,8 @@ export default function HomePage() {
       supabase.from("site_instructors").select("*").order("sort_order"),
       supabase.from("site_testimonials").select("*").order("sort_order"),
       supabase.from("site_faqs").select("*").order("sort_order"),
-    ]).then(([contentRes, galleryRes, classesRes, levelsRes, tiersRes, noticesRes, instructorsRes, testimonialsRes, faqsRes]) => {
+      supabase.from("site_videos").select("*").order("sort_order"),
+    ]).then(([contentRes, galleryRes, classesRes, levelsRes, tiersRes, noticesRes, instructorsRes, testimonialsRes, faqsRes, videosRes]) => {
       setContent(Object.fromEntries((contentRes.data || []).map((r) => [r.key, r.value])));
       setGallery(galleryRes.data || []);
       setClasses((classesRes.data || []).filter((c) => isClassActiveOn(c, today)).slice().sort(compareClassSchedule));
@@ -164,13 +166,13 @@ export default function HomePage() {
       setInstructors(instructorsRes.data || []);
       setTestimonials(testimonialsRes.data || []);
       setFaqs(faqsRes.data || []);
+      setVideos(videosRes.data || []);
       setLoading(false);
     });
   }, []);
 
   const levelById = Object.fromEntries(levels.map((l) => [l.id, l]));
   const heroPhotoUrl = publicMediaUrl(content.hero_photo_path);
-  const embed = videoEmbed(content.video_url);
 
   if (loading) {
     return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>Loading…</div>;
@@ -318,7 +320,7 @@ export default function HomePage() {
           <section className="px-5 md:px-10 py-16">
             <div className="max-w-[1160px] mx-auto">
               <SectionHeading>Gallery</SectionHeading>
-              <div className="flex gap-4" style={{ overflowX: "auto", scrollSnapType: "x mandatory", paddingBottom: 10, WebkitOverflowScrolling: "touch" }}>
+              <div className={`flex gap-4 ${gallery.length <= 3 ? "justify-center" : ""}`} style={{ overflowX: "auto", scrollSnapType: "x mandatory", paddingBottom: 10, WebkitOverflowScrolling: "touch" }}>
                 {gallery.map((g) => (
                   <div key={g.id} className="flex-none group" style={{ width: 260, scrollSnapAlign: "start" }}>
                     <div className="rounded-2xl overflow-hidden shadow-[0_4px_16px_-4px_rgba(36,27,21,0.14)]" style={{ aspectRatio: "1", background: T.paper }}>
@@ -351,32 +353,41 @@ export default function HomePage() {
           </section>
         )}
 
-        {embed && (
+        {videos.length > 0 && (
           <section className="px-5 md:px-10 py-16">
-            <div className="max-w-[820px] mx-auto text-center">
+            <div className="max-w-[1160px] mx-auto">
               <SectionHeading>Watch us dance</SectionHeading>
-              {embed.type === "facebook" || embed.type === "tiktok" ? (
-                <div className="flex justify-center">
-                  <iframe
-                    src={embed.src}
-                    title="Nritya Mandala video"
-                    className="shadow-[0_10px_30px_-5px_rgba(36,27,21,0.2)]"
-                    style={{ border: "none", width: "100%", maxWidth: 360, aspectRatio: "9 / 16", borderRadius: 24 }}
-                    allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
-                </div>
-              ) : (
-                <div className="shadow-[0_10px_30px_-5px_rgba(36,27,21,0.2)]" style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 20, overflow: "hidden" }}>
-                  <iframe
-                    src={embed.src}
-                    title="Nritya Mandala video"
-                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              )}
+              <div className={`flex items-start gap-6 ${videos.length <= 2 ? "justify-center" : ""}`} style={{ overflowX: "auto", scrollSnapType: "x mandatory", paddingBottom: 10, WebkitOverflowScrolling: "touch" }}>
+                {videos.map((v) => {
+                  const embed = videoEmbed(v.url);
+                  if (!embed) return null;
+                  return (
+                    <div key={v.id} className="flex-none" style={{ scrollSnapAlign: "start" }}>
+                      {embed.type === "facebook" || embed.type === "tiktok" ? (
+                        <iframe
+                          src={embed.src}
+                          title="Nritya Mandala video"
+                          className="shadow-[0_10px_30px_-5px_rgba(36,27,21,0.2)]"
+                          style={{ border: "none", width: 260, maxWidth: "80vw", aspectRatio: "9 / 16", borderRadius: 24 }}
+                          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <div className="shadow-[0_10px_30px_-5px_rgba(36,27,21,0.2)]" style={{ width: 360, maxWidth: "80vw", position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 20, overflow: "hidden" }}>
+                          <iframe
+                            src={embed.src}
+                            title="Nritya Mandala video"
+                            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        </div>
+                      )}
+                      {v.caption && <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 8, textAlign: "center" }}>{v.caption}</div>}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </section>
         )}
@@ -420,8 +431,6 @@ export default function HomePage() {
             <a href="https://maps.google.com/?q=72+Central+Avenue+Oran+Park+NSW" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.goldLight, fontWeight: 600, textDecoration: "underline", letterSpacing: 0.5 }}>GET DIRECTIONS</a>
             <div className="w-full max-w-[320px] flex items-center justify-center gap-2 flex-wrap" style={{ marginTop: 32, paddingTop: 28, borderTop: "1px solid rgba(255,255,255,0.12)" }}>
               <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>Facebook</a>
-              <span style={{ color: "rgba(255,255,255,0.3)" }}>|</span>
-              <a href="https://g.page/r/Cd0RBuUBpA3jEBM/review" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>Google Reviews</a>
               <span style={{ color: "rgba(255,255,255,0.3)" }}>|</span>
               <a href="https://www.tiktok.com/@nritya.mandala" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>TikTok</a>
             </div>

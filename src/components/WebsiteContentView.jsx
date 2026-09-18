@@ -4,7 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, Field } from "./ui";
 import { publicMediaUrl } from "../lib/media";
 
-const SITE_CONTENT_KEYS = ["hero_tagline", "hero_photo_path", "about_blurb", "video_url", "show_classes", "show_pricing", "show_levels"];
+const SITE_CONTENT_KEYS = ["hero_tagline", "hero_photo_path", "about_blurb", "show_classes", "show_pricing", "show_levels"];
 
 // Hero photo/tagline, about blurb, video link, and public-visibility toggles for
 // the public homepage — stored as key/value rows in site_content, same shape as
@@ -64,7 +64,7 @@ function HeroAboutEditor() {
     <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18 }}>
       <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Homepage content</h3>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        Hero photo, tagline, about text, and video link. Video link accepts YouTube, TikTok, or a public Facebook video/reel link. The class schedule, pricing, and levels come from the rest of the app automatically, but are hidden from the public page by default — turn them on below only once you're ready for cold visitors to see them.
+        Hero photo, tagline, and about text. The class schedule, pricing, and levels come from the rest of the app automatically, but are hidden from the public page by default — turn them on below only once you're ready for cold visitors to see them.
       </p>
 
       <Field label="Hero photo">
@@ -73,7 +73,6 @@ function HeroAboutEditor() {
       </Field>
       <Field label="Tagline"><input style={inputStyle} value={values.hero_tagline || ""} onChange={(e) => setField("hero_tagline", e.target.value)} placeholder="Where every step tells a story." /></Field>
       <Field label="About us"><textarea style={{ ...inputStyle, minHeight: 120 }} value={values.about_blurb || ""} onChange={(e) => setField("about_blurb", e.target.value)} placeholder="A few paragraphs about the studio…" /></Field>
-      <Field label="Video link (YouTube, TikTok, or Facebook)"><input style={inputStyle} value={values.video_url || ""} onChange={(e) => setField("video_url", e.target.value)} placeholder="https://www.youtube.com/watch?v=… or a TikTok/Facebook video link" /></Field>
 
       <div style={{ borderTop: `1px solid ${T.line}`, marginTop: 14, paddingTop: 14, marginBottom: 4 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, marginBottom: 8, letterSpacing: 0.3 }}>PUBLIC VISIBILITY</div>
@@ -194,6 +193,119 @@ function GalleryEditor() {
           {uploading ? "Uploading…" : "+ Add photo"}
         </span>
       </label>
+    </div>
+  );
+}
+
+// Ordered video list for the public homepage's "Watch us dance" carousel —
+// links only (YouTube/TikTok/Facebook), stored in site_videos. Mirrors
+// GalleryEditor's add/reorder/delete shape but takes a link instead of a file.
+function VideosEditor() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [url, setUrl] = useState("");
+  const [caption, setCaption] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("site_videos").select("*").order("sort_order");
+    setRows(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const resetForm = () => { setUrl(""); setCaption(""); setError(""); };
+  const startAdd = () => { resetForm(); setAdding(true); setEditingId(null); };
+  const startEdit = (r) => { setUrl(r.url); setCaption(r.caption || ""); setEditingId(r.id); setAdding(false); setError(""); };
+
+  const save = async () => {
+    if (!url.trim()) { setError("A video link is required."); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const payload = { url: url.trim(), caption: caption.trim() || null };
+      if (editingId) {
+        await supabase.from("site_videos").update(payload).eq("id", editingId);
+      } else {
+        const nextOrder = rows.length ? Math.max(...rows.map((r) => r.sort_order)) + 1 : 0;
+        await supabase.from("site_videos").insert({ ...payload, sort_order: nextOrder });
+      }
+      setAdding(false);
+      setEditingId(null);
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const move = async (index, dir) => {
+    const other = index + dir;
+    if (other < 0 || other >= rows.length) return;
+    const a = rows[index], b = rows[other];
+    await Promise.all([
+      supabase.from("site_videos").update({ sort_order: b.sort_order }).eq("id", a.id),
+      supabase.from("site_videos").update({ sort_order: a.sort_order }).eq("id", b.id),
+    ]);
+    load();
+  };
+
+  const remove = async (id) => {
+    await supabase.from("site_videos").delete().eq("id", id);
+    load();
+  };
+
+  const form = (
+    <div style={{ border: `1px solid ${T.gold}`, borderRadius: 8, padding: 12, marginBottom: 10 }}>
+      <Field label="Video link (YouTube, TikTok, or Facebook)"><input style={inputStyle} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=… or a TikTok/Facebook video link" /></Field>
+      <Field label="Caption (optional)"><input style={inputStyle} value={caption} onChange={(e) => setCaption(e.target.value)} /></Field>
+      {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
+      <div className="flex justify-end gap-2 mt-1">
+        <Btn variant="ghost" size="sm" onClick={() => { setAdding(false); setEditingId(null); }}>Cancel</Btn>
+        <Btn size="sm" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Btn>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Videos</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        Shown on the public homepage as a scrollable carousel, in this order — add as many as you like. Accepts YouTube, TikTok, or a public Facebook video/reel link.
+      </p>
+
+      {loading ? (
+        <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>
+      ) : (
+        <div className="grid gap-2 mb-4">
+          {rows.length === 0 && !adding && <p style={{ fontSize: 13, color: T.inkSoft }}>No videos added yet.</p>}
+          {rows.map((r, i) => (
+            editingId === r.id ? <div key={r.id}>{form}</div> : (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, border: `1px solid ${T.line}`, borderRadius: 8, padding: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.url}</div>
+                  {r.caption && <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>{r.caption}</div>}
+                </div>
+                <div className="flex items-center gap-1" style={{ flexShrink: 0 }}>
+                  <button onClick={() => move(i, -1)} disabled={i === 0} style={{ fontSize: 14, color: i === 0 ? `${T.inkSoft}66` : T.maroon, padding: "4px 6px" }}>↑</button>
+                  <button onClick={() => move(i, 1)} disabled={i === rows.length - 1} style={{ fontSize: 14, color: i === rows.length - 1 ? `${T.inkSoft}66` : T.maroon, padding: "4px 6px" }}>↓</button>
+                  <button onClick={() => startEdit(r)} style={{ fontSize: 12, color: T.maroon, padding: "4px 6px" }}>Edit</button>
+                  <button onClick={() => remove(r.id)} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Delete</button>
+                </div>
+              </div>
+            )
+          ))}
+          {adding && form}
+        </div>
+      )}
+
+      {!adding && editingId === null && <Btn size="sm" variant="ghost" onClick={startAdd}>+ Add video</Btn>}
     </div>
   );
 }
@@ -625,6 +737,7 @@ function MessagesViewer() {
 const SECTIONS = [
   { id: "homepage", label: "Homepage" },
   { id: "gallery", label: "Gallery" },
+  { id: "videos", label: "Videos" },
   { id: "instructors", label: "Instructors" },
   { id: "testimonials", label: "Testimonials" },
   { id: "faq", label: "FAQ" },
@@ -650,6 +763,7 @@ export default function WebsiteContentView() {
 
       {section === "homepage" && <HeroAboutEditor />}
       {section === "gallery" && <GalleryEditor />}
+      {section === "videos" && <VideosEditor />}
       {section === "instructors" && <InstructorsEditor />}
       {section === "testimonials" && <TestimonialsEditor />}
       {section === "faq" && <FaqEditor />}
