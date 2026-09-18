@@ -6,6 +6,7 @@ import { Btn, Field, ConfirmModal } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import { classesLabel } from "../lib/format";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
+import { APP_ORIGIN } from "../lib/origins";
 
 // Shown for a student who isn't currently booked into a class — same picker as the
 // enrolment form's "Preferred class" field, so a renewing student without a class
@@ -41,7 +42,7 @@ export default function RenewForm() {
   const [dobEdits, setDobEdits] = useState({}); // { [studentId]: "YYYY-MM-DD" } - current value shown, may differ from what's on file
   const [originalDobs, setOriginalDobs] = useState({}); // { [studentId]: "YYYY-MM-DD" or "" } - what's actually on file, to detect a real change
   const [classes, setClasses] = useState([]); // open classes with room, for students not currently booked into one
-  const [enrolledStudentIds, setEnrolledStudentIds] = useState(() => new Set()); // student ids that already have a current class
+  const [currentClassesByStudent, setCurrentClassesByStudent] = useState({}); // { [studentId]: [{label, day, time, end_time}] } — their existing booking(s), if any
   const [preferredClassIds, setPreferredClassIds] = useState({}); // { [studentId]: classId | "none" }
   const [preferredClassTexts, setPreferredClassTexts] = useState({}); // { [studentId]: text } - used when there are no classes to pick from yet
   const [paymentClaimed, setPaymentClaimed] = useState(false);
@@ -86,8 +87,10 @@ export default function RenewForm() {
       setOriginalDobs((m) => ({ ...m, ...dobMap }));
 
       const allIds = [data.id, ...others.map((s) => s.id)];
-      supabase.from("enrollments").select("student_id").in("student_id", allIds).then(({ data: enr }) => {
-        setEnrolledStudentIds(new Set((enr || []).map((e) => e.student_id)));
+      supabase.from("enrollments").select("student_id, classes(label, day, time, end_time)").in("student_id", allIds).then(({ data: enr }) => {
+        const map = {};
+        (enr || []).forEach((e) => { if (e.classes) (map[e.student_id] ||= []).push(e.classes); });
+        setCurrentClassesByStudent(map);
       });
     });
   }, [code]);
@@ -110,7 +113,7 @@ export default function RenewForm() {
   // no current class, regardless of whether there happen to be open classes to
   // pick from right now (in which case the field falls back to free text, same as
   // the enrolment form).
-  const needsPreferredClass = (studentId) => !enrolledStudentIds.has(studentId);
+  const needsPreferredClass = (studentId) => !currentClassesByStudent[studentId]?.length;
   // Only when there's an actual list to pick from is a selection required —
   // the free-text fallback (no open classes) is optional, matching the enrolment form.
   const missingPreferredClass = (studentId) => needsPreferredClass(studentId) && classes.length > 0 && !preferredClassIds[studentId];
@@ -215,10 +218,22 @@ export default function RenewForm() {
         <div style={{ background: T.ivory, borderRadius: 12, padding: "24px 20px", boxSizing: "border-box", fontFamily: "Inter, sans-serif" }}>
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 6 }}>Is this correct?</h3>
           <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>Update the date of birth below if it isn't right.</p>
+          <a
+            href={`${APP_ORIGIN}/parent?code=${encodeURIComponent(student.code)}`}
+            style={{ display: "inline-block", fontSize: 12.5, color: T.gold, textDecoration: "underline", marginBottom: 14 }}
+          >
+            View {student.name}'s bookings & QR code →
+          </a>
           <div className="grid grid-cols-2 gap-3 mb-4">
             <Field label="Student's name"><input style={inputStyle} value={student.name} disabled /></Field>
             <Field label="Date of birth"><input style={inputStyle} type="date" value={dobEdits[student.id] || ""} onChange={(e) => setDobEdits((m) => ({ ...m, [student.id]: e.target.value }))} /></Field>
           </div>
+
+          {currentClassesByStudent[student.id]?.length > 0 && (
+            <p style={{ fontSize: 12, color: T.inkSoft, marginTop: -8, marginBottom: 14 }}>
+              Currently in: {currentClassesByStudent[student.id].map((c) => `${c.label} (${c.day} ${formatTimeRange(c.time, c.end_time)})`).join(", ")}
+            </p>
+          )}
 
           {needsPreferredClass(student.id) && (
             <div style={{ marginBottom: 4 }}>
@@ -275,6 +290,11 @@ export default function RenewForm() {
                       <Field label={`${s.name}'s date of birth`}>
                         <input style={inputStyle} type="date" value={dobEdits[s.id] || ""} onChange={(e) => setDobEdits((m) => ({ ...m, [s.id]: e.target.value }))} />
                       </Field>
+                      {currentClassesByStudent[s.id]?.length > 0 && (
+                        <p style={{ fontSize: 11, color: T.inkSoft, marginTop: -6, marginBottom: 10 }}>
+                          Currently in: {currentClassesByStudent[s.id].map((c) => `${c.label} (${c.day} ${formatTimeRange(c.time, c.end_time)})`).join(", ")}
+                        </p>
+                      )}
                       {needsPreferredClass(s.id) && (
                         <PreferredClassField
                           classes={classes}
