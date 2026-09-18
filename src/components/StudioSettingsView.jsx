@@ -403,8 +403,14 @@ export default function StudioSettingsView() {
           <EmailTemplateEditor
             templateKey="package_expired"
             title="Payment required (package expired) email"
-            description="Sent when you click 'Payment required' on a student whose package has run out."
+            description="Sent when you click 'Payment required' on a student whose package has run out. This is the default — you can also tweak the wording for a single send from the preview screen right before it goes out. The Facebook footer is added automatically and isn't part of this text."
             placeholders={["student_name", "package_size", "classes_used", "status_text", "renew_link"]}
+          />
+          <EmailTemplateEditor
+            templateKey="renewal_approved"
+            title="Renewal confirmed email"
+            description="Sent to the parent when you approve a renewal request. This is the default — you can also tweak the wording for a single send from the preview screen right before it goes out. The Facebook footer is added automatically and isn't part of this text."
+            placeholders={["student_name", "tier_name", "classes_total", "amount"]}
           />
         </>
       )}

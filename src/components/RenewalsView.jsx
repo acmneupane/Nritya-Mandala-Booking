@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, ConfirmModal, Modal, Field } from "./ui";
 import PackageReminderModal from "./PackageReminderModal";
+import RenewalApprovalEmailModal from "./RenewalApprovalEmailModal";
 import { localDateStr } from "../lib/dates";
 import { classesLabel } from "../lib/format";
 
@@ -193,6 +194,7 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
   const [confirmReject, setConfirmReject] = useState(null);
   const [confirmApprove, setConfirmApprove] = useState(null);
   const [paymentSettings, setPaymentSettings] = useState({}); // { [requestId]: { confirmed, method } }
+  const [emailPreview, setEmailPreview] = useState(null); // { student, tierName, classesTotal, amount }
   const focusRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -244,6 +246,16 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
     setApproving(null);
     load();
     onChanged && onChanged();
+
+    const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").eq("student_id", r.student_id);
+    const guardianEmails = [...new Set((guardianLinks || []).map((g) => g.guardians?.email).filter(Boolean))];
+    setEmailPreview({
+      student: { id: r.student_id, name: r.students?.name || "this student" },
+      guardianEmails,
+      tierName: r.tier_name_snapshot,
+      classesTotal,
+      amount,
+    });
   };
   const reject = async (id) => {
     await supabase.from("package_renewal_requests").update({ status: "rejected", reviewed_at: new Date().toISOString() }).eq("id", id);
@@ -374,6 +386,17 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
           request={confirmApprove}
           onClose={() => setConfirmApprove(null)}
           onApprove={(overrides) => { const r = confirmApprove; setConfirmApprove(null); approve(r, overrides); }}
+        />
+      )}
+      {emailPreview && (
+        <RenewalApprovalEmailModal
+          student={emailPreview.student}
+          guardianEmails={emailPreview.guardianEmails}
+          tierName={emailPreview.tierName}
+          classesTotal={emailPreview.classesTotal}
+          amount={emailPreview.amount}
+          onCancel={() => setEmailPreview(null)}
+          onSent={() => setEmailPreview(null)}
         />
       )}
     </div>

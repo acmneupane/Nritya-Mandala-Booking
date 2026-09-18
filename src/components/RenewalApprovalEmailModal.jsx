@@ -9,11 +9,11 @@ function fillTemplate(template, vars) {
   return template.replace(/{{\s*(\w+)\s*}}/g, (_, key) => vars[key] ?? "");
 }
 
-// Preview-then-confirm for the "package used up, payment required" reminder —
-// same pattern as the booking confirmation email: nothing sends until the admin
-// explicitly confirms. guardianEmails is every distinct guardian email on file for
-// this student — all checked by default, any can be unchecked to skip a recipient.
-export default function PackageReminderModal({ student, guardianEmails, packageSize, classesUsed, onCancel, onSent }) {
+// Preview-then-confirm for the renewal-approved confirmation email — shown right
+// after an admin approves a renewal request, same pattern as the enrolment booking
+// confirmation and the package-reminder email. guardianEmails is every distinct
+// guardian email on file for this student — all checked by default.
+export default function RenewalApprovalEmailModal({ student, guardianEmails, tierName, classesTotal, amount, onCancel, onSent }) {
   const [template, setTemplate] = useState(null);
   const [bccEmail, setBccEmail] = useState(null);
   const [bccChecked, setBccChecked] = useState(false);
@@ -27,9 +27,9 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
   const [bodyText, setBodyText] = useState(null);
 
   useEffect(() => {
-    supabase.from("email_templates").select("subject, body").eq("key", "package_expired").maybeSingle()
+    supabase.from("email_templates").select("subject, body").eq("key", "renewal_approved").maybeSingle()
       .then(({ data }) => setTemplate(data));
-    supabase.functions.invoke("send-package-reminder-email", { method: "GET" })
+    supabase.functions.invoke("send-renewal-approval-email", { method: "GET" })
       .then(({ data }) => {
         setBccEmail(data?.bccEmail || null);
         if (typeof data?.todayCount === "number") setLimitInfo({ todayCount: data.todayCount, dailyLimit: data.dailyLimit, monthCount: data.monthCount, monthLimit: data.monthLimit });
@@ -50,15 +50,7 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
     (limitInfo.monthCount + plannedRecipientRows >= limitInfo.monthLimit * 0.8)
   );
 
-  const vars = { student_name: student.name, package_size: String(packageSize), classes_used: String(classesUsed) };
-  const remaining = packageSize - classesUsed;
-  vars.status_text = packageSize <= 0
-    ? "doesn't have an active package yet"
-    : remaining <= 0
-      ? "has now been fully used"
-      : `has only ${remaining} class${remaining === 1 ? "" : "es"} remaining`;
-  const renewLink = student.code ? `${window.location.origin}/renew?code=${encodeURIComponent(student.code)}` : "";
-  vars.renew_link = renewLink ? `<a href="${renewLink}">${renewLink}</a>` : "";
+  const vars = { student_name: student.name, tier_name: tierName || "", classes_total: String(classesTotal ?? ""), amount: Number(amount ?? 0).toFixed(2) };
   const subject = template ? fillTemplate(template.subject, vars) : "";
 
   useEffect(() => {
@@ -69,8 +61,8 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
   const send = async () => {
     setSending(true);
     setError("");
-    const { error: fnErr } = await supabase.functions.invoke("send-package-reminder-email", {
-      body: { guardianEmails: selectedEmails, studentId: student.id, studentName: student.name, studentCode: student.code, packageSize, classesUsed, includeBcc: bccChecked, bodyOverride: bodyText },
+    const { error: fnErr } = await supabase.functions.invoke("send-renewal-approval-email", {
+      body: { guardianEmails: selectedEmails, studentId: student.id, studentName: student.name, tierName, classesTotal, amount, includeBcc: bccChecked, bodyOverride: bodyText },
     });
     setSending(false);
     if (fnErr) { setError("Something went wrong sending — you can try again, or check with the parent directly."); return; }
@@ -87,8 +79,8 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
 
   if (!guardianEmails || guardianEmails.length === 0) {
     return (
-      <Modal title="No email sent" onClose={onCancel}>
-        <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.5 }}>This student has no guardian email on file, so there's nothing to send to. Add one from Edit, then try again.</p>
+      <Modal title="No confirmation email sent" onClose={onCancel}>
+        <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.5 }}>This student has no guardian email on file, so there's nothing to send to. The renewal was still approved normally.</p>
         <div className="flex justify-end mt-4"><Btn onClick={onCancel}>Close</Btn></div>
       </Modal>
     );
@@ -97,7 +89,7 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
   return (
     <Modal title="Confirm before sending" onClose={onCancel}>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10, lineHeight: 1.5 }}>
-        {packageSize > 0 ? `${student.name}'s package (${classesLabel(packageSize)}) ${vars.status_text}.` : `${student.name} ${vars.status_text}.`} Review before sending a payment reminder.
+        {student.name}'s renewal ({classesTotal ? classesLabel(classesTotal) : "package"}{tierName ? `, ${tierName}` : ""}) was approved. Review before sending a confirmation.
       </p>
 
       <div style={{ marginBottom: 12 }}>
@@ -147,7 +139,7 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
             Edit the body for this send only — this won't change the saved template in Studio Settings.
           </div>
           <textarea
-            style={{ ...inputStyle, minHeight: 160, fontFamily: "monospace", fontSize: 12.5, lineHeight: 1.5 }}
+            style={{ ...inputStyle, minHeight: 140, fontFamily: "monospace", fontSize: 12.5, lineHeight: 1.5 }}
             value={bodyText ?? ""}
             onChange={(e) => setBodyText(e.target.value)}
           />
