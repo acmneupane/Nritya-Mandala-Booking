@@ -353,6 +353,8 @@ export default function HomePage() {
               <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.maroonDark, fontWeight: 600, textDecoration: "underline" }}>Facebook</a>
               <span style={{ color: T.inkSoft }}>·</span>
               <a href="https://g.page/r/Cd0RBuUBpA3jEBM/review" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.maroonDark, fontWeight: 600, textDecoration: "underline" }}>Google Reviews</a>
+              <span style={{ color: T.inkSoft }}>·</span>
+              <a href="https://www.tiktok.com/@nritya.mandala" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.maroonDark, fontWeight: 600, textDecoration: "underline" }}>TikTok</a>
             </div>
           </section>
         </div>

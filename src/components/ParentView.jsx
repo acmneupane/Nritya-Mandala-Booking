@@ -157,6 +157,8 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           <a href="https://g.page/r/Cd0RBuUBpA3jEBM/review" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Google</a>
           <span>·</span>
           <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Facebook</a>
+          <span>·</span>
+          <a href="https://www.tiktok.com/@nritya.mandala" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>TikTok</a>
         </div>
 
         {activeNotices.map((n) => (
