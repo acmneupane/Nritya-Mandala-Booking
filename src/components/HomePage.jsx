@@ -127,9 +127,9 @@ function ContactForm() {
 // sections are each gated behind their own show_classes/show_pricing/show_levels
 // toggle (default off) — showing exact pricing to a cold visitor before they've
 // engaged can talk them out of enrolling, so the studio opts in per-section when
-// they're ready. Currently mounted at /new (see App.jsx) rather than the domain
-// root, so it can be reviewed and filled in with real content before going live;
-// ComingSoonPage stays the default at "/" until that switch is made.
+// they're ready. Shown at the domain root once the studio flips "Go live" on the
+// admin Website page (see PublicHomeGate in App.jsx) — always reachable directly
+// at /new in the meantime for previewing/building it before that switch.
 export default function HomePage() {
   const [content, setContent] = useState({});
   const [gallery, setGallery] = useState([]);

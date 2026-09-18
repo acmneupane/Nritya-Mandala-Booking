@@ -734,6 +734,54 @@ function MessagesViewer() {
   );
 }
 
+// Controls whether the public site's root shows the real homepage or a simple
+// coming-soon placeholder (App.jsx's PublicHomeGate reads the same site_live
+// key). Defaults to "off" so a fresh site never accidentally shows an
+// unfinished homepage — the studio flips it once the content below is ready.
+function GoLiveToggle() {
+  const [live, setLive] = useState(null); // null = loading
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    const { data } = await supabase.from("site_content").select("value").eq("key", "site_live").maybeSingle();
+    setLive(data?.value === "true");
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const setLiveStatus = async (nextLive) => {
+    setSaving(true);
+    await supabase.from("site_content").upsert({ key: "site_live", value: nextLive ? "true" : "false", updated_at: new Date().toISOString() }, { onConflict: "key" });
+    setLive(nextLive);
+    setSaving(false);
+  };
+
+  if (live === null) return null;
+
+  return (
+    <div
+      className="flex items-center justify-between flex-wrap gap-3 mb-4"
+      style={{ background: live ? `${T.sage}18` : `${T.gold}18`, border: `1px solid ${live ? T.sage : T.gold}55`, borderRadius: 8, padding: "12px 16px" }}
+    >
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: live ? T.sage : T.maroonDark }}>
+          {live ? "🟢 Your site is live" : "🟡 Showing “Coming soon” to visitors"}
+        </div>
+        <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 2 }}>
+          {live
+            ? "The homepage below is what visitors see at your main website address."
+            : "Visitors to your main website address see a simple coming-soon page until you go live."}
+        </p>
+      </div>
+      {live ? (
+        <Btn variant="ghost" size="sm" onClick={() => setLiveStatus(false)} disabled={saving}>{saving ? "…" : "Go offline"}</Btn>
+      ) : (
+        <Btn variant="success" size="sm" onClick={() => setLiveStatus(true)} disabled={saving}>{saving ? "…" : "Go live"}</Btn>
+      )}
+    </div>
+  );
+}
+
 const SECTIONS = [
   { id: "homepage", label: "Homepage" },
   { id: "gallery", label: "Gallery" },
@@ -749,6 +797,7 @@ export default function WebsiteContentView() {
 
   return (
     <div style={{ maxWidth: 620 }}>
+      <GoLiveToggle />
       <div className="flex gap-1 mb-4 flex-wrap" style={{ background: T.paper, borderRadius: 8, padding: 3, display: "inline-flex" }}>
         {SECTIONS.map((s) => (
           <button

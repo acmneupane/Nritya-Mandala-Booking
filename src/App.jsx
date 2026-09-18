@@ -16,6 +16,22 @@ import { T } from "./lib/theme";
 // experience, for convenience while working on it.
 const ADMIN_HOSTNAMES = ["admin.nrityamandala.com", "localhost", "127.0.0.1"];
 
+// What the root path (and any unrecognised path) shows to a public visitor,
+// controlled by the "Go live" toggle on the admin Website page (site_content's
+// site_live key) — defaults to the coming-soon page until the studio flips it,
+// so a fresh install never accidentally shows an empty/half-built homepage.
+function PublicHomeGate() {
+  const [live, setLive] = useState(undefined); // undefined = loading
+  useEffect(() => {
+    supabase.from("site_content").select("value").eq("key", "site_live").maybeSingle()
+      .then(({ data }) => setLive(data?.value === "true"));
+  }, []);
+  if (live === undefined) {
+    return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>Loading…</div>;
+  }
+  return live ? <HomePage /> : <ComingSoonPage />;
+}
+
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = loading, null = signed out
   const path = window.location.pathname;
@@ -28,19 +44,19 @@ export default function App() {
   }, []);
 
   if (!isAdminHost) {
-    // Public-facing domain: the parent-facing forms/lookups work exactly as
-    // before. The real public homepage (HomePage) lives at /new for now, kept out
-    // of the way of the root path while it's being filled in with real content —
-    // the coming-soon placeholder stays the default everywhere else, including
-    // root. Once ready, this swaps: "/" -> HomePage, ComingSoonPage moves to
-    // /comingsoon.
+    // Public-facing domain: the root (and anything unrecognised) is gated by the
+    // "Go live" toggle — see PublicHomeGate above. /new always shows the real
+    // homepage directly, live or not, so the studio can keep previewing/building
+    // it before flipping the switch; /comingsoon always shows the placeholder,
+    // for the same reason in reverse.
     if (path === "/parent") return <ParentLookup />;
     if (path === "/enroll") return <EnrollForm />;
     if (path === "/qr") return <ParentLookup />;
     if (path === "/renew" || path === "/renewal") return <RenewForm />;
     if (path === "/transfer") return <TransferRequestForm />;
     if (path === "/new") return <HomePage />;
-    return <ComingSoonPage />;
+    if (path === "/comingsoon") return <ComingSoonPage />;
+    return <PublicHomeGate />;
   }
 
   // Admin domain: always the login/dashboard, regardless of path.
