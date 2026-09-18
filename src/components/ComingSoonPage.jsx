@@ -23,6 +23,18 @@ export default function ComingSoonPage() {
             📋 Look up your booking / QR code
           </a>
         </div>
+        <p style={{ fontSize: 13, color: T.inkSoft, lineHeight: 1.6, marginTop: 24 }}>
+          In the meantime, please refer to our Facebook page for updates and any messages.
+        </p>
+        <a
+          href="https://www.facebook.com/profile.php?id=100095383322004"
+          style={{ display: "inline-block", marginTop: 10, background: "#1877F2", color: "#fff", padding: "10px 22px", borderRadius: 6, textDecoration: "none", fontWeight: 600, fontSize: 14 }}
+        >
+          Follow Nritya Mandala on Facebook
+        </a>
+        <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 18 }}>
+          Or email us at <a href="mailto:nrityamandala93@gmail.com" style={{ color: T.maroonDark, fontWeight: 600 }}>nrityamandala93@gmail.com</a>
+        </p>
       </div>
     </div>
   );

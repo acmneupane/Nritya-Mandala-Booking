@@ -7,6 +7,7 @@ import RenewForm from "./components/RenewForm";
 import TransferRequestForm from "./components/TransferRequestForm";
 import Dashboard from "./components/Dashboard";
 import ComingSoonPage from "./components/ComingSoonPage";
+import HomePage from "./components/HomePage";
 import { T } from "./lib/theme";
 
 // admin.nrityamandala.com is the same deployed app as app.nrityamandala.com — this
@@ -28,13 +29,17 @@ export default function App() {
 
   if (!isAdminHost) {
     // Public-facing domain: the parent-facing forms/lookups work exactly as
-    // before; anything else (including the root) is the coming-soon placeholder
-    // until the real public homepage is built.
+    // before. The real public homepage (HomePage) lives at /new for now, kept out
+    // of the way of the root path while it's being filled in with real content —
+    // the coming-soon placeholder stays the default everywhere else, including
+    // root. Once ready, this swaps: "/" -> HomePage, ComingSoonPage moves to
+    // /comingsoon.
     if (path === "/parent") return <ParentLookup />;
     if (path === "/enroll") return <EnrollForm />;
     if (path === "/qr") return <ParentLookup />;
     if (path === "/renew" || path === "/renewal") return <RenewForm />;
     if (path === "/transfer") return <TransferRequestForm />;
+    if (path === "/new") return <HomePage />;
     return <ComingSoonPage />;
   }
 

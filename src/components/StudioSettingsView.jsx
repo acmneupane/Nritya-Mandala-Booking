@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field } from "./ui";
 import { localDateStr } from "../lib/dates";
+import { publicMediaUrl } from "../lib/media";
 
 function EmailTemplateEditor({ templateKey, title, description, placeholders }) {
   const [subject, setSubject] = useState("");
@@ -309,6 +310,185 @@ function NoticeBoardEditor() {
   );
 }
 
+const SITE_CONTENT_KEYS = ["hero_tagline", "hero_photo_path", "about_blurb", "video_url"];
+
+// Hero photo/tagline, about blurb, and video link for the public homepage
+// (HomePage.jsx, currently at /new) — stored as key/value rows in site_content,
+// same shape as email_templates so more fields can be added later without a
+// migration.
+function HeroAboutEditor() {
+  const [values, setValues] = useState({});
+  const [heroFile, setHeroFile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("site_content").select("key, value").in("key", SITE_CONTENT_KEYS);
+    setValues(Object.fromEntries((data || []).map((r) => [r.key, r.value])));
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const setField = (key, value) => setValues((v) => ({ ...v, [key]: value }));
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    setError("");
+    try {
+      let heroPath = values.hero_photo_path || "";
+      if (heroFile) {
+        const ext = heroFile.name.split(".").pop() || "jpg";
+        heroPath = `hero-${crypto.randomUUID()}.${ext}`;
+        const { error: uploadErr } = await supabase.storage.from("public-media").upload(heroPath, heroFile);
+        if (uploadErr) throw new Error("Couldn't upload the hero photo — please try again.");
+      }
+      const rows = SITE_CONTENT_KEYS.map((key) => ({
+        key, value: key === "hero_photo_path" ? heroPath : (values[key] || ""), updated_at: new Date().toISOString(),
+      }));
+      const { error: saveErr } = await supabase.from("site_content").upsert(rows, { onConflict: "key" });
+      if (saveErr) throw new Error("Couldn't save — please try again.");
+      setValues((v) => ({ ...v, hero_photo_path: heroPath }));
+      setHeroFile(null);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>;
+
+  const heroPreview = heroFile ? URL.createObjectURL(heroFile) : publicMediaUrl(values.hero_photo_path);
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Homepage content</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        Hero photo, tagline, about text, and video link for the public homepage. The live class schedule, levels, pricing, and notices come from the rest of the app automatically — nothing to edit here for those.
+      </p>
+
+      <Field label="Hero photo">
+        {heroPreview && <img src={heroPreview} alt="" style={{ width: "100%", maxWidth: 320, borderRadius: 8, marginBottom: 8, display: "block" }} />}
+        <input type="file" accept="image/*" onChange={(e) => setHeroFile(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
+      </Field>
+      <Field label="Tagline"><input style={inputStyle} value={values.hero_tagline || ""} onChange={(e) => setField("hero_tagline", e.target.value)} placeholder="Where every step tells a story." /></Field>
+      <Field label="About us"><textarea style={{ ...inputStyle, minHeight: 120 }} value={values.about_blurb || ""} onChange={(e) => setField("about_blurb", e.target.value)} placeholder="A few paragraphs about the studio…" /></Field>
+      <Field label="Video link (YouTube)"><input style={inputStyle} value={values.video_url || ""} onChange={(e) => setField("video_url", e.target.value)} placeholder="https://www.youtube.com/watch?v=…" /></Field>
+
+      {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 10 }}>{error}</p>}
+      {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
+      <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save homepage content"}</Btn>
+    </div>
+  );
+}
+
+// Ordered photo gallery for the public homepage, stored in site_gallery_images
+// with images in the public-media bucket.
+function GalleryEditor() {
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("site_gallery_images").select("*").order("sort_order");
+    setImages(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const addPhoto = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `gallery-${crypto.randomUUID()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from("public-media").upload(path, file);
+      if (uploadErr) throw new Error("Couldn't upload that photo — please try again.");
+      const nextOrder = images.length ? Math.max(...images.map((g) => g.sort_order)) + 1 : 0;
+      await supabase.from("site_gallery_images").insert({ path, sort_order: nextOrder });
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const updateCaption = async (id, caption) => {
+    setImages((imgs) => imgs.map((g) => (g.id === id ? { ...g, caption } : g)));
+    await supabase.from("site_gallery_images").update({ caption }).eq("id", id);
+  };
+
+  const move = async (index, dir) => {
+    const other = index + dir;
+    if (other < 0 || other >= images.length) return;
+    const a = images[index], b = images[other];
+    await Promise.all([
+      supabase.from("site_gallery_images").update({ sort_order: b.sort_order }).eq("id", a.id),
+      supabase.from("site_gallery_images").update({ sort_order: a.sort_order }).eq("id", b.id),
+    ]);
+    load();
+  };
+
+  const remove = async (img) => {
+    await supabase.from("site_gallery_images").delete().eq("id", img.id);
+    await supabase.storage.from("public-media").remove([img.path]);
+    load();
+  };
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Photo gallery</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        Shown on the public homepage in this order. Use the arrows to reorder, or remove a photo entirely.
+      </p>
+
+      {loading ? (
+        <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>
+      ) : (
+        <div className="grid gap-2 mb-4">
+          {images.length === 0 && <p style={{ fontSize: 13, color: T.inkSoft }}>No photos yet.</p>}
+          {images.map((g, i) => (
+            <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 10, border: `1px solid ${T.line}`, borderRadius: 8, padding: 8 }}>
+              <img src={publicMediaUrl(g.path)} alt="" style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
+              <input
+                style={{ ...inputStyle, flex: 1 }}
+                value={g.caption || ""}
+                placeholder="Caption (optional)"
+                onChange={(e) => updateCaption(g.id, e.target.value)}
+              />
+              <div className="flex items-center gap-1" style={{ flexShrink: 0 }}>
+                <button onClick={() => move(i, -1)} disabled={i === 0} style={{ fontSize: 14, color: i === 0 ? `${T.inkSoft}66` : T.maroon, padding: "4px 6px" }}>↑</button>
+                <button onClick={() => move(i, 1)} disabled={i === images.length - 1} style={{ fontSize: 14, color: i === images.length - 1 ? `${T.inkSoft}66` : T.maroon, padding: "4px 6px" }}>↓</button>
+                <button onClick={() => remove(g)} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 10 }}>{error}</p>}
+      <label style={{ display: "inline-block" }}>
+        <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { addPhoto(e.target.files?.[0]); e.target.value = ""; }} disabled={uploading} />
+        <span style={{ display: "inline-block", fontSize: 13, fontWeight: 600, padding: "8px 14px", borderRadius: 6, background: T.maroon, color: "#fff", cursor: uploading ? "default" : "pointer", opacity: uploading ? 0.6 : 1 }}>
+          {uploading ? "Uploading…" : "+ Add photo"}
+        </span>
+      </label>
+    </div>
+  );
+}
+
 function DataExport() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
@@ -381,6 +561,12 @@ export default function StudioSettingsView() {
           Notices
         </button>
         <button
+          onClick={() => setSection("website")}
+          style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "website" ? "#fff" : "transparent", color: section === "website" ? T.maroonDark : T.inkSoft, fontWeight: section === "website" ? 600 : 400 }}
+        >
+          Website
+        </button>
+        <button
           onClick={() => setSection("data")}
           style={{ fontSize: 13, padding: "6px 14px", borderRadius: 6, background: section === "data" ? "#fff" : "transparent", color: section === "data" ? T.maroonDark : T.inkSoft, fontWeight: section === "data" ? 600 : 400 }}
         >
@@ -391,6 +577,7 @@ export default function StudioSettingsView() {
       {section === "fee" && <EnrolmentFeesEditor />}
       {section === "capacity" && <CapacityEditor />}
       {section === "notices" && <NoticeBoardEditor />}
+      {section === "website" && (<><HeroAboutEditor /><GalleryEditor /></>)}
       {section === "data" && (<><EmailLimitEditor /><DataExport /></>)}
       {section === "emails" && (
         <>
