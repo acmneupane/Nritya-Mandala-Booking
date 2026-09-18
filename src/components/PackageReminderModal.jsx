@@ -4,6 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { classesLabel } from "../lib/format";
 import { Btn, Modal } from "./ui";
 import { EMAIL_FOOTER_HTML } from "../lib/emailFooter";
+import { APP_ORIGIN } from "../lib/origins";
 
 function fillTemplate(template, vars) {
   return template.replace(/{{\s*(\w+)\s*}}/g, (_, key) => vars[key] ?? "");
@@ -57,7 +58,7 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
     : remaining <= 0
       ? "has now been fully used"
       : `has only ${remaining} class${remaining === 1 ? "" : "es"} remaining`;
-  const renewLink = student.code ? `${window.location.origin}/renew?code=${encodeURIComponent(student.code)}` : "";
+  const renewLink = student.code ? `${APP_ORIGIN}/renew?code=${encodeURIComponent(student.code)}` : "";
   vars.renew_link = renewLink ? `<a href="${renewLink}">${renewLink}</a>` : "";
   const subject = template ? fillTemplate(template.subject, vars) : "";
 

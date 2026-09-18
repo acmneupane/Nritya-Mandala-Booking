@@ -7,6 +7,7 @@ import { formatTimeRange, nextOccurrenceOf } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
 import EmailPreviewModal from "./EmailPreviewModal";
 import PendingPackagesEditor from "./PendingPackagesEditor";
+import { APP_ORIGIN } from "../lib/origins";
 
 function ApproveModal({ request, levels, classes, classById, skips, tierById, onClose, onApproved }) {
   const [students, setStudents] = useState(
@@ -435,7 +436,7 @@ export default function RequestsView({ focusRequestId }) {
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <p style={{ fontSize: 13, color: T.inkSoft }}>
-          {pendingCount} pending request{pendingCount === 1 ? "" : "s"}. Share your public form link: <code style={{ background: T.paper, padding: "2px 6px", borderRadius: 4 }}>{window.location.origin}/enroll</code>
+          {pendingCount} pending request{pendingCount === 1 ? "" : "s"}. Share your public form link: <code style={{ background: T.paper, padding: "2px 6px", borderRadius: 4 }}>{APP_ORIGIN}/enroll</code>
         </p>
         <button onClick={() => setShowHandled((v) => !v)} style={{ fontSize: 12, color: showHandled ? T.maroon : T.inkSoft, fontWeight: showHandled ? 600 : 400, whiteSpace: "nowrap" }}>
           {showHandled ? "← Back to pending" : "View approved/rejected"}

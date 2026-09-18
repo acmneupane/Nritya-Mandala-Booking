@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { T } from "../lib/theme";
+import { APP_ORIGIN } from "../lib/origins";
 
 export default function ShareEnrollLink({ compact }) {
   const [copied, setCopied] = useState(false);
-  const link = `${window.location.origin}/enroll`;
+  const link = `${APP_ORIGIN}/enroll`;
 
   const copy = async () => {
     try {

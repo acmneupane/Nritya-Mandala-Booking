@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { T } from "../lib/theme";
 import { Btn, Modal } from "./ui";
 import { drawQrWithLogo, buildQrCardDataUrl } from "../lib/qrCard";
+import { APP_ORIGIN } from "../lib/origins";
 
 export function QrCanvas({ text, size = 220 }) {
   const canvasRef = useRef(null);
@@ -22,8 +23,8 @@ export default function QrModal({ student, onClose }) {
   // The QR encodes a URL with the code baked in: a parent scanning it with their own
   // camera app lands straight on their child's page with no typing; the studio's own
   // in-app scanner (Day view) decodes the same URL and pulls the code back out of it.
-  const base = `${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`;
-  const shareLink = `${window.location.origin}/qr?code=${encodeURIComponent(student.code)}`;
+  const base = `${APP_ORIGIN}/parent?code=${encodeURIComponent(student.code)}`;
+  const shareLink = `${APP_ORIGIN}/qr?code=${encodeURIComponent(student.code)}`;
   const [cardDataUrl, setCardDataUrl] = useState(null);
   const [copied, setCopied] = useState(false);
 

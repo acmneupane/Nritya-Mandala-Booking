@@ -4,6 +4,7 @@ import { T } from "../lib/theme";
 import { Btn, Modal } from "./ui";
 import { QrCanvas } from "./QrCode";
 import { formatTimeRange } from "../lib/scheduling";
+import { APP_ORIGIN } from "../lib/origins";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 function ordinal(n) {
@@ -65,7 +66,7 @@ export default function EmailPreviewModal({ guardianEmails, students, onCancel, 
   const copyContent = () => {
     if (!template) return;
     const text = eligible.map((s) => {
-      const vars = { student_name: s.name, day: s.day, time: formatTimeRange(s.time, s.endTime), start_date: formatDate(s.startDate), access_code: s.code, qr_link: `${window.location.origin}/qr?code=${encodeURIComponent(s.code)}`, qr_code_image: "" };
+      const vars = { student_name: s.name, day: s.day, time: formatTimeRange(s.time, s.endTime), start_date: formatDate(s.startDate), access_code: s.code, qr_link: `${APP_ORIGIN}/qr?code=${encodeURIComponent(s.code)}`, qr_code_image: "" };
       return `To: ${selectedEmails.join(", ")}\nSubject: ${fillTemplate(template.subject, vars)}\n\n${fillTemplate(template.body, vars)}`;
     }).join("\n\n---\n\n");
     navigator.clipboard.writeText(text);
@@ -154,7 +155,7 @@ export default function EmailPreviewModal({ guardianEmails, students, onCancel, 
       ) : (
         <div className="grid gap-4" style={{ maxHeight: 420, overflowY: "auto" }}>
           {eligible.map((s) => {
-            const qrLink = `${window.location.origin}/qr?code=${encodeURIComponent(s.code)}`;
+            const qrLink = `${APP_ORIGIN}/qr?code=${encodeURIComponent(s.code)}`;
             const vars = {
               student_name: s.name,
               day: s.day,

@@ -9,6 +9,7 @@ import { QrCanvas } from "./QrCode";
 import { nextOccurrenceOf, formatTimeRange, isClassActiveOn } from "../lib/scheduling";
 import { classesLabel } from "../lib/format";
 import MarkAbsentModal from "./MarkAbsentModal";
+import { APP_ORIGIN } from "../lib/origins";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -91,7 +92,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [student.id]);
 
   useEffect(() => {
-    const qrText = `${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`;
+    const qrText = `${APP_ORIGIN}/parent?code=${encodeURIComponent(student.code)}`;
     buildQrCardDataUrl({ studentName: student.name, code: student.code, qrText }).then(setCardDataUrl);
   }, [student.id, student.code, student.name]);
 
@@ -141,7 +142,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             title="Tap to enlarge your QR code"
             style={{ flexShrink: 0, position: "relative", padding: 6, borderRadius: 12, border: `2px solid ${T.gold}`, background: "#fff", marginTop: 2, lineHeight: 0 }}
           >
-            <QrCanvas text={`${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`} size={72} />
+            <QrCanvas text={`${APP_ORIGIN}/parent?code=${encodeURIComponent(student.code)}`} size={72} />
             <span style={{ position: "absolute", bottom: -6, right: -6, width: 22, height: 22, borderRadius: "50%", background: T.gold, color: T.maroonDark, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>🔍</span>
           </button>
         </div>
@@ -238,7 +239,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
                 <button onClick={() => setShowQr(false)} style={{ fontSize: 20, color: T.inkSoft, lineHeight: 1 }}>✕</button>
               </div>
               <div style={{ border: `2px solid ${T.gold}`, borderRadius: 10, padding: 12, background: "#fff", display: "inline-block" }}>
-                <QrCanvas text={`${window.location.origin}/parent?code=${encodeURIComponent(student.code)}`} size={200} />
+                <QrCanvas text={`${APP_ORIGIN}/parent?code=${encodeURIComponent(student.code)}`} size={200} />
               </div>
               <div style={{ marginTop: 14, background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 20px" }}>
                 <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Code</div>
@@ -311,7 +312,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           })}
           {allClassesCount > 1 && (
             <a
-              href={`/transfer?code=${encodeURIComponent(student.code)}`}
+              href={`${APP_ORIGIN}/transfer?code=${encodeURIComponent(student.code)}`}
               style={{ display: "block", textAlign: "center", fontSize: 13, color: T.gold, textDecoration: "underline", marginTop: 12, paddingTop: 10, borderTop: `1px solid ${T.line}` }}
             >
               Request a class change
