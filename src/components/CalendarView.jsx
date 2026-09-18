@@ -88,7 +88,13 @@ function RosterEditor({ cls, onChanged }) {
   const load = useCallback(async () => {
     setLoading(true);
     const [sRes, eRes, aRes] = await Promise.all([
-      supabase.from("students").select("id, name").eq("archived", false),
+      // Fetch every student, not just active ones — a student who was archived (or
+      // whose package lapsed) without being removed from this class first would
+      // otherwise vanish from the roster below while still counting toward
+      // "N booked" above, which is exactly the "1 booked but can't see anyone"
+      // bug this is fixing. They're shown with a warning instead, so the admin can
+      // actually remove them.
+      supabase.from("students").select("id, name, archived"),
       supabase.from("enrollments").select("id, student_id, start_date").eq("class_id", cls.id),
       supabase.from("attendance").select("id, student_id, status").eq("class_id", cls.id).eq("date", cls.dateStr),
     ]);
@@ -113,7 +119,12 @@ function RosterEditor({ cls, onChanged }) {
   useEffect(() => { load(); }, [load]);
 
   const studentById = useMemo(() => Object.fromEntries(students.map((s) => [s.id, s])), [students]);
-  const availableStudents = students.filter((s) => !roster.some((r) => r.student_id === s.id));
+  const availableStudents = students.filter((s) => !s.archived && !roster.some((r) => r.student_id === s.id));
+  const atRiskCount = roster.filter((r) => {
+    const student = studentById[r.student_id];
+    if (!student) return true; // booked, but the student record itself is gone
+    return student.archived || (remainingByStudent[student.id] ?? 0) <= 0;
+  }).length;
 
   const enroll = async () => {
     if (!addingStudent) return;
@@ -177,6 +188,7 @@ function RosterEditor({ cls, onChanged }) {
           {attendedCount > 0 && <> · <strong style={{ color: T.sage }}>{attendedCount}</strong> attended</>}
           {skippedCount > 0 && <> · <strong style={{ color: T.gold }}>{skippedCount}</strong> excused</>}
           {missedCount > 0 && <> · <strong style={{ color: T.terracotta }}>{missedCount}</strong> missed</>}
+          {atRiskCount > 0 && <> · <strong style={{ color: T.terracotta }}>⚠ {atRiskCount}</strong> {atRiskCount === 1 ? "hasn't" : "haven't"} renewed</>}
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => setScanning(true)} title="Scan to check in" style={{ fontSize: 13, fontWeight: 500, padding: "5px 10px", borderRadius: 999, border: `1px solid ${T.line}`, background: "#fff" }}>📷 Scan to check in</button>
@@ -187,22 +199,31 @@ function RosterEditor({ cls, onChanged }) {
       <div className="grid gap-2">
         {roster.map((r) => {
           const student = studentById[r.student_id];
-          if (!student) return null;
-          const att = attendance.find((a) => a.student_id === student.id);
-          const remaining = remainingByStudent[student.id] ?? 0;
+          const remaining = student ? (remainingByStudent[student.id] ?? 0) : 0;
+          const atRisk = !student || student.archived || remaining <= 0;
+          const att = student ? attendance.find((a) => a.student_id === student.id) : null;
           return (
-            <div key={r.id} style={{ border: `1px solid ${T.line}`, borderRadius: 6, padding: "8px 10px" }}>
+            <div key={r.id} style={{ border: `1px solid ${atRisk ? T.terracotta : T.line}`, borderRadius: 6, padding: "8px 10px" }}>
               <div className="flex items-center gap-2 mb-1.5">
-                <span style={{ fontSize: 13, color: T.ink }}>{student.name}</span>
+                <span style={{ fontSize: 13, color: T.ink }}>{student ? student.name : "Unknown student"}</span>
                 {remaining > 0 && <span style={{ fontSize: 11, color: T.sage }}>{remaining} left</span>}
               </div>
+              {atRisk && (
+                <div style={{ fontSize: 11, color: T.terracotta, fontWeight: 600, marginBottom: 6 }}>
+                  ⚠ {!student ? "Student record not found" : student.archived ? "Archived — no longer an active student" : "Hasn't renewed — no classes left on their package"}. Remove them from this class below.
+                </div>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center flex-wrap gap-2">
-                  <button onClick={() => setStatus(student.id, "attended")} title="Mark attended" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "attended" ? `${T.sage}22` : "transparent", color: att?.status === "attended" ? T.sage : T.inkSoft }}>✓ Attended</button>
-                  <button onClick={() => setStatus(student.id, "skipped")} title="Excused — notified in advance, doesn't count as missed" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "skipped" ? `${T.gold}22` : "transparent", color: att?.status === "skipped" ? T.gold : T.inkSoft }}>⊘ Skipped</button>
-                  <button onClick={() => setStatus(student.id, "missed")} title="Missed — unexpected no-show" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "missed" ? `${T.terracotta}22` : "transparent", color: att?.status === "missed" ? T.terracotta : T.inkSoft }}>! Missed</button>
-                  {att && (
-                    <button onClick={() => clearStatus(student.id)} title="Clear this attendance mark" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, color: T.inkSoft }}>↺ Undo</button>
+                  {student && (
+                    <>
+                      <button onClick={() => setStatus(student.id, "attended")} title="Mark attended" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "attended" ? `${T.sage}22` : "transparent", color: att?.status === "attended" ? T.sage : T.inkSoft }}>✓ Attended</button>
+                      <button onClick={() => setStatus(student.id, "skipped")} title="Excused — notified in advance, doesn't count as missed" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "skipped" ? `${T.gold}22` : "transparent", color: att?.status === "skipped" ? T.gold : T.inkSoft }}>⊘ Skipped</button>
+                      <button onClick={() => setStatus(student.id, "missed")} title="Missed — unexpected no-show" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, background: att?.status === "missed" ? `${T.terracotta}22` : "transparent", color: att?.status === "missed" ? T.terracotta : T.inkSoft }}>! Missed</button>
+                      {att && (
+                        <button onClick={() => clearStatus(student.id)} title="Clear this attendance mark" style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 999, color: T.inkSoft }}>↺ Undo</button>
+                      )}
+                    </>
                   )}
                 </div>
                 <button onClick={() => unenroll(r.id)} title="Remove booking" style={{ color: T.terracotta, padding: "5px 8px", flexShrink: 0 }}>✕</button>
@@ -277,7 +298,7 @@ function SkipModal({ cls, onClose, onSaved }) {
 
 // Full inline day view: every class scheduled that weekday, with its complete
 // roster and attendance controls right on the page — no click-through needed.
-function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged, utilCounts, recordedByClassDate }) {
+function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged, utilCounts, recordedByClassDate, atRiskBookings }) {
   const dateStr = localDateStr(date);
   const dayName = DAYS[(date.getDay() + 6) % 7];
   const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr)).sort((a, b) => a.time.localeCompare(b.time));
@@ -303,6 +324,9 @@ function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChange
               <div>
                 <span style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark }}>{c.label}</span>
                 <span style={{ fontSize: 13, color: T.inkSoft, marginLeft: 8 }}>{formatTimeRange(c.time, c.end_time)}</span>
+                {!skip && atRiskBookings(c.id, dateStr) > 0 && (
+                  <span style={{ fontSize: 11, color: T.terracotta, fontWeight: 600, marginLeft: 8 }}>⚠ {atRiskBookings(c.id, dateStr)} haven't renewed</span>
+                )}
               </div>
               {skip ? (
                 <button onClick={() => onUnskip(skip)} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skipped{skip.reason ? ` — ${skip.reason}` : ""} · Undo</button>
@@ -350,17 +374,23 @@ export default function CalendarView() {
   const [skippingClass, setSkippingClass] = useState(null);
   const [confirmUnskip, setConfirmUnskip] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [studentArchived, setStudentArchived] = useState({}); // { [studentId]: boolean }
+  const [remainingByStudent, setRemainingByStudent] = useState({}); // { [studentId]: classes left on their package }
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [cRes, eRes, skRes] = await Promise.all([
+    const [cRes, eRes, skRes, sRes, pRes] = await Promise.all([
       supabase.from("classes").select("*"),
       supabase.from("enrollments").select("id, class_id, student_id, start_date"),
       supabase.from("class_skips").select("*"),
+      supabase.from("students").select("id, archived"),
+      supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
     ]);
     setClasses(cRes.data || []);
     setEnrollments(eRes.data || []);
     setSkips(skRes.data || []);
+    setStudentArchived(Object.fromEntries((sRes.data || []).map((s) => [s.id, s.archived])));
+    setRemainingByStudent(Object.fromEntries((pRes.data || []).map((p) => [p.student_id, p.classes_total - p.classes_used])));
     setLoading(false);
   }, []);
 
@@ -375,6 +405,14 @@ export default function CalendarView() {
   const today = new Date();
   const todayStr = localDateStr(today);
   const dates = datesForView(viewMode, anchor);
+
+  // A booking is "at risk" if the student is archived, missing, or has no classes
+  // left on their package — i.e. still occupying a spot in a class roster without
+  // being an active, paid-up student. Surfaced as a warning right on the calendar
+  // so it's visible before drilling into a class's roster.
+  const isAtRisk = (studentId) => studentArchived[studentId] !== false || (remainingByStudent[studentId] ?? 0) <= 0;
+  const atRiskBookings = (classId, dateStr) =>
+    enrollments.filter((e) => e.class_id === classId && (!e.start_date || e.start_date <= dateStr) && isAtRisk(e.student_id)).length;
 
   const [utilCounts, setUtilCounts] = useState({}); // { [dateStr]: { attended, missed, skipped } }
   const [recordedByClassDate, setRecordedByClassDate] = useState({}); // { [`${class_id}|${date}`]: true } if attended/missed already recorded
@@ -434,7 +472,7 @@ export default function CalendarView() {
       </div>
 
       {viewMode === "day" ? (
-        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} utilCounts={utilCounts[localDateStr(anchor)]} recordedByClassDate={recordedByClassDate} />
+        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} utilCounts={utilCounts[localDateStr(anchor)]} recordedByClassDate={recordedByClassDate} atRiskBookings={atRiskBookings} />
       ) : (
         <div className="grid gap-2 grid-cols-3 md:grid-cols-6">
           {dates.map(({ date, inMonth }, i) => {
@@ -460,6 +498,7 @@ export default function CalendarView() {
                 {dayClasses.map((c) => {
                   const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
                   const bookedCount = enrollments.filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= dateStr)).length;
+                  const atRiskCount = atRiskBookings(c.id, dateStr);
                   if (skip) {
                     return (
                       <div key={c.id} style={{ background: `${T.terracotta}12`, border: `1px dashed ${T.terracotta}55`, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
@@ -473,7 +512,10 @@ export default function CalendarView() {
                     <div key={c.id} style={{ background: T.paper, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
                       <button type="button" onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none", cursor: "pointer" }}>
                         <div style={{ fontSize: 11, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
-                        <div style={{ fontSize: 10, color: T.inkSoft }}>{bookedCount} booked</div>
+                        <div style={{ fontSize: 10, color: T.inkSoft }}>
+                          {bookedCount} booked
+                          {atRiskCount > 0 && <span style={{ color: T.terracotta, fontWeight: 600 }}> · ⚠ {atRiskCount}</span>}
+                        </div>
                       </button>
                       {recordedByClassDate[`${c.id}|${dateStr}`] ? (
                         <span style={{ fontSize: 10, color: T.inkSoft }} title="Attendance already recorded — this class already happened">Can't skip</span>

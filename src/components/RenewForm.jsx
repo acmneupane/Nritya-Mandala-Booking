@@ -106,17 +106,24 @@ export default function RenewForm() {
     if (!checked) setSiblingTierIds((m) => { const next = { ...m }; delete next[id]; return next; });
   };
 
-  const needsPreferredClass = (studentId) => classes.length > 0 && !enrolledStudentIds.has(studentId);
+  // Whether to show/submit a class preference at all — true for any student with
+  // no current class, regardless of whether there happen to be open classes to
+  // pick from right now (in which case the field falls back to free text, same as
+  // the enrolment form).
+  const needsPreferredClass = (studentId) => !enrolledStudentIds.has(studentId);
+  // Only when there's an actual list to pick from is a selection required —
+  // the free-text fallback (no open classes) is optional, matching the enrolment form.
+  const missingPreferredClass = (studentId) => needsPreferredClass(studentId) && classes.length > 0 && !preferredClassIds[studentId];
 
   const handleSubmitClick = () => {
     if (!selectedTierId) { setError("Please select a package."); return; }
     const missingSibling = includedSiblingList.find((s) => !siblingTierIds[s.id]);
     if (missingSibling) { setError(`Please select a package for ${missingSibling.name}, or untick them.`); return; }
-    if (needsPreferredClass(student.id) && !preferredClassIds[student.id]) {
+    if (missingPreferredClass(student.id)) {
       setError(`Please select a preferred class for ${student.name} — or choose "No preference" if any works.`);
       return;
     }
-    const missingSiblingClass = includedSiblingList.find((s) => needsPreferredClass(s.id) && !preferredClassIds[s.id]);
+    const missingSiblingClass = includedSiblingList.find((s) => missingPreferredClass(s.id));
     if (missingSiblingClass) { setError(`Please select a preferred class for ${missingSiblingClass.name} — or choose "No preference" if any works.`); return; }
     setError("");
     if (!paymentClaimed || !paymentFile) {
