@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
-import { LOGO_DATA_URI } from "../lib/logo";
+import { useLogoUrl } from "../lib/logo";
 import StudentsView from "./StudentsView";
 import CalendarView from "./CalendarView";
 import ClassesView from "./ClassesView";
@@ -53,6 +53,7 @@ export default function Dashboard() {
   // instead, so they're never missed regardless of which tab you land on. A
   // ?request=<id> link (from the notification email) overrides this and jumps
   // straight to that request.
+  const logoUrl = useLogoUrl();
   const focusRequestId = new URLSearchParams(window.location.search).get("request");
   const focusRenewalId = new URLSearchParams(window.location.search).get("renewal");
   const [tab, setTab] = useState(focusRequestId ? "requests" : focusRenewalId ? "renewals" : "home");
@@ -90,7 +91,7 @@ export default function Dashboard() {
       {/* Mobile top bar */}
       <div className="md:hidden flex items-center justify-between" style={{ background: T.maroon, padding: "12px 16px" }}>
         <div className="flex items-center gap-2">
-          <img src={LOGO_DATA_URI} alt="" style={{ width: 28, height: 28, borderRadius: "50%" }} />
+          <img src={logoUrl} alt="" style={{ width: 28, height: 28, borderRadius: "50%" }} />
           <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.ivory }}>Nritya Mandala</span>
         </div>
         <div className="flex items-center gap-2">
@@ -134,7 +135,7 @@ export default function Dashboard() {
       {/* Desktop sidebar */}
       <aside className="hidden md:block" style={{ width: 190, background: T.maroon, padding: "24px 14px", flexShrink: 0 }}>
         <div className="flex items-center gap-2 mb-8 px-2">
-          <img src={LOGO_DATA_URI} alt="" style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0 }} />
+          <img src={logoUrl} alt="" style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0 }} />
           <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.ivory, lineHeight: 1.15 }}>Nritya Mandala</span>
         </div>
         <nav className="flex flex-col gap-1">

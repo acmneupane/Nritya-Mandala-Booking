@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
-import { LOGO_DATA_URI } from "../lib/logo";
+import { useLogoUrl } from "../lib/logo";
 import { classesLabel } from "../lib/format";
 import { formatTimeRange, compareClassSchedule, isClassActiveOn } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
@@ -131,6 +131,7 @@ function ContactForm() {
 // admin Website page (see PublicHomeGate in App.jsx) — always reachable directly
 // at /new in the meantime for previewing/building it before that switch.
 export default function HomePage() {
+  const logoUrl = useLogoUrl();
   const [content, setContent] = useState({});
   const [gallery, setGallery] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -192,7 +193,7 @@ export default function HomePage() {
       >
         <div className="relative z-10 flex flex-col items-center max-w-3xl mx-auto">
           <div className="w-24 h-24 md:w-28 md:h-28 rounded-full flex items-center justify-center mb-8 shadow-2xl overflow-hidden border-4" style={{ background: T.ivory, borderColor: "rgba(255,255,255,0.2)" }}>
-            <img src={LOGO_DATA_URI} alt="" className="w-full h-full object-cover" />
+            <img src={logoUrl} alt="" className="w-full h-full object-cover" />
           </div>
           <p style={{ color: T.goldLight, fontSize: 13, fontWeight: 700, letterSpacing: "0.25em", textTransform: "uppercase", marginBottom: 16 }}>Nritya Mandala</p>
           <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl" style={{ fontFamily: "Fraunces, serif", color: "#fff", fontWeight: 600, lineHeight: 1.15, marginBottom: 40, textShadow: "0 2px 12px rgba(0,0,0,0.25)" }}>
@@ -424,7 +425,7 @@ export default function HomePage() {
         <footer className="px-5 py-16 text-center" style={{ background: T.ink }}>
           <div className="max-w-[600px] mx-auto flex flex-col items-center">
             <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6 overflow-hidden" style={{ background: "#fff" }}>
-              <img src={LOGO_DATA_URI} alt="" className="w-full h-full object-cover" />
+              <img src={logoUrl} alt="" className="w-full h-full object-cover" />
             </div>
             <h2 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 26, color: T.goldLight, fontWeight: 600, marginBottom: 20 }}>Find us</h2>
             <p style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", marginBottom: 10 }}>📍 72 Central Avenue, Oran Park, NSW 2570</p>

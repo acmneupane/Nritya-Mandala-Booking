@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { classesLabel } from "../lib/format";
-import { LOGO_DATA_URI } from "../lib/logo";
+import { useLogoUrl } from "../lib/logo";
 import { Btn, Field, Select, ConfirmModal } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import { RELATION_OPTIONS } from "../lib/relations";
@@ -139,6 +139,7 @@ function PackageTierPicker({ tiers, selectedId, onSelect, sibling }) {
 }
 
 export default function EnrollForm() {
+  const logoUrl = useLogoUrl();
   const [classes, setClasses] = useState([]);
   const [studentName, setStudentName] = useState("");
   const [studentDob, setStudentDob] = useState("");
@@ -311,7 +312,7 @@ export default function EnrollForm() {
     return (
       <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
         <div className="rounded-[1.75rem] shadow-2xl" style={{ background: T.ivory, padding: "40px 28px", width: "100%", maxWidth: 380, textAlign: "center", boxSizing: "border-box" }}>
-          <img src={LOGO_DATA_URI} alt="" style={{ width: 60, height: 60, borderRadius: "50%", margin: "0 auto 16px", display: "block" }} />
+          <img src={logoUrl} alt="" style={{ width: 60, height: 60, borderRadius: "50%", margin: "0 auto 16px", display: "block" }} />
           <h1 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: T.maroonDark, marginBottom: 8, fontWeight: 600 }}>Thank you!</h1>
           <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.6, marginBottom: 20 }}>
             We've received {studentName}'s enrolment request. We will contact you to confirm the enrolment.
@@ -330,7 +331,7 @@ export default function EnrollForm() {
     <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`, padding: "28px 16px" }} className="sm:py-12">
       <div className="max-w-[460px] sm:max-w-[560px] md:max-w-[680px] lg:max-w-[780px] mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <img src={LOGO_DATA_URI} alt="" style={{ width: 48, height: 48, borderRadius: "50%", boxShadow: "0 4px 14px rgba(0,0,0,0.25)" }} />
+          <img src={logoUrl} alt="" style={{ width: 48, height: 48, borderRadius: "50%", boxShadow: "0 4px 14px rgba(0,0,0,0.25)" }} />
           <div>
             <h1 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: "#fff", fontWeight: 600, textShadow: "0 2px 10px rgba(0,0,0,0.2)" }}>Enrol a student</h1>
             <p style={{ fontSize: 12.5, color: T.goldLight, fontWeight: 600 }}>Nritya Mandala</p>

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
-import { LOGO_DATA_URI } from "../lib/logo";
+import { useLogoUrl } from "../lib/logo";
 import { Btn } from "./ui";
 import { localDateStr } from "../lib/dates";
 import { buildQrCardDataUrl } from "../lib/qrCard";
@@ -27,6 +27,7 @@ function formatOrdinalDate(dateStr) {
 }
 
 export default function ParentView({ student, onBack, onSwitchStudent }) {
+  const logoUrl = useLogoUrl();
   const [level, setLevel] = useState(null);
   const [allLevels, setAllLevels] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -97,8 +98,8 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
   useEffect(() => {
     const qrText = `${APP_ORIGIN}/parent?code=${encodeURIComponent(student.code)}`;
-    buildQrCardDataUrl({ studentName: student.name, code: student.code, qrText }).then(setCardDataUrl);
-  }, [student.id, student.code, student.name]);
+    buildQrCardDataUrl({ studentName: student.name, code: student.code, qrText, logoUrl }).then(setCardDataUrl);
+  }, [student.id, student.code, student.name, logoUrl]);
 
   const todaysClasses = useMemo(
     () => classes.filter((c) => c.day === todayDayName && isClassActiveOn(c, todayStr) && !skips.some((s) => s.class_id === c.id && s.date === todayStr)),
@@ -141,7 +142,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
       <div className="max-w-[480px] sm:max-w-[620px] md:max-w-[760px] lg:max-w-[860px] mx-auto">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <img src={LOGO_DATA_URI} alt="" style={{ width: 40, height: 40, borderRadius: "50%", marginBottom: 8 }} />
+            <img src={logoUrl} alt="" style={{ width: 40, height: 40, borderRadius: "50%", marginBottom: 8 }} />
             <p style={{ fontSize: 12, color: T.gold, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>Nritya Mandala</p>
             <h1 className="font-serif text-3xl sm:text-4xl" style={{ fontFamily: "Fraunces, serif", color: T.maroonDark, fontWeight: 600 }}>{student.name}</h1>
           </div>

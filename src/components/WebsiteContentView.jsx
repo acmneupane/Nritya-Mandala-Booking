@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field } from "./ui";
 import { publicMediaUrl } from "../lib/media";
+import { LOGO_DATA_URI } from "../lib/logo";
 
 const SITE_CONTENT_KEYS = ["hero_tagline", "hero_photo_path", "about_blurb", "show_classes", "show_pricing", "show_levels"];
 
@@ -782,6 +783,71 @@ function GoLiveToggle() {
   );
 }
 
+// Studio logo — a single upload here (site_content's logo_path key, resolved
+// by useLogoUrl in src/lib/logo.js) replaces the built-in default mark
+// everywhere it appears: this admin app's login screen and sidebar, and every
+// public-facing page (homepage, including its footer, parent portal, and the
+// enrol/transfer/renew forms).
+function LogoEditor() {
+  const [logoPath, setLogoPath] = useState("");
+  const [logoFile, setLogoFile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("site_content").select("value").eq("key", "logo_path").maybeSingle();
+    setLogoPath(data?.value || "");
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    if (!logoFile) return;
+    setSaving(true);
+    setError("");
+    try {
+      const ext = logoFile.name.split(".").pop() || "png";
+      const path = `logo-${crypto.randomUUID()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from("public-media").upload(path, logoFile);
+      if (uploadErr) throw new Error("Couldn't upload the logo — please try again.");
+      const { error: saveErr } = await supabase.from("site_content").upsert({ key: "logo_path", value: path, updated_at: new Date().toISOString() }, { onConflict: "key" });
+      if (saveErr) throw new Error("Couldn't save — please try again.");
+      setLogoPath(path);
+      setLogoFile(null);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return null;
+
+  const preview = logoFile ? URL.createObjectURL(logoFile) : (logoPath ? publicMediaUrl(logoPath) : LOGO_DATA_URI);
+
+  return (
+    <div className="flex items-center gap-4 flex-wrap mb-4" style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "12px 16px" }}>
+      <img src={preview} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", border: `1px solid ${T.line}`, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 220 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.maroonDark, marginBottom: 2 }}>Logo</div>
+        <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8 }}>Used everywhere the studio mark appears — this changes it on every page at once.</p>
+        <input type="file" accept="image/*" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
+        {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
+        {saved && <p style={{ color: T.sage, fontSize: 13, marginTop: 6, fontWeight: 600 }}>Saved.</p>}
+      </div>
+      {logoFile && (
+        <Btn size="sm" variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save logo"}</Btn>
+      )}
+    </div>
+  );
+}
+
 const SECTIONS = [
   { id: "homepage", label: "Homepage" },
   { id: "gallery", label: "Gallery" },
@@ -797,6 +863,7 @@ export default function WebsiteContentView() {
 
   return (
     <div style={{ maxWidth: 620 }}>
+      <LogoEditor />
       <GoLiveToggle />
       <div className="flex gap-1 mb-4 flex-wrap" style={{ background: T.paper, borderRadius: 8, padding: 3, display: "inline-flex" }}>
         {SECTIONS.map((s) => (

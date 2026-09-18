@@ -5,6 +5,9 @@ import { T } from "./theme";
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    // Needed so a remote (Storage-hosted) logo doesn't taint the canvas — a data
+    // URI ignores this, but a custom uploaded logo is served from another origin.
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = src;
@@ -24,7 +27,7 @@ function roundRect(ctx, x, y, w, h, r) {
 // Draws a QR code with the studio logo embedded in the centre. Uses 'H' (high)
 // error correction so the code still scans reliably with ~20% of it covered by
 // the logo — well under the ~30% safety margin that level tolerates.
-export async function drawQrWithLogo(canvas, text, { size = 260, withLogo = true } = {}) {
+export async function drawQrWithLogo(canvas, text, { size = 260, withLogo = true, logoUrl = LOGO_DATA_URI } = {}) {
   const qr = QRCodeLib(0, "H");
   qr.addData(text);
   qr.make();
@@ -46,7 +49,7 @@ export async function drawQrWithLogo(canvas, text, { size = 260, withLogo = true
   }
   if (withLogo) {
     try {
-      const img = await loadImage(LOGO_DATA_URI);
+      const img = await loadImage(logoUrl);
       const logoSize = px * 0.2;
       const logoX = (px - logoSize) / 2;
       const logoY = (px - logoSize) / 2;
@@ -72,7 +75,7 @@ export async function drawQrWithLogo(canvas, text, { size = 260, withLogo = true
 
 // A single shareable image: logo-embedded QR, instructions, and the access code,
 // composed onto one card — what actually gets downloaded or shared.
-export async function buildQrCardDataUrl({ studentName, code, qrText }) {
+export async function buildQrCardDataUrl({ studentName, code, qrText, logoUrl }) {
   const cardW = 480, cardH = 640;
   const card = document.createElement("canvas");
   card.width = cardW;
@@ -100,7 +103,7 @@ export async function buildQrCardDataUrl({ studentName, code, qrText }) {
 
   const qrCanvas = document.createElement("canvas");
   const qrSize = 300;
-  await drawQrWithLogo(qrCanvas, qrText, { size: qrSize * 2, withLogo: true });
+  await drawQrWithLogo(qrCanvas, qrText, { size: qrSize * 2, withLogo: true, logoUrl });
   const qrX = (cardW - qrSize) / 2;
   const qrY = 150;
   ctx.imageSmoothingEnabled = true;
