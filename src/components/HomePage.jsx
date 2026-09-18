@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { T } from "../lib/theme";
+import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
 import { classesLabel } from "../lib/format";
 import { formatTimeRange, compareClassSchedule, isClassActiveOn } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
 import { publicMediaUrl } from "../lib/media";
+import { Field } from "./ui";
+import TurnstileWidget from "./TurnstileWidget";
 
-// Accepts a YouTube link (watch/youtu.be/embed) or a Facebook video/reel link and
-// returns { type, src } for an embeddable iframe, or null if it's neither.
-// Facebook's public video plugin embed (facebook.com/plugins/video.php) works for
-// any public video/reel URL without needing an app ID.
+// Accepts a YouTube link (watch/youtu.be/embed), a TikTok video link, or a public
+// Facebook video/reel link and returns { type, src } for an embeddable iframe, or
+// null if it's none of those. Facebook's public video plugin embed
+// (facebook.com/plugins/video.php) and TikTok's oEmbed-less /embed/v2/<id> path
+// both work for a public video without needing an app ID or API key.
 function videoEmbed(url) {
   if (!url) return null;
   try {
@@ -24,22 +27,91 @@ function videoEmbed(url) {
     if (u.hostname.includes("facebook.com") || u.hostname.includes("fb.watch")) {
       return { type: "facebook", src: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false` };
     }
+    if (u.hostname.includes("tiktok.com")) {
+      const m = u.pathname.match(/\/video\/(\d+)/);
+      return m ? { type: "tiktok", src: `https://www.tiktok.com/embed/v2/${m[1]}` } : null;
+    }
     return null;
   } catch {
     return null;
   }
 }
 
+// Simple contact form — submits through the same Turnstile-gated submit-form edge
+// function as enrolment/renewal/transfer (formType "contact" -> the
+// submit_contact_message RPC, which emails the studio and logs the message for
+// the admin's Website > Messages tab). Nothing is inserted directly by the
+// browser, so a bot can't bypass Turnstile by calling the table API directly.
+function ContactForm() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [message, setMessage] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    if (!name.trim() || !message.trim()) { setError("Please fill in your name and a message."); return; }
+    setError("");
+    setSubmitting(true);
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke("submit-form", {
+        body: {
+          turnstileToken,
+          formType: "contact",
+          params: { p_name: name.trim(), p_email: email.trim() || null, p_phone: phone.trim() || null, p_message: message.trim() },
+        },
+      });
+      if (fnErr || !data?.ok) throw new Error(data?.error || "Something went wrong sending your message — please try again.");
+      setSent(true);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (sent) {
+    return (
+      <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "16px 18px", textAlign: "center" }}>
+        <p style={{ fontSize: 14, color: T.sage, fontWeight: 600 }}>Thanks — we've received your message and will be in touch soon.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "16px 18px" }}>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Name"><input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="Phone (optional)"><input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+      </div>
+      <Field label="Email (optional)"><input style={inputStyle} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+      <Field label="Message"><textarea style={{ ...inputStyle, minHeight: 90 }} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask us anything — classes, pricing, trial spots…" /></Field>
+      {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 4 }}>{error}</p>}
+      <TurnstileWidget onVerify={setTurnstileToken} />
+      <button
+        onClick={submit}
+        disabled={submitting || !turnstileToken}
+        style={{ background: T.maroon, color: "#fff", fontWeight: 700, padding: "10px 22px", borderRadius: 999, border: "none", fontSize: 14, opacity: submitting || !turnstileToken ? 0.6 : 1 }}
+      >
+        {submitting ? "Sending…" : "Send message"}
+      </button>
+    </div>
+  );
+}
+
 // The real public homepage — pulls live schedule/pricing/notices/levels straight
 // from the same tables the admin app uses, plus admin-editable static content
-// (hero photo, tagline, about blurb, gallery, video) from site_content /
-// site_gallery_images. The schedule/pricing/levels sections are each gated behind
-// their own show_classes/show_pricing/show_levels toggle (default off) — showing
-// exact pricing to a cold visitor before they've engaged can talk them out of
-// enrolling, so the studio opts in per-section from Studio Settings > Website
-// when they're ready. Currently mounted at /new (see App.jsx) rather than the
-// domain root, so it can be reviewed and filled in with real content before going
-// live; ComingSoonPage stays the default at "/" until that switch is made.
+// (hero photo, tagline, about blurb, gallery, video, instructors, testimonials,
+// FAQ) managed from the admin app's Website page. The schedule/pricing/levels
+// sections are each gated behind their own show_classes/show_pricing/show_levels
+// toggle (default off) — showing exact pricing to a cold visitor before they've
+// engaged can talk them out of enrolling, so the studio opts in per-section when
+// they're ready. Currently mounted at /new (see App.jsx) rather than the domain
+// root, so it can be reviewed and filled in with real content before going live;
+// ComingSoonPage stays the default at "/" until that switch is made.
 export default function HomePage() {
   const [content, setContent] = useState({});
   const [gallery, setGallery] = useState([]);
@@ -47,6 +119,9 @@ export default function HomePage() {
   const [levels, setLevels] = useState([]);
   const [tiers, setTiers] = useState([]);
   const [notices, setNotices] = useState([]);
+  const [instructors, setInstructors] = useState([]);
+  const [testimonials, setTestimonials] = useState([]);
+  const [faqs, setFaqs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,13 +133,19 @@ export default function HomePage() {
       supabase.from("levels").select("*").order("order_num"),
       supabase.from("package_tiers").select("*").eq("active", true).order("sort_order"),
       supabase.from("studio_notices").select("*").lte("start_date", today).gte("end_date", today).order("start_date"),
-    ]).then(([contentRes, galleryRes, classesRes, levelsRes, tiersRes, noticesRes]) => {
+      supabase.from("site_instructors").select("*").order("sort_order"),
+      supabase.from("site_testimonials").select("*").order("sort_order"),
+      supabase.from("site_faqs").select("*").order("sort_order"),
+    ]).then(([contentRes, galleryRes, classesRes, levelsRes, tiersRes, noticesRes, instructorsRes, testimonialsRes, faqsRes]) => {
       setContent(Object.fromEntries((contentRes.data || []).map((r) => [r.key, r.value])));
       setGallery(galleryRes.data || []);
       setClasses((classesRes.data || []).filter((c) => isClassActiveOn(c, today)).slice().sort(compareClassSchedule));
       setLevels(levelsRes.data || []);
       setTiers(tiersRes.data || []);
       setNotices(noticesRes.data || []);
+      setInstructors(instructorsRes.data || []);
+      setTestimonials(testimonialsRes.data || []);
+      setFaqs(faqsRes.data || []);
       setLoading(false);
     });
   }, []);
@@ -166,13 +247,52 @@ export default function HomePage() {
             </section>
           )}
 
+          {instructors.length > 0 && (
+            <section style={{ marginBottom: 32 }}>
+              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Meet the team</h2>
+              <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
+                {instructors.map((i) => (
+                  <div key={i.id} style={{ textAlign: "center" }}>
+                    {i.photo_path ? (
+                      <img src={publicMediaUrl(i.photo_path)} alt="" style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", margin: "0 auto 8px", display: "block" }} />
+                    ) : (
+                      <div style={{ width: 96, height: 96, borderRadius: "50%", background: T.paper, margin: "0 auto 8px" }} />
+                    )}
+                    <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{i.name}</div>
+                    {i.role && <div style={{ fontSize: 11, color: T.gold, fontWeight: 600, marginTop: 2 }}>{i.role}</div>}
+                    {i.bio && <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 6, lineHeight: 1.5 }}>{i.bio}</div>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {gallery.length > 0 && (
             <section style={{ marginBottom: 32 }}>
               <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Gallery</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              <div className="flex gap-3" style={{ overflowX: "auto", scrollSnapType: "x mandatory", paddingBottom: 8, WebkitOverflowScrolling: "touch" }}>
                 {gallery.map((g) => (
-                  <div key={g.id} style={{ borderRadius: 8, overflow: "hidden", aspectRatio: "1", background: T.paper }}>
-                    <img src={publicMediaUrl(g.path)} alt={g.caption || ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  <div key={g.id} style={{ flex: "0 0 auto", width: 220, scrollSnapAlign: "start" }}>
+                    <div style={{ borderRadius: 8, overflow: "hidden", aspectRatio: "1", background: T.paper }}>
+                      <img src={publicMediaUrl(g.path)} alt={g.caption || ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    </div>
+                    {g.caption && <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>{g.caption}</div>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {testimonials.length > 0 && (
+            <section style={{ marginBottom: 32 }}>
+              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>What families say</h2>
+              <div className="grid gap-3">
+                {testimonials.map((t) => (
+                  <div key={t.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "14px 16px" }}>
+                    <div style={{ fontSize: 14, color: T.gold, marginBottom: 4 }}>{"★".repeat(t.rating)}{"☆".repeat(5 - t.rating)}</div>
+                    {t.title && <div style={{ fontSize: 14, fontWeight: 700, color: T.ink, marginBottom: 4 }}>{t.title}</div>}
+                    <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>{t.content}</p>
+                    {t.author_name && <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 6, fontStyle: "italic" }}>— {t.author_name}</div>}
                   </div>
                 ))}
               </div>
@@ -182,7 +302,7 @@ export default function HomePage() {
           {embed && (
             <section style={{ marginBottom: 32 }}>
               <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Watch us dance</h2>
-              {embed.type === "facebook" ? (
+              {embed.type === "facebook" || embed.type === "tiktok" ? (
                 <div style={{ display: "flex", justifyContent: "center" }}>
                   <iframe
                     src={embed.src}
@@ -205,6 +325,25 @@ export default function HomePage() {
               )}
             </section>
           )}
+
+          {faqs.length > 0 && (
+            <section style={{ marginBottom: 32 }}>
+              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Frequently asked questions</h2>
+              <div className="grid gap-2">
+                {faqs.map((f) => (
+                  <details key={f.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "10px 14px" }}>
+                    <summary style={{ cursor: "pointer", fontSize: 14, fontWeight: 600, color: T.ink }}>{f.question}</summary>
+                    <p style={{ fontSize: 13, color: T.inkSoft, marginTop: 8, lineHeight: 1.6 }}>{f.answer}</p>
+                  </details>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section style={{ marginBottom: 32 }}>
+            <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Get in touch</h2>
+            <ContactForm />
+          </section>
 
           <section style={{ textAlign: "center", marginTop: 40 }}>
             <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Find us</h2>

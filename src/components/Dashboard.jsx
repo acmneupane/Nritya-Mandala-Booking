@@ -10,6 +10,7 @@ import HistoryView from "./HistoryView";
 import RequestsView from "./RequestsView";
 import AccountView from "./AccountView";
 import StudioSettingsView from "./StudioSettingsView";
+import WebsiteContentView from "./WebsiteContentView";
 import ShareEnrollLink from "./ShareEnrollLink";
 import PackageTiersView from "./PackageTiersView";
 import RenewalsView from "./RenewalsView";
@@ -27,6 +28,7 @@ const NAV = [
   { id: "packages", label: "Packages" },
   { id: "finances", label: "Finances" },
   { id: "history", label: "History" },
+  { id: "website", label: "Website" },
   { id: "studio-settings", label: "Studio Settings" },
   { id: "account", label: "Account" },
 ];
@@ -179,6 +181,7 @@ export default function Dashboard() {
         {tab === "packages" && <PackageTiersView />}
         {tab === "finances" && <FinancesView />}
         {tab === "history" && <HistoryView />}
+        {tab === "website" && <WebsiteContentView />}
         {tab === "studio-settings" && <StudioSettingsView />}
         {tab === "account" && <AccountView />}
       </main>
