@@ -7,18 +7,24 @@ import { formatTimeRange, compareClassSchedule, isClassActiveOn } from "../lib/s
 import { localDateStr } from "../lib/dates";
 import { publicMediaUrl } from "../lib/media";
 
-// Accepts a plain youtube.com/watch, youtu.be, or already-an-embed link and returns
-// an embeddable URL, or null if it isn't a YouTube link we can parse.
-function youtubeEmbedUrl(url) {
+// Accepts a YouTube link (watch/youtu.be/embed) or a Facebook video/reel link and
+// returns { type, src } for an embeddable iframe, or null if it's neither.
+// Facebook's public video plugin embed (facebook.com/plugins/video.php) works for
+// any public video/reel URL without needing an app ID.
+function videoEmbed(url) {
   if (!url) return null;
   try {
     const u = new URL(url);
-    let id = null;
-    if (u.hostname.includes("youtu.be")) id = u.pathname.slice(1);
-    else if (u.hostname.includes("youtube.com")) {
-      id = u.searchParams.get("v") || (u.pathname.startsWith("/embed/") ? u.pathname.split("/")[2] : null);
+    if (u.hostname.includes("youtu.be") || u.hostname.includes("youtube.com")) {
+      const id = u.hostname.includes("youtu.be")
+        ? u.pathname.slice(1)
+        : u.searchParams.get("v") || (u.pathname.startsWith("/embed/") ? u.pathname.split("/")[2] : null);
+      return id ? { type: "youtube", src: `https://www.youtube.com/embed/${id}` } : null;
     }
-    return id ? `https://www.youtube.com/embed/${id}` : null;
+    if (u.hostname.includes("facebook.com") || u.hostname.includes("fb.watch")) {
+      return { type: "facebook", src: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false` };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -65,7 +71,7 @@ export default function HomePage() {
 
   const levelById = Object.fromEntries(levels.map((l) => [l.id, l]));
   const heroPhotoUrl = publicMediaUrl(content.hero_photo_path);
-  const embedUrl = youtubeEmbedUrl(content.video_url);
+  const embed = videoEmbed(content.video_url);
 
   if (loading) {
     return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>Loading…</div>;
@@ -173,26 +179,41 @@ export default function HomePage() {
             </section>
           )}
 
-          {embedUrl && (
+          {embed && (
             <section style={{ marginBottom: 32 }}>
               <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Watch us dance</h2>
-              <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 8, overflow: "hidden" }}>
-                <iframe
-                  src={embedUrl}
-                  title="Nritya Mandala video"
-                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
+              {embed.type === "facebook" ? (
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <iframe
+                    src={embed.src}
+                    title="Nritya Mandala video"
+                    style={{ border: "none", width: "100%", maxWidth: 350, aspectRatio: "9 / 16", borderRadius: 8 }}
+                    allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 8, overflow: "hidden" }}>
+                  <iframe
+                    src={embed.src}
+                    title="Nritya Mandala video"
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              )}
             </section>
           )}
 
           <section style={{ textAlign: "center", marginTop: 40 }}>
-            <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 4 }}>📍 72 Central Avenue, Oran Park, NSW 2570</p>
-            <div className="flex items-center justify-center gap-2 flex-wrap" style={{ marginTop: 16 }}>
-              <a href="/enroll" style={{ background: T.maroon, color: "#fff", fontWeight: 700, padding: "12px 24px", borderRadius: 999, textDecoration: "none", fontSize: 14 }}>Enrol now</a>
-              <a href="/parent" style={{ background: "#fff", border: `1px solid ${T.line}`, color: T.maroonDark, fontWeight: 600, padding: "12px 24px", borderRadius: 999, textDecoration: "none", fontSize: 14 }}>Look up my booking</a>
+            <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Find us</h2>
+            <p style={{ fontSize: 13, color: T.ink, marginBottom: 4 }}>📍 72 Central Avenue, Oran Park, NSW 2570</p>
+            <a href="https://maps.google.com/?q=72+Central+Avenue+Oran+Park+NSW" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.maroonDark, fontWeight: 600, textDecoration: "underline" }}>Get directions</a>
+            <div className="flex items-center justify-center gap-2 flex-wrap" style={{ marginTop: 18 }}>
+              <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.maroonDark, fontWeight: 600, textDecoration: "underline" }}>Facebook</a>
+              <span style={{ color: T.inkSoft }}>·</span>
+              <a href="https://g.page/r/Cd0RBuUBpA3jEBM/review" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.maroonDark, fontWeight: 600, textDecoration: "underline" }}>Google Reviews</a>
             </div>
           </section>
         </div>

@@ -152,6 +152,13 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
         </div>
         <p style={{ fontSize: 11, color: T.gold, textAlign: "right", fontWeight: 600, marginTop: -2, marginBottom: 4 }}>Tap QR code to enlarge</p>
 
+        <div className="flex items-center justify-center gap-2 flex-wrap" style={{ marginBottom: 14, fontSize: 11.5, color: T.inkSoft }}>
+          <span>Enjoying your classes? Leave us a review:</span>
+          <a href="https://g.page/r/Cd0RBuUBpA3jEBM/review" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Google</a>
+          <span>·</span>
+          <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Facebook</a>
+        </div>
+
         {activeNotices.map((n) => (
           <div key={n.id} style={{ background: T.gold, borderRadius: 10, padding: "14px 18px", marginBottom: 16, boxShadow: `0 2px 8px ${T.gold}55` }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: T.maroonDark, letterSpacing: 0.6, marginBottom: 4, textTransform: "uppercase" }}>📣 Announcement</div>
@@ -353,15 +360,6 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             <p style={{ fontSize: 13, color: T.ink }}>
               Email: <a href="mailto:nrityamandala93@gmail.com" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>nrityamandala93@gmail.com</a>
             </p>
-          </div>
-
-          <div style={{ borderTop: `1px solid ${T.line}`, marginTop: 14, paddingTop: 14 }}>
-            <h4 style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, marginBottom: 6, letterSpacing: 0.3 }}>ENJOYING YOUR CLASSES?</h4>
-            <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8 }}>Leave us a review:</p>
-            <div className="flex items-center justify-center gap-3">
-              <a href="https://g.page/r/Cd0RBuUBpA3jEBM/review" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Google</a>
-              <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Facebook</a>
-            </div>
           </div>
         </div>
 
