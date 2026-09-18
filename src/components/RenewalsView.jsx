@@ -6,6 +6,7 @@ import PackageReminderModal from "./PackageReminderModal";
 import RenewalApprovalEmailModal from "./RenewalApprovalEmailModal";
 import { localDateStr } from "../lib/dates";
 import { classesLabel } from "../lib/format";
+import { formatTimeRange } from "../lib/scheduling";
 
 const DUE_THRESHOLD = 2; // classes remaining at or below this counts as "coming due"
 
@@ -167,6 +168,11 @@ function ApproveRenewalModal({ request, onClose, onApprove }) {
       {request.corrected_dob && (
         <p style={{ fontSize: 12, color: T.gold, marginBottom: 10 }}>They also asked to update DOB on file to: <strong>{request.corrected_dob}</strong> — this will be applied on approval.</p>
       )}
+      {(request.preferred_class || request.preferred_class_text) && (
+        <p style={{ fontSize: 12, color: T.gold, marginBottom: 10 }}>
+          Not yet booked into a class — asked for <strong>{request.preferred_class ? `${request.preferred_class.day} ${formatTimeRange(request.preferred_class.time, request.preferred_class.end_time)}` : request.preferred_class_text}</strong>. Book them in from the Students tab after approving.
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-3 mb-2">
         <Field label="Classes"><input style={inputStyle} type="number" min={1} value={classesTotal} onChange={(e) => setClassesTotal(e.target.value)} /></Field>
         <Field label="Amount paid ($)"><input style={inputStyle} type="number" step="0.01" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
@@ -199,7 +205,7 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from("package_renewal_requests").select("*, students(name, code)").order("created_at", { ascending: false });
+    const { data } = await supabase.from("package_renewal_requests").select("*, students(name, code), preferred_class:classes(label, day, time, end_time)").order("created_at", { ascending: false });
     setRequests(data || []);
     setPaymentSettings((prev) => {
       const next = { ...prev };
@@ -323,6 +329,11 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
                       </>
                     )}
                   </div>
+                  {(r.preferred_class || r.preferred_class_text) && (
+                    <div style={{ fontSize: 11, color: T.gold, marginTop: 2 }}>
+                      Not yet in a class — asked for {r.preferred_class ? `${r.preferred_class.day} ${formatTimeRange(r.preferred_class.time, r.preferred_class.end_time)}` : `"${r.preferred_class_text}"`}
+                    </div>
+                  )}
                 </div>
                 {r.status === "pending" ? (
                   <div className="flex gap-2">

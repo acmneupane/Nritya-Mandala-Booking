@@ -5,6 +5,30 @@ import { LOGO_DATA_URI } from "../lib/logo";
 import { Btn, Field, ConfirmModal } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import { classesLabel } from "../lib/format";
+import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
+
+// Shown for a student who isn't currently booked into a class — same picker as the
+// enrolment form's "Preferred class" field, so a renewing student without a class
+// (e.g. reactivated after a pause) can ask for one at the same time.
+function PreferredClassField({ classes, classId, onChangeClassId, text, onChangeText }) {
+  if (classes.length === 0) {
+    return (
+      <Field label="Preferred day/time (optional)">
+        <input style={inputStyle} value={text} onChange={(e) => onChangeText(e.target.value)} placeholder="e.g. Saturday mornings, Tuesday evenings" />
+      </Field>
+    );
+  }
+  return (
+    <Field label="Preferred class">
+      <select style={inputStyle} value={classId} onChange={(e) => onChangeClassId(e.target.value)}>
+        <option value="" disabled>Select a class…</option>
+        {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+        <option value="none">No preference</option>
+      </select>
+      <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
+    </Field>
+  );
+}
 
 export default function RenewForm() {
   const code = new URLSearchParams(window.location.search).get("code") || "";
@@ -16,6 +40,10 @@ export default function RenewForm() {
   const [siblingTierIds, setSiblingTierIds] = useState({}); // { [siblingId]: tierId }
   const [dobEdits, setDobEdits] = useState({}); // { [studentId]: "YYYY-MM-DD" } - current value shown, may differ from what's on file
   const [originalDobs, setOriginalDobs] = useState({}); // { [studentId]: "YYYY-MM-DD" or "" } - what's actually on file, to detect a real change
+  const [classes, setClasses] = useState([]); // open classes with room, for students not currently booked into one
+  const [enrolledStudentIds, setEnrolledStudentIds] = useState(() => new Set()); // student ids that already have a current class
+  const [preferredClassIds, setPreferredClassIds] = useState({}); // { [studentId]: classId | "none" }
+  const [preferredClassTexts, setPreferredClassTexts] = useState({}); // { [studentId]: text } - used when there are no classes to pick from yet
   const [paymentClaimed, setPaymentClaimed] = useState(false);
   const [paymentFile, setPaymentFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -26,22 +54,41 @@ export default function RenewForm() {
 
   useEffect(() => {
     if (!code) { setStudent(null); return; }
-    supabase.from("student_public").select("id, code, name, dob").eq("code", code.trim().toUpperCase()).maybeSingle()
-      .then(({ data }) => {
-        setStudent(data || null);
-        if (data) {
-          setDobEdits((m) => ({ ...m, [data.id]: data.dob || "" }));
-          setOriginalDobs((m) => ({ ...m, [data.id]: data.dob || "" }));
-        }
-      });
+    const upperCode = code.trim().toUpperCase();
+
     supabase.from("package_tiers").select("*").eq("active", true).order("sort_order").then(({ data }) => setTiers(data || []));
-    supabase.rpc("get_family_students", { p_code: code.trim().toUpperCase() }).then(({ data }) => {
-      const others = (data || []).filter((s) => s.code.toUpperCase() !== code.trim().toUpperCase());
+
+    Promise.all([
+      supabase.from("classes").select("id, label, day, time, end_time, capacity"),
+      supabase.rpc("get_effective_class_counts"),
+    ]).then(([cRes, eRes]) => {
+      const counts = {};
+      (eRes.data || []).forEach((row) => { counts[row.class_id] = Number(row.effective_count); });
+      const open = (cRes.data || []).filter((c) => (counts[c.id] || 0) < c.capacity);
+      setClasses(open.slice().sort(compareClassSchedule));
+    });
+
+    Promise.all([
+      supabase.from("student_public").select("id, code, name, dob").eq("code", upperCode).maybeSingle(),
+      supabase.rpc("get_family_students", { p_code: upperCode }),
+    ]).then(([sRes, gRes]) => {
+      const data = sRes.data;
+      setStudent(data || null);
+      if (!data) return;
+      setDobEdits((m) => ({ ...m, [data.id]: data.dob || "" }));
+      setOriginalDobs((m) => ({ ...m, [data.id]: data.dob || "" }));
+
+      const others = (gRes.data || []).filter((s) => s.code.toUpperCase() !== upperCode);
       setSiblings(others);
       const dobMap = {};
       others.forEach((s) => { dobMap[s.id] = s.dob || ""; });
       setDobEdits((m) => ({ ...m, ...dobMap }));
       setOriginalDobs((m) => ({ ...m, ...dobMap }));
+
+      const allIds = [data.id, ...others.map((s) => s.id)];
+      supabase.from("enrollments").select("student_id").in("student_id", allIds).then(({ data: enr }) => {
+        setEnrolledStudentIds(new Set((enr || []).map((e) => e.student_id)));
+      });
     });
   }, [code]);
 
@@ -59,10 +106,18 @@ export default function RenewForm() {
     if (!checked) setSiblingTierIds((m) => { const next = { ...m }; delete next[id]; return next; });
   };
 
+  const needsPreferredClass = (studentId) => classes.length > 0 && !enrolledStudentIds.has(studentId);
+
   const handleSubmitClick = () => {
     if (!selectedTierId) { setError("Please select a package."); return; }
     const missingSibling = includedSiblingList.find((s) => !siblingTierIds[s.id]);
     if (missingSibling) { setError(`Please select a package for ${missingSibling.name}, or untick them.`); return; }
+    if (needsPreferredClass(student.id) && !preferredClassIds[student.id]) {
+      setError(`Please select a preferred class for ${student.name} — or choose "No preference" if any works.`);
+      return;
+    }
+    const missingSiblingClass = includedSiblingList.find((s) => needsPreferredClass(s.id) && !preferredClassIds[s.id]);
+    if (missingSiblingClass) { setError(`Please select a preferred class for ${missingSiblingClass.name} — or choose "No preference" if any works.`); return; }
     setError("");
     if (!paymentClaimed || !paymentFile) {
       setConfirmUnpaid(true);
@@ -84,9 +139,18 @@ export default function RenewForm() {
         if (uploadErr) throw new Error("Couldn't upload the payment screenshot — please try again.");
       }
 
+      const preferredFor = (studentId) => {
+        if (!needsPreferredClass(studentId)) return {};
+        const classId = preferredClassIds[studentId];
+        return {
+          preferred_class_id: classId && classId !== "none" ? classId : null,
+          preferred_class_text: (preferredClassTexts[studentId] || "").trim() || null,
+        };
+      };
+
       const selections = [
-        { code: student.code, tier_id: selectedTierId, is_sibling: false, corrected_dob: dobEdits[student.id] !== originalDobs[student.id] ? (dobEdits[student.id] || null) : null },
-        ...includedSiblingList.map((s) => ({ code: s.code, tier_id: siblingTierIds[s.id], is_sibling: true, corrected_dob: dobEdits[s.id] !== originalDobs[s.id] ? (dobEdits[s.id] || null) : null })),
+        { code: student.code, tier_id: selectedTierId, is_sibling: false, corrected_dob: dobEdits[student.id] !== originalDobs[student.id] ? (dobEdits[student.id] || null) : null, ...preferredFor(student.id) },
+        ...includedSiblingList.map((s) => ({ code: s.code, tier_id: siblingTierIds[s.id], is_sibling: true, corrected_dob: dobEdits[s.id] !== originalDobs[s.id] ? (dobEdits[s.id] || null) : null, ...preferredFor(s.id) })),
       ];
 
       const { data: fnData, error: fnErr } = await supabase.functions.invoke("submit-form", {
@@ -149,6 +213,21 @@ export default function RenewForm() {
             <Field label="Date of birth"><input style={inputStyle} type="date" value={dobEdits[student.id] || ""} onChange={(e) => setDobEdits((m) => ({ ...m, [student.id]: e.target.value }))} /></Field>
           </div>
 
+          {needsPreferredClass(student.id) && (
+            <div style={{ marginBottom: 4 }}>
+              <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, color: T.ink, lineHeight: 1.5 }}>
+                {student.name} isn't currently booked into a class — let us know a preference and we'll get them scheduled.
+              </div>
+              <PreferredClassField
+                classes={classes}
+                classId={preferredClassIds[student.id] || ""}
+                onChangeClassId={(v) => setPreferredClassIds((m) => ({ ...m, [student.id]: v }))}
+                text={preferredClassTexts[student.id] || ""}
+                onChangeText={(v) => setPreferredClassTexts((m) => ({ ...m, [student.id]: v }))}
+              />
+            </div>
+          )}
+
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 4 }}>Select a package</h3>
           {tiers.length === 0 ? (
             <p style={{ fontSize: 13, color: T.inkSoft }}>No packages are available to select right now — please contact the studio directly.</p>
@@ -189,6 +268,15 @@ export default function RenewForm() {
                       <Field label={`${s.name}'s date of birth`}>
                         <input style={inputStyle} type="date" value={dobEdits[s.id] || ""} onChange={(e) => setDobEdits((m) => ({ ...m, [s.id]: e.target.value }))} />
                       </Field>
+                      {needsPreferredClass(s.id) && (
+                        <PreferredClassField
+                          classes={classes}
+                          classId={preferredClassIds[s.id] || ""}
+                          onChangeClassId={(v) => setPreferredClassIds((m) => ({ ...m, [s.id]: v }))}
+                          text={preferredClassTexts[s.id] || ""}
+                          onChangeText={(v) => setPreferredClassTexts((m) => ({ ...m, [s.id]: v }))}
+                        />
+                      )}
                       <div className="grid gap-2">
                       {tiers.map((t) => {
                         const p = siblingPrice(t);
