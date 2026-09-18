@@ -224,9 +224,19 @@ export default function RenewForm() {
             </div>
           )}
 
+          <div style={{ background: "#fff", border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: T.maroonDark, fontWeight: 700, marginBottom: 4 }}>Bank Account Details</div>
+            <div style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
+              Bank: NAB<br />
+              Account Name: Sarita Sigdel<br />
+              BSB: 082 231<br />
+              Account Number: 846746850
+            </div>
+          </div>
+
           <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
             <p style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.5, marginBottom: referenceCodes ? 8 : 0 }}>
-              Please pay using the studio's bank details (sent in your reminder email), with the reference below. Once paid, tick the box and attach a screenshot so we can confirm it faster.
+              Please pay using the bank details above, with the reference below. Once paid, tick the box and attach a screenshot so we can confirm it faster.
             </p>
             {referenceCodes && (
               <>
