@@ -834,10 +834,11 @@ function TransferClassModal({ student, onClose, onTransferred }) {
     </Modal>
   );
 }
-function SendConfirmationModal({ student, onClose, onReady }) {
+function SendConfirmationModal({ student, onClose, onReady, onMarkedManually }) {
   const [options, setOptions] = useState([]); // {classId, day, time, endTime, startDate}
   const [selected, setSelected] = useState("");
   const [loading, setLoading] = useState(true);
+  const [marking, setMarking] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -869,6 +870,20 @@ function SendConfirmationModal({ student, onClose, onReady }) {
     });
   };
 
+  // For when the studio already told the family some other way (in person, phone,
+  // WhatsApp) — clears the "Send confirmation" nag without actually emailing
+  // anything. Tagged 'manual' so it stays distinguishable from a real send.
+  const markManually = async () => {
+    setMarking(true);
+    await supabase.from("students").update({
+      confirmation_email_sent: true,
+      confirmation_email_sent_at: new Date().toISOString(),
+      confirmation_sent_method: "manual",
+    }).eq("id", student.id);
+    setMarking(false);
+    onMarkedManually();
+  };
+
   return (
     <Modal title={`Send confirmation to ${student.name}'s parent`} onClose={onClose}>
       {loading ? (
@@ -885,9 +900,17 @@ function SendConfirmationModal({ student, onClose, onReady }) {
               </select>
             </Field>
           )}
-          <div className="flex justify-end gap-2 mt-2">
-            <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-            <Btn variant="success" onClick={proceed} disabled={!selected}>Preview email →</Btn>
+          <p style={{ fontSize: 12, color: T.inkSoft, marginTop: -2, marginBottom: 4 }}>
+            Send an email now, or mark it as already confirmed if you told the family another way.
+          </p>
+          <div className="flex items-center justify-between gap-2 mt-2 flex-wrap">
+            <button onClick={markManually} disabled={marking || !selected} style={{ fontSize: 12.5, color: T.inkSoft, textDecoration: "underline" }}>
+              {marking ? "Marking…" : "Mark as already confirmed"}
+            </button>
+            <div className="flex gap-2">
+              <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+              <Btn variant="success" onClick={proceed} disabled={!selected}>Send email now →</Btn>
+            </div>
           </div>
         </>
       )}
@@ -1120,6 +1143,7 @@ export default function StudentsView() {
             setSendingConfirmation(null);
             setEmailPreview({ guardianEmails, students: emailStudents });
           }}
+          onMarkedManually={() => { setSendingConfirmation(null); load(); }}
         />
       )}
       {sendingPackageReminder && (
