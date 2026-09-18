@@ -134,7 +134,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
   return (
     <div style={{ minHeight: "100vh", background: T.ivory, fontFamily: "Inter, sans-serif", padding: "32px 16px" }}>
-      <div style={{ maxWidth: 480, margin: "0 auto" }}>
+      <div className="max-w-[480px] sm:max-w-[600px] md:max-w-[760px] lg:max-w-[880px]" style={{ margin: "0 auto" }}>
         <div className="flex items-start justify-between">
           <div>
             <img src={LOGO_DATA_URI} alt="" style={{ width: 40, height: 40, borderRadius: "50%", marginBottom: 8 }} />

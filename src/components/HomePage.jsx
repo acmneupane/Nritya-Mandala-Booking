@@ -9,6 +9,12 @@ import { publicMediaUrl } from "../lib/media";
 import { Field } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 
+// Shared "premium card" treatment — soft shadow at rest, a slightly deeper one
+// plus a small lift on hover. Colors stay inline (matching T.*, the app's theme
+// object) since Tailwind's generated classes can't reference it directly; these
+// utility classes only add what inline styles can't (hover/transition states).
+const CARD = "bg-white rounded-2xl shadow-[0_4px_16px_-4px_rgba(36,27,21,0.10)] hover:shadow-[0_14px_32px_-8px_rgba(36,27,21,0.16)] hover:-translate-y-0.5 transition-all duration-300";
+
 // Accepts a YouTube link (watch/youtu.be/embed), a TikTok video link, or a public
 // Facebook video/reel link and returns { type, src } for an embeddable iframe, or
 // null if it's none of those. Facebook's public video plugin embed
@@ -35,6 +41,17 @@ function videoEmbed(url) {
   } catch {
     return null;
   }
+}
+
+function SectionHeading({ children, center = true }) {
+  return (
+    <h2
+      className={`font-serif text-2xl sm:text-3xl md:text-4xl ${center ? "text-center" : ""}`}
+      style={{ fontFamily: "Fraunces, serif", color: T.maroonDark, marginBottom: 28, fontWeight: 600 }}
+    >
+      {children}
+    </h2>
+  );
 }
 
 // Simple contact form — submits through the same Turnstile-gated submit-form edge
@@ -75,26 +92,27 @@ function ContactForm() {
 
   if (sent) {
     return (
-      <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "16px 18px", textAlign: "center" }}>
-        <p style={{ fontSize: 14, color: T.sage, fontWeight: 600 }}>Thanks — we've received your message and will be in touch soon.</p>
+      <div className={CARD} style={{ padding: "28px 24px", textAlign: "center" }}>
+        <p style={{ fontSize: 15, color: T.sage, fontWeight: 700 }}>Thanks — we've received your message and will be in touch soon.</p>
       </div>
     );
   }
 
   return (
-    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "16px 18px" }}>
-      <div className="grid grid-cols-2 gap-3">
+    <div className={CARD} style={{ padding: "28px 24px" }}>
+      <div className="grid sm:grid-cols-2 gap-4">
         <Field label="Name"><input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Phone (optional)"><input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
       </div>
       <Field label="Email (optional)"><input style={inputStyle} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-      <Field label="Message"><textarea style={{ ...inputStyle, minHeight: 90 }} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask us anything — classes, pricing, trial spots…" /></Field>
+      <Field label="Message"><textarea style={{ ...inputStyle, minHeight: 100 }} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask us anything — classes, pricing, trial spots…" /></Field>
       {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 4 }}>{error}</p>}
       <TurnstileWidget onVerify={setTurnstileToken} />
       <button
         onClick={submit}
         disabled={submitting || !turnstileToken}
-        style={{ background: T.maroon, color: "#fff", fontWeight: 700, padding: "10px 22px", borderRadius: 999, border: "none", fontSize: 14, opacity: submitting || !turnstileToken ? 0.6 : 1 }}
+        className="hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
+        style={{ background: T.maroon, color: "#fff", fontWeight: 700, padding: "12px 26px", borderRadius: 999, border: "none", fontSize: 14, opacity: submitting || !turnstileToken ? 0.6 : 1, cursor: submitting || !turnstileToken ? "default" : "pointer" }}
       >
         {submitting ? "Sending…" : "Send message"}
       </button>
@@ -159,161 +177,197 @@ export default function HomePage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: T.maroon, fontFamily: "Inter, sans-serif" }}>
-      <div
+    <div style={{ minHeight: "100vh", background: T.ivory, fontFamily: "Inter, sans-serif" }}>
+      {/* Hero */}
+      <section
+        className="min-h-[70vh] flex flex-col items-center justify-center px-5 py-24 text-center relative overflow-hidden"
         style={{
           background: heroPhotoUrl
-            ? `linear-gradient(180deg, rgba(110,29,23,0.55), rgba(110,29,23,0.85)), url(${heroPhotoUrl})`
-            : T.maroon,
+            ? `linear-gradient(180deg, rgba(110,29,23,0.55), rgba(110,29,23,0.9)), url(${heroPhotoUrl})`
+            : `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`,
           backgroundSize: "cover", backgroundPosition: "center",
-          padding: "56px 20px 48px", textAlign: "center",
         }}
       >
-        <img src={LOGO_DATA_URI} alt="" style={{ width: 76, height: 76, borderRadius: "50%", margin: "0 auto 16px", display: "block" }} />
-        <p style={{ fontSize: 12, color: T.goldLight, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 8 }}>Nritya Mandala</p>
-        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 30, color: "#fff", marginBottom: 18, maxWidth: 560, marginLeft: "auto", marginRight: "auto" }}>
-          {content.hero_tagline || "Where every step tells a story."}
-        </h1>
-        <div className="flex items-center justify-center gap-3 flex-wrap">
-          <a href="/enroll" style={{ background: T.gold, color: T.maroonDark, fontWeight: 700, padding: "12px 24px", borderRadius: 999, textDecoration: "none", fontSize: 14 }}>Enrol now</a>
-          <a href="/parent" style={{ background: "rgba(255,255,255,0.15)", color: "#fff", fontWeight: 600, padding: "12px 24px", borderRadius: 999, textDecoration: "none", fontSize: 14, border: "1px solid rgba(255,255,255,0.4)" }}>Look up my booking</a>
+        <div className="relative z-10 flex flex-col items-center max-w-3xl mx-auto">
+          <div className="w-24 h-24 md:w-28 md:h-28 rounded-full flex items-center justify-center mb-8 shadow-2xl overflow-hidden border-4" style={{ background: T.ivory, borderColor: "rgba(255,255,255,0.2)" }}>
+            <img src={LOGO_DATA_URI} alt="" className="w-full h-full object-cover" />
+          </div>
+          <p style={{ color: T.goldLight, fontSize: 13, fontWeight: 700, letterSpacing: "0.25em", textTransform: "uppercase", marginBottom: 16 }}>Nritya Mandala</p>
+          <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl" style={{ fontFamily: "Fraunces, serif", color: "#fff", fontWeight: 600, lineHeight: 1.15, marginBottom: 40, textShadow: "0 2px 12px rgba(0,0,0,0.25)" }}>
+            {content.hero_tagline || "Where every step tells a story."}
+          </h1>
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            <a
+              href="/enroll"
+              className="hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
+              style={{ background: T.gold, color: T.maroonDark, fontWeight: 700, padding: "16px 40px", borderRadius: 999, textDecoration: "none", fontSize: 15 }}
+            >
+              Enrol now
+            </a>
+            <a
+              href="/parent"
+              className="hover:bg-white transition-all duration-300"
+              style={{ background: "transparent", color: "#fff", fontWeight: 600, padding: "15px 40px", borderRadius: 999, textDecoration: "none", fontSize: 15, border: "2px solid rgba(255,255,255,0.7)" }}
+            >
+              Look up my booking
+            </a>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div style={{ background: T.ivory, borderRadius: "24px 24px 0 0", marginTop: -20, padding: "32px 20px 60px" }}>
-        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+      {/* Content */}
+      <div style={{ background: T.ivory, borderRadius: "32px 32px 0 0", marginTop: -24, position: "relative", zIndex: 1 }}>
+        <div className="max-w-[1160px] mx-auto px-5 md:px-10 pt-12 pb-8">
           {notices.map((n) => (
-            <div key={n.id} style={{ background: T.gold, borderRadius: 10, padding: "14px 18px", marginBottom: 20, boxShadow: `0 2px 8px ${T.gold}55` }}>
+            <div key={n.id} className="max-w-[820px] mx-auto rounded-2xl" style={{ background: T.gold, padding: "16px 22px", marginBottom: 24, boxShadow: `0 8px 24px -6px ${T.gold}88` }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: T.maroonDark, letterSpacing: 0.6, marginBottom: 4, textTransform: "uppercase" }}>📣 Announcement</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.4 }}>{n.message}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: T.maroonDark, lineHeight: 1.4 }}>{n.message}</div>
             </div>
           ))}
+        </div>
 
-          {content.about_blurb && (
-            <section style={{ marginBottom: 32 }}>
-              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>About us</h2>
-              <p style={{ fontSize: 14, color: T.ink, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{content.about_blurb}</p>
-            </section>
-          )}
+        {content.about_blurb && (
+          <section className="px-5 md:px-10 py-16">
+            <div className="max-w-[760px] mx-auto text-center">
+              <SectionHeading>About us</SectionHeading>
+              <p style={{ fontSize: 16, color: T.ink, lineHeight: 1.8, whiteSpace: "pre-wrap", opacity: 0.85 }}>{content.about_blurb}</p>
+            </div>
+          </section>
+        )}
 
-          {content.show_classes === "true" && (
-            <section style={{ marginBottom: 32 }}>
-              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Class schedule</h2>
+        {content.show_classes === "true" && (
+          <section className="px-5 md:px-10 py-16">
+            <div className="max-w-[1160px] mx-auto">
+              <SectionHeading>Class schedule</SectionHeading>
               {classes.length === 0 ? (
-                <p style={{ fontSize: 13, color: T.inkSoft }}>Schedule coming soon — get in touch to find out what's running.</p>
+                <p style={{ fontSize: 14, color: T.inkSoft, textAlign: "center" }}>Schedule coming soon — get in touch to find out what's running.</p>
               ) : (
-                <div className="grid gap-2">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {classes.map((c) => (
-                    <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "12px 14px" }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{c.label}</div>
-                      <div style={{ fontSize: 12, color: T.inkSoft }}>
+                    <div key={c.id} className={CARD} style={{ padding: "18px 20px" }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{c.label}</div>
+                      <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 4 }}>
                         {c.day} · {formatTimeRange(c.time, c.end_time)}{levelById[c.level_id] ? ` · ${levelById[c.level_id].name}` : ""}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-            </section>
-          )}
+            </div>
+          </section>
+        )}
 
-          {content.show_pricing === "true" && tiers.length > 0 && (
-            <section style={{ marginBottom: 32 }}>
-              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Packages &amp; pricing</h2>
-              <div className="grid gap-2">
-                {tiers.map((t) => (
-                  <div key={t.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{t.name}</div>
-                      <div style={{ fontSize: 12, color: T.inkSoft }}>{classesLabel(t.classes_count)}</div>
-                    </div>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>${Number(t.price).toFixed(2)}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {content.show_levels === "true" && levels.length > 0 && (
-            <section style={{ marginBottom: 32 }}>
-              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Levels</h2>
-              <div className="grid gap-2">
-                {levels.map((l) => (
-                  <div key={l.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "12px 14px" }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{l.name}</div>
-                    {l.description && <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 2 }}>{l.description}</div>}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {instructors.length > 0 && (
-            <section style={{ marginBottom: 32 }}>
-              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Meet the team</h2>
-              <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
-                {instructors.map((i) => (
-                  <div key={i.id} style={{ textAlign: "center" }}>
-                    {i.photo_path ? (
-                      <img src={publicMediaUrl(i.photo_path)} alt="" style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", margin: "0 auto 8px", display: "block" }} />
-                    ) : (
-                      <div style={{ width: 96, height: 96, borderRadius: "50%", background: T.paper, margin: "0 auto 8px" }} />
-                    )}
-                    <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{i.name}</div>
-                    {i.role && <div style={{ fontSize: 11, color: T.gold, fontWeight: 600, marginTop: 2 }}>{i.role}</div>}
-                    {i.bio && <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 6, lineHeight: 1.5 }}>{i.bio}</div>}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {gallery.length > 0 && (
-            <section style={{ marginBottom: 32 }}>
-              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Gallery</h2>
-              <div className="flex gap-3" style={{ overflowX: "auto", scrollSnapType: "x mandatory", paddingBottom: 8, WebkitOverflowScrolling: "touch" }}>
-                {gallery.map((g) => (
-                  <div key={g.id} style={{ flex: "0 0 auto", width: 220, scrollSnapAlign: "start" }}>
-                    <div style={{ borderRadius: 8, overflow: "hidden", aspectRatio: "1", background: T.paper }}>
-                      <img src={publicMediaUrl(g.path)} alt={g.caption || ""} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                    </div>
-                    {g.caption && <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>{g.caption}</div>}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {testimonials.length > 0 && (
-            <section style={{ marginBottom: 32 }}>
-              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>What families say</h2>
+        {content.show_pricing === "true" && tiers.length > 0 && (
+          <section className="px-5 md:px-10 py-16" style={{ background: "#fff", borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
+            <div className="max-w-[820px] mx-auto">
+              <SectionHeading>Packages &amp; pricing</SectionHeading>
               <div className="grid gap-3">
-                {testimonials.map((t) => (
-                  <div key={t.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "14px 16px" }}>
-                    <div style={{ fontSize: 14, color: T.gold, marginBottom: 4 }}>{"★".repeat(t.rating)}{"☆".repeat(5 - t.rating)}</div>
-                    {t.title && <div style={{ fontSize: 14, fontWeight: 700, color: T.ink, marginBottom: 4 }}>{t.title}</div>}
-                    <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>{t.content}</p>
-                    {t.author_name && <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 6, fontStyle: "italic" }}>— {t.author_name}</div>}
+                {tiers.map((t) => (
+                  <div key={t.id} className={CARD} style={{ padding: "18px 22px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{t.name}</div>
+                      <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 2 }}>{classesLabel(t.classes_count)}</div>
+                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>${Number(t.price).toFixed(2)}</div>
                   </div>
                 ))}
               </div>
-            </section>
-          )}
+            </div>
+          </section>
+        )}
 
-          {embed && (
-            <section style={{ marginBottom: 32 }}>
-              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Watch us dance</h2>
+        {content.show_levels === "true" && levels.length > 0 && (
+          <section className="px-5 md:px-10 py-16">
+            <div className="max-w-[1160px] mx-auto">
+              <SectionHeading>Levels</SectionHeading>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {levels.map((l) => (
+                  <div key={l.id} className={CARD} style={{ padding: "18px 20px" }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{l.name}</div>
+                    {l.description && <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 4, lineHeight: 1.5 }}>{l.description}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {instructors.length > 0 && (
+          <section className="px-5 md:px-10 py-16" style={{ background: "#fff", borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
+            <div className="max-w-[1160px] mx-auto">
+              <SectionHeading>Meet the team</SectionHeading>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-8">
+                {instructors.map((i) => (
+                  <div key={i.id} className="text-center">
+                    {i.photo_path ? (
+                      <img src={publicMediaUrl(i.photo_path)} alt="" className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover mx-auto mb-4 shadow-lg" />
+                    ) : (
+                      <div className="w-24 h-24 md:w-28 md:h-28 rounded-full mx-auto mb-4" style={{ background: T.paper }} />
+                    )}
+                    <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{i.name}</div>
+                    {i.role && <div style={{ fontSize: 12, color: T.gold, fontWeight: 700, marginTop: 3 }}>{i.role}</div>}
+                    {i.bio && <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 8, lineHeight: 1.6 }}>{i.bio}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {gallery.length > 0 && (
+          <section className="px-5 md:px-10 py-16">
+            <div className="max-w-[1160px] mx-auto">
+              <SectionHeading>Gallery</SectionHeading>
+              <div className="flex gap-4" style={{ overflowX: "auto", scrollSnapType: "x mandatory", paddingBottom: 10, WebkitOverflowScrolling: "touch" }}>
+                {gallery.map((g) => (
+                  <div key={g.id} className="flex-none group" style={{ width: 260, scrollSnapAlign: "start" }}>
+                    <div className="rounded-2xl overflow-hidden shadow-[0_4px_16px_-4px_rgba(36,27,21,0.14)]" style={{ aspectRatio: "1", background: T.paper }}>
+                      <img src={publicMediaUrl(g.path)} alt={g.caption || ""} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    </div>
+                    {g.caption && <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 8 }}>{g.caption}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {testimonials.length > 0 && (
+          <section className="px-5 md:px-10 py-16" style={{ background: "#fff", borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
+            <div className="max-w-[1160px] mx-auto">
+              <SectionHeading>What families say</SectionHeading>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {testimonials.map((t) => (
+                  <div key={t.id} className={CARD} style={{ padding: "28px 24px" }}>
+                    <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 36, color: T.goldLight, lineHeight: 0.6, marginBottom: 14 }}>&ldquo;</div>
+                    <div style={{ fontSize: 15, color: T.gold, marginBottom: 10 }}>{"★".repeat(t.rating)}{"☆".repeat(5 - t.rating)}</div>
+                    {t.title && <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, marginBottom: 6 }}>{t.title}</div>}
+                    <p style={{ fontSize: 14, color: T.ink, lineHeight: 1.7, opacity: 0.85, fontStyle: "italic" }}>{t.content}</p>
+                    {t.author_name && <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 14, fontWeight: 600 }}>— {t.author_name}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {embed && (
+          <section className="px-5 md:px-10 py-16">
+            <div className="max-w-[820px] mx-auto text-center">
+              <SectionHeading>Watch us dance</SectionHeading>
               {embed.type === "facebook" || embed.type === "tiktok" ? (
-                <div style={{ display: "flex", justifyContent: "center" }}>
+                <div className="flex justify-center">
                   <iframe
                     src={embed.src}
                     title="Nritya Mandala video"
-                    style={{ border: "none", width: "100%", maxWidth: 350, aspectRatio: "9 / 16", borderRadius: 8 }}
+                    className="shadow-[0_10px_30px_-5px_rgba(36,27,21,0.2)]"
+                    style={{ border: "none", width: "100%", maxWidth: 360, aspectRatio: "9 / 16", borderRadius: 24 }}
                     allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
                     allowFullScreen
                   />
                 </div>
               ) : (
-                <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 8, overflow: "hidden" }}>
+                <div className="shadow-[0_10px_30px_-5px_rgba(36,27,21,0.2)]" style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 20, overflow: "hidden" }}>
                   <iframe
                     src={embed.src}
                     title="Nritya Mandala video"
@@ -323,41 +377,57 @@ export default function HomePage() {
                   />
                 </div>
               )}
-            </section>
-          )}
+            </div>
+          </section>
+        )}
 
-          {faqs.length > 0 && (
-            <section style={{ marginBottom: 32 }}>
-              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Frequently asked questions</h2>
-              <div className="grid gap-2">
+        {faqs.length > 0 && (
+          <section className="px-5 md:px-10 py-16" style={{ background: "#fff", borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
+            <div className="max-w-[760px] mx-auto">
+              <SectionHeading>Frequently asked questions</SectionHeading>
+              <div className="grid gap-3">
                 {faqs.map((f) => (
-                  <details key={f.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "10px 14px" }}>
-                    <summary style={{ cursor: "pointer", fontSize: 14, fontWeight: 600, color: T.ink }}>{f.question}</summary>
-                    <p style={{ fontSize: 13, color: T.inkSoft, marginTop: 8, lineHeight: 1.6 }}>{f.answer}</p>
+                  <details key={f.id} className={`group list-none [&::-webkit-details-marker]:hidden overflow-hidden ${CARD}`}>
+                    <summary className="cursor-pointer list-none flex items-center justify-between gap-4" style={{ padding: "18px 22px", fontSize: 15, fontWeight: 700, color: T.ink }}>
+                      <span>{f.question}</span>
+                      <svg className="shrink-0 transition-transform duration-300 group-open:rotate-180" style={{ width: 18, height: 18, color: T.maroon }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </summary>
+                    <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.7, padding: "0 22px 20px", borderTop: `1px solid ${T.line}`, paddingTop: 14 }}>{f.answer}</p>
                   </details>
                 ))}
               </div>
-            </section>
-          )}
-
-          <section style={{ marginBottom: 32 }}>
-            <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Get in touch</h2>
-            <ContactForm />
-          </section>
-
-          <section style={{ textAlign: "center", marginTop: 40 }}>
-            <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Find us</h2>
-            <p style={{ fontSize: 13, color: T.ink, marginBottom: 4 }}>📍 72 Central Avenue, Oran Park, NSW 2570</p>
-            <a href="https://maps.google.com/?q=72+Central+Avenue+Oran+Park+NSW" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.maroonDark, fontWeight: 600, textDecoration: "underline" }}>Get directions</a>
-            <div className="flex items-center justify-center gap-2 flex-wrap" style={{ marginTop: 18 }}>
-              <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.maroonDark, fontWeight: 600, textDecoration: "underline" }}>Facebook</a>
-              <span style={{ color: T.inkSoft }}>·</span>
-              <a href="https://g.page/r/Cd0RBuUBpA3jEBM/review" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.maroonDark, fontWeight: 600, textDecoration: "underline" }}>Google Reviews</a>
-              <span style={{ color: T.inkSoft }}>·</span>
-              <a href="https://www.tiktok.com/@nritya.mandala" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.maroonDark, fontWeight: 600, textDecoration: "underline" }}>TikTok</a>
             </div>
           </section>
-        </div>
+        )}
+
+        <section className="px-5 md:px-10 py-16">
+          <div className="max-w-[820px] mx-auto">
+            <SectionHeading>Get in touch</SectionHeading>
+            <ContactForm />
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="px-5 py-16 text-center" style={{ background: T.ink }}>
+          <div className="max-w-[600px] mx-auto flex flex-col items-center">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6 overflow-hidden" style={{ background: "#fff" }}>
+              <img src={LOGO_DATA_URI} alt="" className="w-full h-full object-cover" />
+            </div>
+            <h2 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 26, color: T.goldLight, fontWeight: 600, marginBottom: 20 }}>Find us</h2>
+            <p style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", marginBottom: 10 }}>📍 72 Central Avenue, Oran Park, NSW 2570</p>
+            <a href="https://maps.google.com/?q=72+Central+Avenue+Oran+Park+NSW" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.goldLight, fontWeight: 600, textDecoration: "underline", letterSpacing: 0.5 }}>GET DIRECTIONS</a>
+            <div className="w-full max-w-[320px] flex items-center justify-center gap-2 flex-wrap" style={{ marginTop: 32, paddingTop: 28, borderTop: "1px solid rgba(255,255,255,0.12)" }}>
+              <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>Facebook</a>
+              <span style={{ color: "rgba(255,255,255,0.3)" }}>|</span>
+              <a href="https://g.page/r/Cd0RBuUBpA3jEBM/review" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>Google Reviews</a>
+              <span style={{ color: "rgba(255,255,255,0.3)" }}>|</span>
+              <a href="https://www.tiktok.com/@nritya.mandala" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>TikTok</a>
+            </div>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 28 }}>© {new Date().getFullYear()} Nritya Mandala. All rights reserved.</p>
+          </div>
+        </footer>
       </div>
     </div>
   );

@@ -206,7 +206,7 @@ export default function RenewForm() {
 
   return (
     <div style={{ minHeight: "100vh", background: T.maroon, padding: "24px 16px" }}>
-      <div style={{ maxWidth: 460, margin: "0 auto" }}>
+      <div className="max-w-[460px] sm:max-w-[560px] md:max-w-[680px] lg:max-w-[780px]" style={{ margin: "0 auto" }}>
         <div className="flex items-center gap-2 mb-4">
           <img src={LOGO_DATA_URI} alt="" style={{ width: 44, height: 44, borderRadius: "50%" }} />
           <div>
