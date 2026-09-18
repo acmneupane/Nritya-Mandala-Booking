@@ -24,12 +24,16 @@ function youtubeEmbedUrl(url) {
   }
 }
 
-// The real public homepage — pulls live schedule/pricing/notices straight from the
-// same tables the admin app uses, plus admin-editable static content (hero photo,
-// tagline, about blurb, gallery, video) from site_content / site_gallery_images.
-// Currently mounted at /new (see App.jsx) rather than the domain root, so it can be
-// reviewed and filled in with real content before going live; ComingSoonPage stays
-// the default at "/" until that switch is made.
+// The real public homepage — pulls live schedule/pricing/notices/levels straight
+// from the same tables the admin app uses, plus admin-editable static content
+// (hero photo, tagline, about blurb, gallery, video) from site_content /
+// site_gallery_images. The schedule/pricing/levels sections are each gated behind
+// their own show_classes/show_pricing/show_levels toggle (default off) — showing
+// exact pricing to a cold visitor before they've engaged can talk them out of
+// enrolling, so the studio opts in per-section from Studio Settings > Website
+// when they're ready. Currently mounted at /new (see App.jsx) rather than the
+// domain root, so it can be reviewed and filled in with real content before going
+// live; ComingSoonPage stays the default at "/" until that switch is made.
 export default function HomePage() {
   const [content, setContent] = useState({});
   const [gallery, setGallery] = useState([]);
@@ -105,25 +109,27 @@ export default function HomePage() {
             </section>
           )}
 
-          <section style={{ marginBottom: 32 }}>
-            <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Class schedule</h2>
-            {classes.length === 0 ? (
-              <p style={{ fontSize: 13, color: T.inkSoft }}>Schedule coming soon — get in touch to find out what's running.</p>
-            ) : (
-              <div className="grid gap-2">
-                {classes.map((c) => (
-                  <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "12px 14px" }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{c.label}</div>
-                    <div style={{ fontSize: 12, color: T.inkSoft }}>
-                      {c.day} · {formatTimeRange(c.time, c.end_time)}{levelById[c.level_id] ? ` · ${levelById[c.level_id].name}` : ""}
+          {content.show_classes === "true" && (
+            <section style={{ marginBottom: 32 }}>
+              <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Class schedule</h2>
+              {classes.length === 0 ? (
+                <p style={{ fontSize: 13, color: T.inkSoft }}>Schedule coming soon — get in touch to find out what's running.</p>
+              ) : (
+                <div className="grid gap-2">
+                  {classes.map((c) => (
+                    <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "12px 14px" }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{c.label}</div>
+                      <div style={{ fontSize: 12, color: T.inkSoft }}>
+                        {c.day} · {formatTimeRange(c.time, c.end_time)}{levelById[c.level_id] ? ` · ${levelById[c.level_id].name}` : ""}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
-          {tiers.length > 0 && (
+          {content.show_pricing === "true" && tiers.length > 0 && (
             <section style={{ marginBottom: 32 }}>
               <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Packages &amp; pricing</h2>
               <div className="grid gap-2">
@@ -140,7 +146,7 @@ export default function HomePage() {
             </section>
           )}
 
-          {levels.length > 0 && (
+          {content.show_levels === "true" && levels.length > 0 && (
             <section style={{ marginBottom: 32 }}>
               <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 10 }}>Levels</h2>
               <div className="grid gap-2">

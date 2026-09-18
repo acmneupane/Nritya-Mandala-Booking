@@ -354,6 +354,15 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
               Email: <a href="mailto:nrityamandala93@gmail.com" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>nrityamandala93@gmail.com</a>
             </p>
           </div>
+
+          <div style={{ borderTop: `1px solid ${T.line}`, marginTop: 14, paddingTop: 14 }}>
+            <h4 style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, marginBottom: 6, letterSpacing: 0.3 }}>ENJOYING YOUR CLASSES?</h4>
+            <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8 }}>Leave us a review:</p>
+            <div className="flex items-center justify-center gap-3">
+              <a href="https://g.page/r/Cd0RBuUBpA3jEBM/review" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Google</a>
+              <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Facebook</a>
+            </div>
+          </div>
         </div>
 
         {siblings.length > 0 && (

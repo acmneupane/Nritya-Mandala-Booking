@@ -310,7 +310,7 @@ function NoticeBoardEditor() {
   );
 }
 
-const SITE_CONTENT_KEYS = ["hero_tagline", "hero_photo_path", "about_blurb", "video_url"];
+const SITE_CONTENT_KEYS = ["hero_tagline", "hero_photo_path", "about_blurb", "video_url", "show_classes", "show_pricing", "show_levels"];
 
 // Hero photo/tagline, about blurb, and video link for the public homepage
 // (HomePage.jsx, currently at /new) — stored as key/value rows in site_content,
@@ -371,7 +371,7 @@ function HeroAboutEditor() {
     <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
       <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Homepage content</h3>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        Hero photo, tagline, about text, and video link for the public homepage. The live class schedule, levels, pricing, and notices come from the rest of the app automatically — nothing to edit here for those.
+        Hero photo, tagline, about text, and video link for the public homepage. The class schedule, pricing, and levels come from the rest of the app automatically, but are hidden from the public page by default — turn them on below only once you're ready for cold visitors to see them.
       </p>
 
       <Field label="Hero photo">
@@ -381,6 +381,22 @@ function HeroAboutEditor() {
       <Field label="Tagline"><input style={inputStyle} value={values.hero_tagline || ""} onChange={(e) => setField("hero_tagline", e.target.value)} placeholder="Where every step tells a story." /></Field>
       <Field label="About us"><textarea style={{ ...inputStyle, minHeight: 120 }} value={values.about_blurb || ""} onChange={(e) => setField("about_blurb", e.target.value)} placeholder="A few paragraphs about the studio…" /></Field>
       <Field label="Video link (YouTube)"><input style={inputStyle} value={values.video_url || ""} onChange={(e) => setField("video_url", e.target.value)} placeholder="https://www.youtube.com/watch?v=…" /></Field>
+
+      <div style={{ borderTop: `1px solid ${T.line}`, marginTop: 14, paddingTop: 14, marginBottom: 4 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, marginBottom: 8, letterSpacing: 0.3 }}>PUBLIC VISIBILITY</div>
+        <label className="flex items-center gap-2 mb-2" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
+          <input type="checkbox" checked={values.show_classes === "true"} onChange={(e) => setField("show_classes", e.target.checked ? "true" : "false")} />
+          Show class schedule
+        </label>
+        <label className="flex items-center gap-2 mb-2" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
+          <input type="checkbox" checked={values.show_pricing === "true"} onChange={(e) => setField("show_pricing", e.target.checked ? "true" : "false")} />
+          Show packages &amp; pricing
+        </label>
+        <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
+          <input type="checkbox" checked={values.show_levels === "true"} onChange={(e) => setField("show_levels", e.target.checked ? "true" : "false")} />
+          Show levels
+        </label>
+      </div>
 
       {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 10 }}>{error}</p>}
       {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
