@@ -39,14 +39,6 @@ function ImportantInfo({ preferredClass }) {
             )}
           </InfoSection>
 
-          <InfoSection title="Bank Account Details">
-            Bank: NAB<br />
-            Account Name: Sarita Sigdel<br />
-            BSB: 082 231<br />
-            Account Number: 846746850<br /><br />
-            Payment Reference: use the reference number shown in the Payment section below.
-          </InfoSection>
-
           <InfoSection title="Payment Confirmation">
             After making the payment, please send a screenshot of your payment confirmation to Nritya Mandala. This helps us confirm and process your enrolment.<br /><br />
             <strong>Your student's place in the class will be confirmed once payment has been received.</strong>
@@ -496,6 +488,15 @@ export default function EnrollForm() {
                   )}
                 </div>
 
+                <div style={{ background: "#fff", border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, color: T.maroonDark, fontWeight: 700, marginBottom: 4 }}>Bank Account Details</div>
+                  <div style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
+                    Bank: NAB<br />
+                    Account Name: Sarita Sigdel<br />
+                    BSB: 082 231<br />
+                    Account Number: 846746850
+                  </div>
+                </div>
                 <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
                   Please pay using the bank details above, with the reference below — this is what tells us the payment is for {studentName || "your student"}'s enrolment.
                 </p>
