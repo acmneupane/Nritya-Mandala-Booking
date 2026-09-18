@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
+import { Modal } from "./ui";
 
 const TABLE_LABELS = { students: "Students", classes: "Classes", levels: "Levels" };
 const ACTION_COLOR = { insert: T.sage, update: T.gold, delete: T.terracotta };
@@ -33,6 +34,7 @@ function EmailsSection() {
   const [page, setPage] = useState(1);
   const [summary, setSummary] = useState(null); // { today, month, dailyLimit }
   const [loading, setLoading] = useState(true);
+  const [viewing, setViewing] = useState(null); // the email_log row currently shown in the detail modal
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,7 +84,12 @@ function EmailsSection() {
       ) : (
         <div className="grid gap-2">
           {rows.map((r) => (
-            <div key={r.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `3px solid ${r.success ? T.sage : T.terracotta}`, borderRadius: 6, padding: "10px 12px" }}>
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => setViewing(r)}
+              style={{ display: "block", width: "100%", textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `3px solid ${r.success ? T.sage : T.terracotta}`, borderRadius: 6, padding: "10px 12px", cursor: "pointer" }}
+            >
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <span style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>
                   {r.recipient_email} {r.recipient_role === "bcc" && <span style={{ fontSize: 10, color: T.inkSoft, fontWeight: 600 }}>(BCC)</span>}
@@ -94,9 +101,33 @@ function EmailsSection() {
                 {!r.success && <span style={{ color: T.terracotta, fontWeight: 600 }}> · Failed</span>}
               </div>
               {r.subject && <div style={{ fontSize: 12, color: T.ink, marginTop: 4, fontStyle: "italic" }}>{r.subject}</div>}
-            </div>
+            </button>
           ))}
         </div>
+      )}
+
+      {viewing && (
+        <Modal title="Email details" onClose={() => setViewing(null)} wide>
+          <div style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10, lineHeight: 1.6 }}>
+            <div><strong>To:</strong> {viewing.recipient_email}{viewing.recipient_role === "bcc" ? " (BCC)" : ""}</div>
+            <div><strong>Subject:</strong> {viewing.subject || "(no subject)"}</div>
+            <div><strong>Type:</strong> {EMAIL_TYPE_LABELS[viewing.email_type] || viewing.email_type}</div>
+            <div><strong>Student:</strong> {viewing.student_name || "—"}</div>
+            <div><strong>Sent:</strong> {new Date(viewing.sent_at).toLocaleString()} by {viewing.triggered_by || "unknown"}</div>
+            {!viewing.success && <div style={{ color: T.terracotta, fontWeight: 600 }}>This send failed.</div>}
+          </div>
+          {viewing.body ? (
+            <div
+              style={{ fontSize: 13, color: T.ink, lineHeight: 1.6, background: T.paper, border: `1px solid ${T.line}`, borderRadius: 8, padding: 14, maxHeight: 480, overflowY: "auto" }}
+              dangerouslySetInnerHTML={{ __html: viewing.body }}
+            />
+          ) : (
+            <p style={{ fontSize: 13, color: T.inkSoft }}>No content was recorded for this email.</p>
+          )}
+          <div className="flex justify-end mt-4">
+            <button onClick={() => setViewing(null)} style={{ fontSize: 13, color: T.maroon, fontWeight: 600, padding: "6px 12px" }}>Close</button>
+          </div>
+        </Modal>
       )}
 
       {totalPages > 1 && (
