@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { T } from "../lib/theme";
+import { T, inputStyle } from "../lib/theme";
 
 export function Btn({ children, onClick, variant = "primary", size = "md", type = "button", disabled }) {
   const base = "inline-flex items-center gap-2 font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
@@ -15,6 +15,41 @@ export function Btn({ children, onClick, variant = "primary", size = "md", type 
     <button type={type} onClick={onClick} disabled={disabled} className={`${base} ${sizes[size]}`} style={variants[variant]}>
       {children}
     </button>
+  );
+}
+
+// Native <select>, but styled to not look like a cramped OS default: bigger
+// touch target, no browser-drawn arrow, a custom chevron instead. Still a real
+// <select> underneath (keyboard/screen-reader behavior, the native option
+// picker), just dressed to match the rest of the form.
+export function Select({ value, onChange, children, disabled, style }) {
+  return (
+    <div style={{ position: "relative" }}>
+      <select
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        style={{
+          ...inputStyle,
+          padding: "11px 38px 11px 14px",
+          borderRadius: 8,
+          fontSize: 14.5,
+          appearance: "none",
+          WebkitAppearance: "none",
+          MozAppearance: "none",
+          cursor: disabled ? "default" : "pointer",
+          ...style,
+        }}
+      >
+        {children}
+      </select>
+      <svg
+        width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={T.maroon} strokeWidth="2.5"
+        style={{ position: "absolute", right: 13, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+      </svg>
+    </div>
   );
 }
 

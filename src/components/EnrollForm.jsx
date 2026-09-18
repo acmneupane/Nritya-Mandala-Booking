@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { classesLabel } from "../lib/format";
 import { LOGO_DATA_URI } from "../lib/logo";
-import { Btn, Field, ConfirmModal } from "./ui";
+import { Btn, Field, Select, ConfirmModal } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
@@ -22,10 +22,18 @@ function InfoSection({ title, children }) {
 function ImportantInfo({ preferredClass }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 18, marginTop: 16 }}>
-      <button onClick={() => setOpen((v) => !v)} className="flex items-center justify-between" style={{ width: "100%", textAlign: "left" }}>
-        <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>ℹ️ Important Information</h3>
-        <span style={{ fontSize: 13, color: T.inkSoft }}>{open ? "Hide ▾" : "Show ▸"}</span>
+    <div className="rounded-2xl shadow-[0_2px_10px_-4px_rgba(36,27,21,0.1)]" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: 18, marginTop: 20 }}>
+      <button onClick={() => setOpen((v) => !v)} className="flex items-center justify-between hover:opacity-80 transition-opacity" style={{ width: "100%", textAlign: "left" }}>
+        <div className="flex items-center gap-2.5">
+          <span className="flex items-center justify-center shrink-0" style={{ width: 26, height: 26, borderRadius: 7, background: `${T.maroon}18`, color: T.maroon, fontSize: 13, fontWeight: 700 }}>i</span>
+          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, fontWeight: 600 }}>Important Information</h3>
+        </div>
+        <span className="flex items-center gap-1.5 shrink-0" style={{ fontSize: 12, color: T.inkSoft, fontWeight: 600 }}>
+          {open ? "Hide" : "Show"}
+          <svg className={`transition-transform duration-300 ${open ? "rotate-180" : ""}`} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+          </svg>
+        </span>
       </button>
       {!open && <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 6 }}>Location, policies, attendance, and more — please read before submitting.</p>}
       {open && (
@@ -75,22 +83,22 @@ function ImportantInfo({ preferredClass }) {
 
 function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
   return (
-    <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 12, marginBottom: 10 }}>
-      <div className="flex items-center justify-between mb-2">
-        <span style={{ fontSize: 12, fontWeight: 600, color: T.inkSoft }}>Additional Student {index + 1}</span>
-        <button onClick={onRemove} style={{ color: T.terracotta, fontSize: 12 }}>Remove</button>
+    <div className="rounded-xl shadow-[0_2px_8px_-3px_rgba(36,27,21,0.1)]" style={{ background: T.paper + "55", border: `1px solid ${T.gold}44`, padding: 16, marginBottom: 12 }}>
+      <div className="flex items-center justify-between mb-3">
+        <span style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark }}>Additional Student {index + 1}</span>
+        <button onClick={onRemove} style={{ color: T.terracotta, fontSize: 12, fontWeight: 600 }}>Remove</button>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Name"><input style={inputStyle} value={sibling.name} onChange={(e) => onChange({ ...sibling, name: e.target.value })} /></Field>
         <Field label="Date of birth"><input style={inputStyle} type="date" value={sibling.dob} onChange={(e) => onChange({ ...sibling, dob: e.target.value })} /></Field>
       </div>
       {classes.length > 0 ? (
         <Field label="Preferred class">
-          <select style={inputStyle} value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
+          <Select value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
             <option value="" disabled>Select a class…</option>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
             <option value="none">No preference</option>
-          </select>
+          </Select>
           <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
         </Field>
       ) : (
@@ -112,9 +120,10 @@ function PackageTierPicker({ tiers, selectedId, onSelect, sibling }) {
         return (
           <label
             key={t.id}
+            className="transition-colors"
             style={{
               display: "flex", alignItems: "center", justifyContent: "space-between", border: `2px solid ${checked ? T.gold : T.line}`,
-              borderRadius: 8, padding: "10px 12px", cursor: "pointer", background: checked ? `${T.gold}12` : "#fff",
+              borderRadius: 10, padding: "12px 14px", cursor: "pointer", background: checked ? `${T.gold}12` : "#fff",
             }}
           >
             <div className="flex items-center gap-2">
@@ -300,16 +309,16 @@ export default function EnrollForm() {
 
   if (reference) {
     return (
-      <div style={{ minHeight: "100vh", background: T.maroon, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
-        <div style={{ background: T.ivory, borderRadius: 12, padding: "40px 28px", width: "100%", maxWidth: 380, textAlign: "center", boxSizing: "border-box" }}>
+      <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
+        <div className="rounded-[1.75rem] shadow-2xl" style={{ background: T.ivory, padding: "40px 28px", width: "100%", maxWidth: 380, textAlign: "center", boxSizing: "border-box" }}>
           <img src={LOGO_DATA_URI} alt="" style={{ width: 60, height: 60, borderRadius: "50%", margin: "0 auto 16px", display: "block" }} />
-          <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 8 }}>Thank you!</h1>
-          <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.6, marginBottom: 16 }}>
+          <h1 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: T.maroonDark, marginBottom: 8, fontWeight: 600 }}>Thank you!</h1>
+          <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.6, marginBottom: 20 }}>
             We've received {studentName}'s enrolment request. We will contact you to confirm the enrolment.
           </p>
-          <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "14px 18px", marginBottom: 8 }}>
-            <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Your payment reference</div>
-            <div style={{ fontFamily: "Fraunces, serif", fontSize: 22, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>{reference}</div>
+          <div className="rounded-2xl" style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, padding: "16px 20px", marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 3, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>Your payment reference</div>
+            <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>{reference}</div>
           </div>
           <p style={{ fontSize: 12, color: T.inkSoft, lineHeight: 1.5 }}>Please use this reference when making your payment, and keep it handy in case we need to follow up.</p>
         </div>
@@ -318,35 +327,35 @@ export default function EnrollForm() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: T.maroon, padding: "24px 16px" }}>
-      <div style={{ maxWidth: 460, margin: "0 auto" }}>
-        <div className="flex items-center gap-2 mb-4">
-          <img src={LOGO_DATA_URI} alt="" style={{ width: 44, height: 44, borderRadius: "50%" }} />
+    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`, padding: "28px 16px" }} className="sm:py-12">
+      <div className="max-w-[460px] sm:max-w-[560px] md:max-w-[680px] lg:max-w-[780px] mx-auto">
+        <div className="flex items-center gap-3 mb-6">
+          <img src={LOGO_DATA_URI} alt="" style={{ width: 48, height: 48, borderRadius: "50%", boxShadow: "0 4px 14px rgba(0,0,0,0.25)" }} />
           <div>
-            <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 20, color: T.ivory }}>Enrol a student</h1>
-            <p style={{ fontSize: 12, color: T.goldLight }}>Nritya Mandala</p>
+            <h1 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: "#fff", fontWeight: 600, textShadow: "0 2px 10px rgba(0,0,0,0.2)" }}>Enrol a student</h1>
+            <p style={{ fontSize: 12.5, color: T.goldLight, fontWeight: 600 }}>Nritya Mandala</p>
           </div>
         </div>
 
-        <div style={{ background: T.ivory, borderRadius: 12, padding: "24px 20px", boxSizing: "border-box", fontFamily: "Inter, sans-serif" }}>
-          <div style={{ marginBottom: 20 }}>
-            <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 19, color: T.maroonDark, marginBottom: 6 }}>Welcome to Nritya Mandala! 🪷</h2>
-            <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
+        <div className="rounded-[1.75rem] shadow-2xl sm:p-10" style={{ background: T.ivory, padding: "26px 20px", boxSizing: "border-box", fontFamily: "Inter, sans-serif" }}>
+          <div style={{ marginBottom: 24, paddingBottom: 22, borderBottom: `1px solid ${T.gold}33` }}>
+            <h2 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 21, color: T.maroonDark, marginBottom: 8, fontWeight: 600 }}>Welcome to Nritya Mandala! 🪷</h2>
+            <p style={{ fontSize: 13.5, color: T.ink, lineHeight: 1.6 }}>
               We're so glad you're considering joining our dance class. Fill in a few details below and we'll be in touch to confirm everything.
             </p>
           </div>
 
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 12 }}>Student details</h3>
+          <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 14, fontWeight: 600 }}>Student details</h3>
           <Field label="Student's name *"><input style={inputStyle} value={studentName} onChange={(e) => setStudentName(e.target.value)} /></Field>
           {classes.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Date of birth"><input style={inputStyle} type="date" value={studentDob} onChange={(e) => setStudentDob(e.target.value)} /></Field>
               <Field label="Preferred class">
-                <select style={inputStyle} value={preferredClassId} onChange={(e) => setPreferredClassId(e.target.value)}>
+                <Select value={preferredClassId} onChange={(e) => setPreferredClassId(e.target.value)}>
                   <option value="" disabled>Select a class…</option>
                   {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
                   <option value="none">No preference</option>
-                </select>
+                </Select>
                 <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
               </Field>
             </div>
@@ -362,13 +371,13 @@ export default function EnrollForm() {
             </>
           )}
 
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, margin: "18px 0 12px" }}>Who's filling this out?</h3>
+          <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, margin: "22px 0 14px", fontWeight: 600 }}>Who's filling this out?</h3>
           <Field label="Your name *"><input style={inputStyle} value={guardianName} onChange={(e) => setGuardianName(e.target.value)} /></Field>
           <Field label="Your relation to the student">
-            <select style={inputStyle} value={guardianRelation} onChange={(e) => setGuardianRelation(e.target.value)}>
+            <Select value={guardianRelation} onChange={(e) => setGuardianRelation(e.target.value)}>
               <option value="">Select…</option>
               {RELATION_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
+            </Select>
           </Field>
           {guardianRelation === "Other" && (
             <Field label="Please specify"><input style={inputStyle} value={guardianRelationOther} onChange={(e) => setGuardianRelationOther(e.target.value)} /></Field>
@@ -378,7 +387,7 @@ export default function EnrollForm() {
             <Field label="Mobile"><input style={inputStyle} value={guardianPhone} onChange={(e) => setGuardianPhone(e.target.value)} /></Field>
           </div>
 
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, margin: "18px 0 8px" }}>Emergency contact</h3>
+          <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, margin: "22px 0 10px", fontWeight: 600 }}>Emergency contact</h3>
           <div className="flex gap-4 mb-3">
             <label className="flex items-center gap-1.5 text-sm" style={{ color: T.ink }}>
               <input type="radio" checked={emergencySame} onChange={() => setEmergencySame(true)} /> Same as above
@@ -394,7 +403,7 @@ export default function EnrollForm() {
             </div>
           )}
 
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, margin: "18px 0 8px" }}>Additional Students</h3>
+          <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, margin: "22px 0 10px", fontWeight: 600 }}>Additional Students</h3>
           {!wantsSiblings ? (
             <div className="flex gap-4 mb-2">
               <label className="flex items-center gap-1.5 text-sm" style={{ color: T.ink }}>
@@ -434,8 +443,8 @@ export default function EnrollForm() {
 
           <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 12 }}>Once submitted, we'll contact you via email or mobile to confirm the enrolment.</p>
 
-          <div style={{ background: `${T.gold}0F`, border: `2px solid ${T.gold}`, borderRadius: 10, padding: 18, marginTop: 16 }}>
-            <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 8 }}>💳 Payment</h3>
+          <div className="rounded-2xl shadow-sm" style={{ background: `${T.gold}0F`, border: `2px solid ${T.gold}`, padding: 20, marginTop: 22 }}>
+            <h3 className="font-serif flex items-center gap-2" style={{ fontFamily: "Fraunces, serif", fontSize: 18, color: T.maroonDark, marginBottom: 10, fontWeight: 600 }}>💳 Payment</h3>
             {(classes.length > 0 || fees.enabled) ? (
               <>
                 {classes.length > 0 && (
@@ -488,21 +497,21 @@ export default function EnrollForm() {
                   )}
                 </div>
 
-                <div style={{ background: "#fff", border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, color: T.maroonDark, fontWeight: 700, marginBottom: 4 }}>Bank Account Details</div>
-                  <div style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
-                    Bank: NAB<br />
-                    Account Name: Sarita Sigdel<br />
-                    BSB: 082 231<br />
-                    Account Number: 846746850
+                <div className="rounded-xl shadow-sm" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: "16px 18px", marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: T.maroonDark, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8 }}>Bank Account Details</div>
+                  <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1" style={{ fontSize: 13, color: T.ink, lineHeight: 1.7 }}>
+                    <p><span style={{ fontWeight: 600 }}>Bank:</span> NAB</p>
+                    <p><span style={{ fontWeight: 600 }}>Account Name:</span> Sarita Sigdel</p>
+                    <p><span style={{ fontWeight: 600 }}>BSB:</span> 082 231</p>
+                    <p><span style={{ fontWeight: 600 }}>Account Number:</span> 846746850</p>
                   </div>
                 </div>
                 <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
                   Please pay using the bank details above, with the reference below — this is what tells us the payment is for {studentName || "your student"}'s enrolment.
                 </p>
-                <div style={{ background: "#fff", border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Pay with this reference</div>
-                  <div style={{ fontFamily: "Fraunces, serif", fontSize: 22, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>
+                <div className="rounded-xl shadow-sm" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: "16px 18px", marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 4, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>Pay with this reference</div>
+                  <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>
                     {generatingReference ? "Generating…" : paymentReference || "—"}
                   </div>
                 </div>
@@ -530,23 +539,25 @@ export default function EnrollForm() {
 
           <ImportantInfo preferredClass={classes.find((c) => c.id === preferredClassId) || null} />
 
-          <label className="flex items-start gap-2 mt-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
-            <input type="checkbox" checked={agreedToInfo} onChange={(e) => setAgreedToInfo(e.target.checked)} style={{ marginTop: 2 }} />
-            <span>I have read and agree to the Important Information above.</span>
-          </label>
+          <div style={{ marginTop: 22, paddingTop: 20, borderTop: `1px solid ${T.gold}33` }}>
+            <label className="flex items-start gap-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
+              <input type="checkbox" checked={agreedToInfo} onChange={(e) => setAgreedToInfo(e.target.checked)} style={{ marginTop: 2 }} />
+              <span>I have read and agree to the Important Information above.</span>
+            </label>
 
-          {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
-          {agreedToInfo && (
-            <>
-              <TurnstileWidget onVerify={setTurnstileToken} />
-              <div style={{ marginTop: 10, textAlign: "right" }}>
-                <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
-              </div>
-            </>
-          )}
-          <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 14 }}>
-            <a href="/parent" style={{ color: T.inkSoft, textDecoration: "underline" }}>Already enrolled? Look up bookings</a>
-          </p>
+            {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
+            {agreedToInfo && (
+              <>
+                <TurnstileWidget onVerify={setTurnstileToken} />
+                <div style={{ marginTop: 10, textAlign: "right" }}>
+                  <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+                </div>
+              </>
+            )}
+            <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 14 }}>
+              <a href="/parent" style={{ color: T.inkSoft, textDecoration: "underline" }}>Already enrolled? Look up bookings</a>
+            </p>
+          </div>
         </div>
       </div>
       {confirmUnpaid && (

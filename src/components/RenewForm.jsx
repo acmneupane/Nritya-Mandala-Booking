@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
-import { Btn, Field, ConfirmModal } from "./ui";
+import { Btn, Field, Select, ConfirmModal } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import { classesLabel } from "../lib/format";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
@@ -21,11 +21,11 @@ function PreferredClassField({ classes, classId, onChangeClassId, text, onChange
   }
   return (
     <Field label="Preferred class">
-      <select style={inputStyle} value={classId} onChange={(e) => onChangeClassId(e.target.value)}>
+      <Select value={classId} onChange={(e) => onChangeClassId(e.target.value)}>
         <option value="" disabled>Select a class…</option>
         {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
         <option value="none">No preference</option>
-      </select>
+      </Select>
       <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
     </Field>
   );
@@ -184,8 +184,8 @@ export default function RenewForm() {
   }
   if (!student) {
     return (
-      <div style={{ minHeight: "100vh", background: T.maroon, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
-        <div style={{ background: T.ivory, borderRadius: 12, padding: "36px 28px", width: "100%", maxWidth: 360, textAlign: "center", boxSizing: "border-box" }}>
+      <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
+        <div className="rounded-[1.75rem] shadow-2xl" style={{ background: T.ivory, padding: "36px 28px", width: "100%", maxWidth: 360, textAlign: "center", boxSizing: "border-box" }}>
           <p style={{ color: T.terracotta, fontSize: 14 }}>This link isn't valid — check with the studio for a fresh one.</p>
         </div>
       </div>
@@ -194,10 +194,10 @@ export default function RenewForm() {
 
   if (done) {
     return (
-      <div style={{ minHeight: "100vh", background: T.maroon, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
-        <div style={{ background: T.ivory, borderRadius: 12, padding: "40px 28px", width: "100%", maxWidth: 380, textAlign: "center", boxSizing: "border-box" }}>
+      <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
+        <div className="rounded-[1.75rem] shadow-2xl" style={{ background: T.ivory, padding: "40px 28px", width: "100%", maxWidth: 380, textAlign: "center", boxSizing: "border-box" }}>
           <img src={LOGO_DATA_URI} alt="" style={{ width: 60, height: 60, borderRadius: "50%", margin: "0 auto 16px", display: "block" }} />
-          <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 8 }}>Thank you!</h1>
+          <h1 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: T.maroonDark, marginBottom: 8, fontWeight: 600 }}>Thank you!</h1>
           <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.6 }}>We've received your renewal request. We'll confirm once it's processed.</p>
         </div>
       </div>
@@ -205,22 +205,22 @@ export default function RenewForm() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: T.maroon, padding: "24px 16px" }}>
-      <div className="max-w-[460px] sm:max-w-[560px] md:max-w-[680px] lg:max-w-[780px]" style={{ margin: "0 auto" }}>
-        <div className="flex items-center gap-2 mb-4">
-          <img src={LOGO_DATA_URI} alt="" style={{ width: 44, height: 44, borderRadius: "50%" }} />
+    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`, padding: "28px 16px" }} className="sm:py-12">
+      <div className="max-w-[460px] sm:max-w-[560px] md:max-w-[680px] lg:max-w-[780px] mx-auto">
+        <div className="flex items-center gap-3 mb-6">
+          <img src={LOGO_DATA_URI} alt="" style={{ width: 48, height: 48, borderRadius: "50%", boxShadow: "0 4px 14px rgba(0,0,0,0.25)" }} />
           <div>
-            <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 20, color: T.ivory }}>Renew package</h1>
-            <p style={{ fontSize: 12, color: T.goldLight }}>Nritya Mandala</p>
+            <h1 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: "#fff", fontWeight: 600, textShadow: "0 2px 10px rgba(0,0,0,0.2)" }}>Renew package</h1>
+            <p style={{ fontSize: 12.5, color: T.goldLight, fontWeight: 600 }}>Nritya Mandala</p>
           </div>
         </div>
 
-        <div style={{ background: T.ivory, borderRadius: 12, padding: "24px 20px", boxSizing: "border-box", fontFamily: "Inter, sans-serif" }}>
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 6 }}>Is this correct?</h3>
-          <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>Update the date of birth below if it isn't right.</p>
+        <div className="rounded-[1.75rem] shadow-2xl sm:p-10" style={{ background: T.ivory, padding: "26px 20px", boxSizing: "border-box", fontFamily: "Inter, sans-serif" }}>
+          <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 6, fontWeight: 600 }}>Is this correct?</h3>
+          <p style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 10 }}>Update the date of birth below if it isn't right.</p>
           <a
             href={`${APP_ORIGIN}/parent?code=${encodeURIComponent(student.code)}`}
-            style={{ display: "inline-block", fontSize: 12.5, color: T.gold, textDecoration: "underline", marginBottom: 14 }}
+            style={{ display: "inline-block", fontSize: 12.5, color: T.gold, textDecoration: "underline", marginBottom: 14, fontWeight: 600 }}
           >
             View {student.name}'s bookings & QR code →
           </a>
@@ -250,7 +250,7 @@ export default function RenewForm() {
             </div>
           )}
 
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 4 }}>Select a package</h3>
+          <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 8, marginTop: 20, fontWeight: 600 }}>Select a package</h3>
           {tiers.length === 0 ? (
             <p style={{ fontSize: 13, color: T.inkSoft }}>No packages are available to select right now — please contact the studio directly.</p>
           ) : (
@@ -258,9 +258,10 @@ export default function RenewForm() {
               {tiers.map((t) => (
                 <label
                   key={t.id}
+                  className="transition-colors"
                   style={{
                     display: "flex", alignItems: "center", justifyContent: "space-between", border: `2px solid ${selectedTierId === t.id ? T.gold : T.line}`,
-                    borderRadius: 8, padding: "12px 14px", cursor: "pointer", background: selectedTierId === t.id ? `${T.gold}12` : "#fff",
+                    borderRadius: 10, padding: "12px 14px", cursor: "pointer", background: selectedTierId === t.id ? `${T.gold}12` : "#fff",
                   }}
                 >
                   <div className="flex items-center gap-3">
@@ -278,7 +279,7 @@ export default function RenewForm() {
 
           {siblings.length > 0 && tiers.length > 0 && (
             <>
-              <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 8, marginTop: 4 }}>Renewing for another student too?</h3>
+              <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 10, marginTop: 22, fontWeight: 600 }}>Renewing for another student too?</h3>
               {siblings.map((s) => (
                 <div key={s.id} style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 12, marginBottom: 10 }}>
                   <label className="flex items-center gap-2 mb-2" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
@@ -339,24 +340,24 @@ export default function RenewForm() {
             </div>
           )}
 
-          <div style={{ background: "#fff", border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
-            <div style={{ fontSize: 12, color: T.maroonDark, fontWeight: 700, marginBottom: 4 }}>Bank Account Details</div>
-            <div style={{ fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
-              Bank: NAB<br />
-              Account Name: Sarita Sigdel<br />
-              BSB: 082 231<br />
-              Account Number: 846746850
+          <div className="rounded-xl shadow-sm" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: "16px 18px", marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: T.maroonDark, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8 }}>Bank Account Details</div>
+            <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1" style={{ fontSize: 13, color: T.ink, lineHeight: 1.7 }}>
+              <p><span style={{ fontWeight: 600 }}>Bank:</span> NAB</p>
+              <p><span style={{ fontWeight: 600 }}>Account Name:</span> Sarita Sigdel</p>
+              <p><span style={{ fontWeight: 600 }}>BSB:</span> 082 231</p>
+              <p><span style={{ fontWeight: 600 }}>Account Number:</span> 846746850</p>
             </div>
           </div>
 
-          <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 16px", marginBottom: 14 }}>
-            <p style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.5, marginBottom: referenceCodes ? 8 : 0 }}>
+          <div className="rounded-xl" style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, padding: "14px 18px", marginBottom: 14 }}>
+            <p style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.5, marginBottom: referenceCodes ? 10 : 0 }}>
               Please pay using the bank details above, with the reference below. Once paid, tick the box and attach a screenshot so we can confirm it faster.
             </p>
             {referenceCodes && (
               <>
-                <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 2 }}>Payment reference</div>
-                <div style={{ fontFamily: "Fraunces, serif", fontSize: 18, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>{referenceCodes}</div>
+                <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 3, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>Payment reference</div>
+                <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 20, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>{referenceCodes}</div>
               </>
             )}
           </div>
@@ -371,10 +372,12 @@ export default function RenewForm() {
             </Field>
           )}
 
-          {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 10 }}>{error}</p>}
-          <TurnstileWidget onVerify={setTurnstileToken} />
-          <div style={{ marginTop: 14 }}>
-            <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting || tiers.length === 0 || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+          <div style={{ marginTop: 6, paddingTop: 18, borderTop: `1px solid ${T.gold}33` }}>
+            {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 6 }}>{error}</p>}
+            <TurnstileWidget onVerify={setTurnstileToken} />
+            <div style={{ marginTop: 10, textAlign: "right" }}>
+              <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting || tiers.length === 0 || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+            </div>
           </div>
         </div>
       </div>

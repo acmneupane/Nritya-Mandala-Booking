@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { LOGO_DATA_URI } from "../lib/logo";
-import { Btn, Field } from "./ui";
+import { Btn, Field, Select } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
 
@@ -109,8 +109,8 @@ export default function TransferRequestForm() {
   }
   if (!student) {
     return (
-      <div style={{ minHeight: "100vh", background: T.maroon, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
-        <div style={{ background: T.ivory, borderRadius: 12, padding: "36px 28px", width: "100%", maxWidth: 360, textAlign: "center", boxSizing: "border-box" }}>
+      <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
+        <div className="rounded-[1.75rem] shadow-2xl" style={{ background: T.ivory, padding: "36px 28px", width: "100%", maxWidth: 360, textAlign: "center", boxSizing: "border-box" }}>
           <p style={{ color: T.terracotta, fontSize: 14 }}>This link isn't valid — check with the studio for a fresh one.</p>
         </div>
       </div>
@@ -118,10 +118,10 @@ export default function TransferRequestForm() {
   }
   if (done) {
     return (
-      <div style={{ minHeight: "100vh", background: T.maroon, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
-        <div style={{ background: T.ivory, borderRadius: 12, padding: "40px 28px", width: "100%", maxWidth: 380, textAlign: "center", boxSizing: "border-box" }}>
+      <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
+        <div className="rounded-[1.75rem] shadow-2xl" style={{ background: T.ivory, padding: "40px 28px", width: "100%", maxWidth: 380, textAlign: "center", boxSizing: "border-box" }}>
           <img src={LOGO_DATA_URI} alt="" style={{ width: 60, height: 60, borderRadius: "50%", margin: "0 auto 16px", display: "block" }} />
-          <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 8 }}>Thank you!</h1>
+          <h1 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: T.maroonDark, marginBottom: 8, fontWeight: 600 }}>Thank you!</h1>
           <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.6 }}>We've received your class transfer request. The studio will review it and confirm once it's actioned.</p>
         </div>
       </div>
@@ -129,19 +129,19 @@ export default function TransferRequestForm() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: T.maroon, padding: "24px 16px" }}>
-      <div className="max-w-[460px] sm:max-w-[560px] md:max-w-[680px] lg:max-w-[780px]" style={{ margin: "0 auto" }}>
-        <div className="flex items-center gap-2 mb-4">
-          <img src={LOGO_DATA_URI} alt="" style={{ width: 44, height: 44, borderRadius: "50%" }} />
+    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`, padding: "28px 16px" }} className="sm:py-12">
+      <div className="max-w-[460px] sm:max-w-[560px] md:max-w-[680px] lg:max-w-[780px] mx-auto">
+        <div className="flex items-center gap-3 mb-6">
+          <img src={LOGO_DATA_URI} alt="" style={{ width: 48, height: 48, borderRadius: "50%", boxShadow: "0 4px 14px rgba(0,0,0,0.25)" }} />
           <div>
-            <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 20, color: T.ivory }}>Request a class change</h1>
-            <p style={{ fontSize: 12, color: T.goldLight }}>Nritya Mandala</p>
+            <h1 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: "#fff", fontWeight: 600, textShadow: "0 2px 10px rgba(0,0,0,0.2)" }}>Request a class change</h1>
+            <p style={{ fontSize: 12.5, color: T.goldLight, fontWeight: 600 }}>Nritya Mandala</p>
           </div>
         </div>
 
-        <div style={{ background: T.ivory, borderRadius: 12, padding: "24px 20px", boxSizing: "border-box", fontFamily: "Inter, sans-serif" }}>
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 6 }}>Is this correct?</h3>
-          <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12 }}>Update anything below that isn't right.</p>
+        <div className="rounded-[1.75rem] shadow-2xl sm:p-10" style={{ background: T.ivory, padding: "26px 20px", boxSizing: "border-box", fontFamily: "Inter, sans-serif" }}>
+          <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 6, fontWeight: 600 }}>Is this correct?</h3>
+          <p style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 14 }}>Update anything below that isn't right.</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Student's name"><input style={inputStyle} value={studentName} onChange={(e) => setStudentName(e.target.value)} /></Field>
             <Field label="Date of birth"><input style={inputStyle} type="date" value={studentDob} onChange={(e) => setStudentDob(e.target.value)} /></Field>
@@ -156,21 +156,21 @@ export default function TransferRequestForm() {
             <p style={{ fontSize: 13, color: T.terracotta, marginTop: 10 }}>There's no other class available to transfer to right now — please check with the studio directly.</p>
           ) : (
             <>
-              <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 8, marginTop: 4 }}>Transfer to</h3>
+              <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 10, marginTop: 22, fontWeight: 600 }}>Transfer to</h3>
               <Field label="New class">
-                <select style={inputStyle} value={newClassId} onChange={(e) => setNewClassId(e.target.value)}>
+                <Select value={newClassId} onChange={(e) => setNewClassId(e.target.value)}>
                   <option value="">Select a class…</option>
                   {availableClasses.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
-                </select>
+                </Select>
               </Field>
 
-              <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 8, marginTop: 4 }}>Who's requesting this?</h3>
+              <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 10, marginTop: 22, fontWeight: 600 }}>Who's requesting this?</h3>
               <Field label="Requested by">
-                <select style={inputStyle} value={requesterId} onChange={(e) => setRequesterId(e.target.value)}>
+                <Select value={requesterId} onChange={(e) => setRequesterId(e.target.value)}>
                   <option value="">Select…</option>
                   {guardians.map((g) => <option key={g.guardian_id} value={g.guardian_id}>{g.name}{g.relation ? ` (${g.relation})` : ""}{g.is_emergency ? " — Emergency Contact" : ""}</option>)}
                   <option value="new">Someone else</option>
-                </select>
+                </Select>
               </Field>
               {requesterId === "new" && (
                 <>
@@ -181,10 +181,10 @@ export default function TransferRequestForm() {
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Your email"><input style={inputStyle} type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} /></Field>
                     <Field label="Relation to student">
-                      <select style={inputStyle} value={newRelation} onChange={(e) => setNewRelation(e.target.value)}>
+                      <Select value={newRelation} onChange={(e) => setNewRelation(e.target.value)}>
                         <option value="">Select…</option>
                         {RELATION_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-                      </select>
+                      </Select>
                     </Field>
                   </div>
                   <Field label={`Are you the emergency contact for ${studentName || "this student"}?`}>
@@ -198,10 +198,12 @@ export default function TransferRequestForm() {
 
               <Field label="Anything else?"><textarea style={{ ...inputStyle, minHeight: 60 }} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
 
-              {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6, marginBottom: 6 }}>{error}</p>}
-              <TurnstileWidget onVerify={setTurnstileToken} />
-              <div style={{ marginTop: 10, textAlign: "right" }}>
-                <Btn variant="success" onClick={submit} size="lg" disabled={submitting || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+              <div style={{ marginTop: 20, paddingTop: 18, borderTop: `1px solid ${T.gold}33` }}>
+                {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 6 }}>{error}</p>}
+                <TurnstileWidget onVerify={setTurnstileToken} />
+                <div style={{ marginTop: 10, textAlign: "right" }}>
+                  <Btn variant="success" onClick={submit} size="lg" disabled={submitting || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+                </div>
               </div>
             </>
           )}
