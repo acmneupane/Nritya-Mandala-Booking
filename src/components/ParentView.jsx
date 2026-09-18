@@ -102,6 +102,10 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   );
   const classById = useMemo(() => Object.fromEntries(classes.map((c) => [c.id, c])), [classes]);
   const remaining = pkgSummary ? pkgSummary.classes_total - pkgSummary.classes_used : 0;
+  // No active package yet (nothing paid/confirmed) — a booking can exist on the
+  // class roster before that happens, but there's nothing to actually show up to
+  // until it's confirmed, so next-class/today/weekly-classes all stay hidden.
+  const hasActivePackage = !!(pkgSummary && pkgSummary.classes_total > 0);
   const lastAttended = history.find((h) => h.status === "attended");
   const recentLevelUp = levelHistory[0] && (Date.now() - new Date(levelHistory[0].date).getTime()) / 86400000 <= 14 ? levelHistory[0] : null;
 
@@ -185,7 +189,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           </div>
         )}
 
-        {overallNext && (
+        {hasActivePackage && overallNext && (
           <div style={{ background: "#fff", border: `2px solid ${T.sage}`, borderRadius: 10, padding: "18px 16px", marginBottom: 14, textAlign: "center" }}>
             <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600, letterSpacing: 0.5, marginBottom: 4 }}>NEXT CLASS</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: T.sage, marginBottom: 10 }}>
@@ -213,7 +217,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           </div>
         )}
 
-        {todaysClasses.length > 0 && (
+        {hasActivePackage && todaysClasses.length > 0 && (
           <div style={{ background: "#fff", border: `2px solid ${T.gold}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
             <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Today — {todayDayName}</h3>
             {todaysClasses.map((c) => {
@@ -288,6 +292,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           </div>
         )}
 
+        {hasActivePackage && (
         <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
           <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
             <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>Weekly classes</h3>
@@ -319,6 +324,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             </a>
           )}
         </div>
+        )}
 
         <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
           <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 10 }}>Recent attendance</h3>
