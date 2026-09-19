@@ -15,3 +15,13 @@ export function localDateStr(date) {
 export function formatShortDate(dateStr) {
   return new Date(dateStr + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
+
+// ISO timestamp -> "today" / "yesterday" / "3 days ago" — for showing how long ago
+// something happened (a request was received, a reminder was sent, a package ran out).
+export function relativeDaysAgo(isoDate) {
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  return `${days} days ago`;
+}

@@ -4,7 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
 import { generateStudentCode } from "../lib/studentCode";
 import { formatTimeRange, nextOccurrenceOf } from "../lib/scheduling";
-import { localDateStr } from "../lib/dates";
+import { localDateStr, relativeDaysAgo } from "../lib/dates";
 import EmailPreviewModal from "./EmailPreviewModal";
 import PendingPackagesEditor from "./PendingPackagesEditor";
 import { APP_ORIGIN } from "../lib/origins";
@@ -427,7 +427,11 @@ export default function RequestsView({ focusRequestId }) {
     load();
   };
 
-  const filtered = requests.filter((r) => (showHandled ? r.status !== "pending" : r.status === "pending"));
+  // Pending is a work queue — oldest received shows first so nobody gets skipped.
+  // Handled history reads better newest-first.
+  const filtered = requests
+    .filter((r) => (showHandled ? r.status !== "pending" : r.status === "pending"))
+    .sort((a, b) => (showHandled ? new Date(b.created_at) - new Date(a.created_at) : new Date(a.created_at) - new Date(b.created_at)));
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   if (loading) return <p style={{ color: T.inkSoft }}>Loading…</p>;
@@ -469,6 +473,9 @@ export default function RequestsView({ focusRequestId }) {
                     ) : (
                       <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: `${T.sage}22`, color: T.sage }}>✨ NEW STUDENT</span>
                     )}
+                    <span style={{ fontSize: 11, color: T.inkSoft }} title={new Date(r.created_at).toLocaleString()}>
+                      Received {relativeDaysAgo(r.created_at)}
+                    </span>
                   </div>
                   {kids.map((k) => (
                     <div key={k.id} style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>

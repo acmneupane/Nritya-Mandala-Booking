@@ -4,19 +4,11 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, ConfirmModal, Modal, Field } from "./ui";
 import PackageReminderModal from "./PackageReminderModal";
 import RenewalApprovalEmailModal from "./RenewalApprovalEmailModal";
-import { localDateStr } from "../lib/dates";
+import { localDateStr, relativeDaysAgo as daysAgo } from "../lib/dates";
 import { classesLabel } from "../lib/format";
 import { formatTimeRange } from "../lib/scheduling";
 
 const DUE_THRESHOLD = 2; // classes remaining at or below this counts as "coming due"
-
-function daysAgo(isoDate) {
-  const diffMs = Date.now() - new Date(isoDate).getTime();
-  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  return `${days} days ago`;
-}
 
 function DueForRenewalSection({ onChanged }) {
   const [rows, setRows] = useState([]);
@@ -56,14 +48,16 @@ function DueForRenewalSection({ onChanged }) {
             const daysSinceEmptied = Math.floor((new Date(today) - new Date(emptiedByStudent[s.id])) / 86400000);
             daysUntilSpotFrees = graceDays - daysSinceEmptied;
           }
-          return { student: s, packageSize: pkg.classes_total, classesUsed: pkg.classes_used, remaining, hasPackage: true, daysUntilSpotFrees };
+          return { student: s, packageSize: pkg.classes_total, classesUsed: pkg.classes_used, remaining, hasPackage: true, daysUntilSpotFrees, emptiedDate: emptiedByStudent[s.id] || null };
         }
         // No package on file at all (e.g. just reactivated from archive) — still
         // worth a nudge, just phrased differently since there's nothing to "run out".
-        return { student: s, packageSize: 0, classesUsed: 0, remaining: 0, hasPackage: false, daysUntilSpotFrees: null };
+        return { student: s, packageSize: 0, classesUsed: 0, remaining: 0, hasPackage: false, daysUntilSpotFrees: null, emptiedDate: null };
       })
       .filter(Boolean)
-      .sort((a, b) => a.remaining - b.remaining);
+      // Fewest classes remaining (most urgent) first; among ties, whoever's been
+      // out the longest — i.e. due the longest — goes first.
+      .sort((a, b) => a.remaining - b.remaining || (a.emptiedDate && b.emptiedDate ? new Date(a.emptiedDate) - new Date(b.emptiedDate) : 0));
     setRows(due);
     setLoading(false);
   }, []);
@@ -108,6 +102,11 @@ function DueForRenewalSection({ onChanged }) {
                   <div style={{ fontSize: 12, color: row.hasPackage && row.remaining > 0 ? T.gold : T.terracotta, fontWeight: 600 }}>
                     {!row.hasPackage ? "No package on file" : row.remaining <= 0 ? "Package fully used" : `${row.remaining} class${row.remaining === 1 ? "" : "es"} remaining`}
                   </div>
+                  {row.emptiedDate && (
+                    <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }} title={new Date(row.emptiedDate).toLocaleDateString()}>
+                      Due since {daysAgo(row.emptiedDate)}
+                    </div>
+                  )}
                   {row.student.last_renewal_reminder_sent_at && (
                     <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>Reminder last sent {daysAgo(row.student.last_renewal_reminder_sent_at)}</div>
                   )}
@@ -270,7 +269,11 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
     onChanged && onChanged();
   };
 
-  const filtered = requests.filter((r) => (showHandled ? r.status !== "pending" : r.status === "pending"));
+  // Pending is a work queue — oldest submitted shows first so nobody gets skipped.
+  // Handled history reads better newest-first.
+  const filtered = requests
+    .filter((r) => (showHandled ? r.status !== "pending" : r.status === "pending"))
+    .sort((a, b) => (showHandled ? new Date(b.created_at) - new Date(a.created_at) : new Date(a.created_at) - new Date(b.created_at)));
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   // Group by family_submission_id (older requests predate this and have none — each
@@ -319,6 +322,9 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
                   <div style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>{r.students?.name || "Unknown student"}</div>
                   <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 2 }}>
                     {r.tier_name_snapshot} · {classesLabel(r.classes_count_snapshot)} · ${Number(r.price_snapshot).toFixed(2)}
+                  </div>
+                  <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }} title={new Date(r.created_at).toLocaleString()}>
+                    Submitted {daysAgo(r.created_at)}
                   </div>
                   <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>
                     Payment: <span style={{ color: r.payment_claimed ? T.sage : T.inkSoft, fontWeight: 600 }}>{r.payment_claimed ? "Claimed paid" : "Not marked paid"}</span>
