@@ -22,63 +22,56 @@ function InfoSection({ title, children }) {
 }
 
 function ImportantInfo({ preferredClass }) {
-  const [open, setOpen] = useState(false);
   return (
     <div className="rounded-2xl shadow-[0_2px_10px_-4px_rgba(36,27,21,0.1)]" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: 18, marginTop: 20 }}>
-      <button onClick={() => setOpen((v) => !v)} className="flex items-center justify-between hover:opacity-80 transition-opacity" style={{ width: "100%", textAlign: "left" }}>
-        <div className="flex items-center gap-2.5">
-          <span className="flex items-center justify-center shrink-0" style={{ width: 26, height: 26, borderRadius: 7, background: `${T.maroon}18`, color: T.maroon, fontSize: 13, fontWeight: 700 }}>i</span>
-          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, fontWeight: 600 }}>Important Information</h3>
-        </div>
-        <span className="flex items-center gap-1.5 shrink-0" style={{ fontSize: 12, color: T.inkSoft, fontWeight: 600 }}>
-          {open ? "Hide" : "Show"}
-          <svg className={`transition-transform duration-300 ${open ? "rotate-180" : ""}`} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
-          </svg>
-        </span>
-      </button>
-      {!open && <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 6 }}>Location, policies, attendance, and more — please read before submitting.</p>}
-      {open && (
-        <div style={{ marginTop: 14 }}>
-          <InfoSection title="Location & Time">
-            72 Central Avenue, Oran Park, NSW 2570<br />
-            {preferredClass ? (
-              <>Requested time: <strong>{formatTimeRange(preferredClass.time, preferredClass.end_time)}</strong></>
-            ) : (
-              <span style={{ color: T.inkSoft }}>Select a preferred class above to see its time here.</span>
-            )}
-          </InfoSection>
+      <div className="flex items-center gap-2.5" style={{ marginBottom: 6 }}>
+        <span className="flex items-center justify-center shrink-0" style={{ width: 26, height: 26, borderRadius: 7, background: `${T.maroon}18`, color: T.maroon, fontSize: 13, fontWeight: 700 }}>i</span>
+        <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, fontWeight: 600 }}>Important Information</h3>
+      </div>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14 }}>Please read before submitting.</p>
+      <div>
+        <InfoSection title="Location & Time">
+          72 Central Avenue, Oran Park, NSW 2570<br />
+          {preferredClass ? (
+            <>Requested time: <strong>{formatTimeRange(preferredClass.time, preferredClass.end_time)}</strong></>
+          ) : (
+            <span style={{ color: T.inkSoft }}>Select a preferred class above to see its time here.</span>
+          )}
+        </InfoSection>
 
-          <InfoSection title="Payment Confirmation">
-            After making the payment, please send a screenshot of your payment confirmation to Nritya Mandala. This helps us confirm and process your enrolment.<br /><br />
-            <strong>Your student's place in the class will be confirmed once payment has been received.</strong>
-          </InfoSection>
+        <InfoSection title="Payment Confirmation">
+          Bank transfers can take up to 24 hours to clear, so please allow a little time for your enrolment to be confirmed after paying.<br /><br />
+          <strong>Your student's place in the class will be confirmed once payment has been received.</strong>
+        </InfoSection>
 
-          <InfoSection title="Attendance & Punctuality">
-            Please arrive at least 5 minutes before class, ready to dance. Regular attendance is encouraged as it helps students keep up with their routines and make the most of their classes. Please let us know if your student will be absent.
-          </InfoSection>
+        <InfoSection title="Attendance & Punctuality">
+          Please arrive at least 5 minutes before class, ready to dance. Regular attendance is encouraged as it helps students keep up with their routines and make the most of their classes. Please let us know if your student will be absent.
+        </InfoSection>
 
-          <InfoSection title="Clothing, Shoes & Hair">
-            Students should wear comfortable clothing suitable for dancing, such as activewear. Correctly fitting and comfortable dance shoes should be worn — flip-flops are not permitted. Long hair should be neatly tied back and kept away from the face where possible.
-          </InfoSection>
+        <InfoSection title="Clothing, Shoes & Hair">
+          Students should wear comfortable clothing suitable for dancing, such as activewear. Correctly fitting and comfortable dance shoes should be worn — flip-flops are not permitted. Long hair should be neatly tied back and kept away from the face where possible.
+        </InfoSection>
 
-          <InfoSection title="Parents & Guardians">
-            Parents and guardians are encouraged to remain outside the dance room during classes. This helps minimise distractions and allows students to focus on learning.
-          </InfoSection>
+        <InfoSection title="Parents & Guardians">
+          Parents and guardians are encouraged to remain outside the dance room during classes. This helps minimise distractions and allows students to focus on learning.
+        </InfoSection>
 
-          <InfoSection title="Personal Belongings">
-            Please avoid bringing valuables, large amounts of cash or unnecessary personal belongings to class. Nritya Mandala accepts no responsibility for belongings that are lost, damaged or stolen.
-          </InfoSection>
+        <InfoSection title="Personal Belongings">
+          Please avoid bringing valuables, large amounts of cash or unnecessary personal belongings to class. Nritya Mandala accepts no responsibility for belongings that are lost, damaged or stolen.
+        </InfoSection>
 
-          <InfoSection title="Cancellation Policy">
-            If your student is unable to attend a class, please notify Nritya Mandala at least 24 hours before the scheduled class. Cancellations made less than 24 hours before the class may not be eligible for a make-up class or credit. We understand that emergencies and unexpected circumstances can happen, and these will be considered on a case-by-case basis. Thank you for helping us manage class spaces and provide the best experience for all students.
-          </InfoSection>
+        <InfoSection title="Cancellation Policy">
+          If your student is unable to attend a class, please notify Nritya Mandala at least 24 hours before the scheduled class. Cancellations made less than 24 hours before the class may not be eligible for a make-up class or credit. We understand that emergencies and unexpected circumstances can happen, and these will be considered on a case-by-case basis. Thank you for helping us manage class spaces and provide the best experience for all students.
+        </InfoSection>
 
-          <InfoSection title="Safe & Respectful Environment">
-            Nritya Mandala is committed to providing a safe, welcoming and non-discriminatory environment for all students, parents and teachers. Bullying, harassment and disrespectful behaviour are not tolerated.
-          </InfoSection>
-        </div>
-      )}
+        <InfoSection title="Photos & Videos">
+          Photos and videos taken during classes and studio events — which may include any student enrolled at Nritya Mandala, including through this form — may be used in the studio's marketing, including on social media. If you would prefer your student not be included, please let us know directly and we'll do our best to accommodate this for future content. Please note that once footage featuring a full class has been shared, it may not always be possible to remove or edit around a particular student.
+        </InfoSection>
+
+        <InfoSection title="Safe & Respectful Environment">
+          Nritya Mandala is committed to providing a safe, welcoming and non-discriminatory environment for all students, parents and teachers. Bullying, harassment and disrespectful behaviour are not tolerated.
+        </InfoSection>
+      </div>
     </div>
   );
 }
@@ -161,7 +154,6 @@ export default function EnrollForm() {
   const [emergencyPhone, setEmergencyPhone] = useState("");
   const [wantsSiblings, setWantsSiblings] = useState(false);
   const [siblings, setSiblings] = useState([]);
-  const [videoConsent, setVideoConsent] = useState(null); // null = unanswered, true/false = Yes/No
   const [agreedToInfo, setAgreedToInfo] = useState(false);
   const [notes, setNotes] = useState("");
   const [paymentClaimed, setPaymentClaimed] = useState(false);
@@ -219,9 +211,6 @@ export default function EnrollForm() {
     }
     if (!emergencySame && (!emergencyName.trim() || !emergencyPhone.trim())) {
       return "Please provide an emergency contact name and phone, or mark it the same as yours.";
-    }
-    if (videoConsent === null) {
-      return "Please answer the photo/video consent question.";
     }
     if (!agreedToInfo) {
       return "Please confirm you've read the Important Information above.";
@@ -284,7 +273,7 @@ export default function EnrollForm() {
             p_emergency_same: emergencySame,
             p_emergency_name: emergencySame ? "" : emergencyName.trim(),
             p_emergency_phone: emergencySame ? "" : emergencyPhone.trim(),
-            p_video_consent: videoConsent,
+            p_video_consent: null,
             p_notes: notes.trim(),
             p_payment_claimed: paymentClaimed,
             p_payment_screenshot_path: screenshotPath,
@@ -422,20 +411,6 @@ export default function EnrollForm() {
           )}
 
           <Field label="Anything else we should know?"><textarea style={{ ...inputStyle, minHeight: 60, marginTop: 14 }} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Prior dance experience, scheduling constraints, etc." /></Field>
-
-          <div style={{ marginTop: 16, marginBottom: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: T.ink, display: "block", marginBottom: 6 }}>
-              Do you consent to photos/videos of your student taken during class being used by Nritya Mandala for social media?
-            </span>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-1.5 text-sm" style={{ color: T.ink }}>
-                <input type="radio" checked={videoConsent === true} onChange={() => setVideoConsent(true)} /> Yes
-              </label>
-              <label className="flex items-center gap-1.5 text-sm" style={{ color: T.ink }}>
-                <input type="radio" checked={videoConsent === false} onChange={() => setVideoConsent(false)} /> No
-              </label>
-            </div>
-          </div>
 
           <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 12 }}>Once submitted, we'll contact you via email or mobile to confirm the enrolment.</p>
 
