@@ -362,6 +362,9 @@ export default function RenewForm() {
               </>
             )}
           </div>
+          <p style={{ fontSize: 11.5, color: T.inkSoft, marginTop: -8, marginBottom: 14, lineHeight: 1.5 }}>
+            Bank transfers can take up to 24 hours to clear, so please allow a little time for your renewal to be confirmed after paying.
+          </p>
 
           <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
             <input type="checkbox" checked={paymentClaimed} onChange={(e) => { setPaymentClaimed(e.target.checked); if (!e.target.checked) setPaymentFile(null); }} />
