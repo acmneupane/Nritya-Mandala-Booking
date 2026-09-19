@@ -39,6 +39,14 @@ function ImportantInfo({ preferredClass }) {
           )}
         </InfoSection>
 
+        <InfoSection title="Parking">
+          Street parking is available around the library, or you're welcome to use the Oran Park Library or Oran Park Leisure Centre car parks nearby.
+        </InfoSection>
+
+        <InfoSection title="How We Communicate">
+          We mostly get in touch by email, so please make sure the email address on file is one you check regularly. If we have a phone number on file, we may also give you a call for anything urgent.
+        </InfoSection>
+
         <InfoSection title="Payment Confirmation">
           Bank transfers can take up to 24 hours to clear, so please allow a little time for your enrolment to be confirmed after paying.<br /><br />
           <strong>Your student's place in the class will be confirmed once payment has been received.</strong>
@@ -46,6 +54,10 @@ function ImportantInfo({ preferredClass }) {
 
         <InfoSection title="Attendance & Punctuality">
           Please arrive at least 5 minutes before class, ready to dance. Regular attendance is encouraged as it helps students keep up with their routines and make the most of their classes. Please let us know if your student will be absent.
+        </InfoSection>
+
+        <InfoSection title="Illness Policy">
+          Please keep your student home if they're unwell or showing signs of a contagious illness — we'd rather they rest and recover than risk passing something on to their classmates. Just let us know if they'll be away.
         </InfoSection>
 
         <InfoSection title="Clothing, Shoes & Hair">
@@ -68,8 +80,16 @@ function ImportantInfo({ preferredClass }) {
           If your student is unable to attend a class, please notify Nritya Mandala at least 24 hours before the scheduled class. Cancellations made less than 24 hours before the class may not be eligible for a make-up class or credit. We understand that emergencies and unexpected circumstances can happen, and these will be considered on a case-by-case basis. Thank you for helping us manage class spaces and provide the best experience for all students.
         </InfoSection>
 
+        <InfoSection title="Studio Closures">
+          Nritya Mandala is closed on major Nepali festivals such as Dashain and Tihar, as well as some public holidays and school breaks. Exact closure dates can vary year to year — please check with the team for the current schedule.
+        </InfoSection>
+
         <InfoSection title="Photos & Videos">
           Photos and videos taken during classes and studio events — which may include any student enrolled at Nritya Mandala, including through this form — may be used in the studio's marketing, including on social media. If you would prefer your student not be included, please let us know directly and we'll do our best to accommodate this for future content. Please note that once footage featuring a full class has been shared, it may not always be possible to remove or edit around a particular student.
+        </InfoSection>
+
+        <InfoSection title="Parent Photography">
+          Feel free to take photos or videos of your own student. Please just be mindful that other students may appear in the background, and avoid sharing images that feature other families' children without their permission.
         </InfoSection>
 
         <InfoSection title="Safe & Respectful Environment">
