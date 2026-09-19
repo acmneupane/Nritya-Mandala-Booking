@@ -245,9 +245,9 @@ export default function HomePage() {
               {classes.length === 0 ? (
                 <p style={{ fontSize: 14, color: T.inkSoft, textAlign: "center" }}>Schedule coming soon — get in touch to find out what's running.</p>
               ) : (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex flex-wrap justify-center gap-4">
                   {classes.map((c) => (
-                    <div key={c.id} className={CARD} style={{ padding: "18px 20px" }}>
+                    <div key={c.id} className={`${CARD} w-full sm:w-[300px] flex-none`} style={{ padding: "18px 20px" }}>
                       <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{c.label}</div>
                       <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 4 }}>
                         {c.day} · {formatTimeRange(c.time, c.end_time)}{levelById[c.level_id] ? ` · ${levelById[c.level_id].name}` : ""}
@@ -283,9 +283,9 @@ export default function HomePage() {
           <section className="px-5 md:px-10 py-16">
             <div className="max-w-[1160px] mx-auto">
               <SectionHeading>Levels</SectionHeading>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex flex-wrap justify-center gap-4">
                 {levels.map((l) => (
-                  <div key={l.id} className={CARD} style={{ padding: "18px 20px" }}>
+                  <div key={l.id} className={`${CARD} w-full sm:w-[300px] flex-none`} style={{ padding: "18px 20px" }}>
                     <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{l.name}</div>
                     {l.description && <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 4, lineHeight: 1.5 }}>{l.description}</div>}
                   </div>
@@ -299,9 +299,9 @@ export default function HomePage() {
           <section className="px-5 md:px-10 py-16" style={{ background: "#fff", borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
             <div className="max-w-[1160px] mx-auto">
               <SectionHeading>Meet the team</SectionHeading>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-8">
+              <div className="flex flex-wrap justify-center gap-8">
                 {instructors.map((i) => (
-                  <div key={i.id} className="text-center">
+                  <div key={i.id} className="text-center w-[45%] sm:w-40 flex-none">
                     {i.photo_path ? (
                       <img src={publicMediaUrl(i.photo_path)} alt="" className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover mx-auto mb-4 shadow-lg" />
                     ) : (
@@ -339,9 +339,9 @@ export default function HomePage() {
           <section className="px-5 md:px-10 py-16" style={{ background: "#fff", borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
             <div className="max-w-[1160px] mx-auto">
               <SectionHeading>What families say</SectionHeading>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="flex flex-wrap justify-center gap-6">
                 {testimonials.map((t) => (
-                  <div key={t.id} className={CARD} style={{ padding: "28px 24px" }}>
+                  <div key={t.id} className={`${CARD} w-full sm:w-[340px] flex-none`} style={{ padding: "28px 24px" }}>
                     <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 36, color: T.goldLight, lineHeight: 0.6, marginBottom: 14 }}>&ldquo;</div>
                     <div style={{ fontSize: 15, color: T.gold, marginBottom: 10 }}>{"★".repeat(t.rating)}{"☆".repeat(5 - t.rating)}</div>
                     {t.title && <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, marginBottom: 6 }}>{t.title}</div>}
