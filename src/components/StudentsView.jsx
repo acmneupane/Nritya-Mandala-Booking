@@ -114,7 +114,7 @@ function StudentInfoModal({ student, level, onClose }) {
           {student.notes && (
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>NOTES</div>
-              <div style={{ fontSize: 13, color: T.ink }}>{student.notes}</div>
+              <div style={{ fontSize: 13, color: T.ink, whiteSpace: "pre-wrap" }}>{student.notes}</div>
             </div>
           )}
         </div>
@@ -441,6 +441,25 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const [addingNote, setAddingNote] = useState(false);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [currentUserLabel, setCurrentUserLabel] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserLabel(data?.user?.user_metadata?.display_name || data?.user?.email || "Admin");
+    });
+  }, []);
+
+  const addNote = () => {
+    if (!newNoteText.trim()) return;
+    const dateStr = new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    const entry = `${dateStr} by ${currentUserLabel}: ${newNoteText.trim()}`;
+    setNotes((prev) => (prev && prev.trim() ? `${prev.trim()}\n${entry}` : entry));
+    setNewNoteText("");
+    setAddingNote(false);
+  };
+
   const [regenerating, setRegenerating] = useState(false);
   const regenerateCode = async () => {
     setRegenerating(true);
@@ -584,6 +603,26 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
         </select>
       </Field>
       <Field label="Notes (allergies, needs, etc.)"><textarea style={{ ...inputStyle, minHeight: 60 }} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+      {addingNote ? (
+        <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 10, marginTop: -6, marginBottom: 12 }}>
+          <textarea
+            style={{ ...inputStyle, minHeight: 50 }}
+            value={newNoteText}
+            onChange={(e) => setNewNoteText(e.target.value)}
+            placeholder="What happened, what to keep an eye on, etc."
+            autoFocus
+          />
+          <p style={{ fontSize: 11, color: T.inkSoft, margin: "4px 0 8px" }}>Will be appended below as: "{new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} by {currentUserLabel}: …"</p>
+          <div className="flex gap-2">
+            <Btn size="sm" onClick={addNote} disabled={!newNoteText.trim()}>Add</Btn>
+            <Btn size="sm" variant="ghost" onClick={() => { setAddingNote(false); setNewNoteText(""); }}>Cancel</Btn>
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginTop: -6, marginBottom: 12 }}>
+          <Btn size="sm" variant="ghost" onClick={() => setAddingNote(true)}>+ Add note</Btn>
+        </div>
+      )}
       <Field label="Photo/video consent for social media">
         <select style={inputStyle} value={videoConsent} onChange={(e) => setVideoConsent(e.target.value)}>
           <option value="">N/A — not asked</option>
