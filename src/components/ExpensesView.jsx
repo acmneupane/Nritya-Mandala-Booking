@@ -6,7 +6,7 @@ import { Btn, Field, Modal, TypeToConfirmModal } from "./ui";
 const CATEGORIES = ["Rent", "Wages", "Utilities", "Equipment", "Marketing", "Refund", "Other"];
 const MAX_RECEIPT_SIZE = 5 * 1024 * 1024; // 5MB
 
-function ExpenseModal({ initial, classes, onClose, onSaved }) {
+function ExpenseModal({ initial, classes, adminUsers, onClose, onSaved }) {
   const [description, setDescription] = useState(initial?.description || "");
   const [amount, setAmount] = useState(initial?.amount ?? "");
   const [category, setCategory] = useState(initial?.category || "Other");
@@ -17,6 +17,9 @@ function ExpenseModal({ initial, classes, onClose, onSaved }) {
   const [endDate, setEndDate] = useState(initial?.end_date || "");
   const [notes, setNotes] = useState(initial?.notes || "");
   const [receiptFile, setReceiptFile] = useState(null);
+  // "" = not recorded, "other" = paidByOther note, else an admin user's id.
+  const [paidBy, setPaidBy] = useState(initial?.paid_by_user_id || (initial?.paid_by_other ? "other" : ""));
+  const [paidByOther, setPaidByOther] = useState(initial?.paid_by_other || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -40,6 +43,8 @@ function ExpenseModal({ initial, classes, onClose, onSaved }) {
         class_id: expenseType === "per_class" ? classId : null,
         start_date: startDate, end_date: endDate || null,
         notes: notes.trim() || null, receipt_path: receiptPath,
+        paid_by_user_id: paidBy && paidBy !== "other" ? paidBy : null,
+        paid_by_other: paidBy === "other" ? (paidByOther.trim() || null) : null,
       };
       const { error: saveErr } = initial?.id
         ? await supabase.from("expenses").update(payload).eq("id", initial.id)
@@ -100,6 +105,17 @@ function ExpenseModal({ initial, classes, onClose, onSaved }) {
         )}
       </div>
 
+      <Field label="Who paid? (optional)">
+        <select style={inputStyle} value={paidBy} onChange={(e) => setPaidBy(e.target.value)}>
+          <option value="">— Not recorded —</option>
+          {adminUsers.map((u) => <option key={u.id} value={u.id}>{u.email}</option>)}
+          <option value="other">Other…</option>
+        </select>
+      </Field>
+      {paidBy === "other" && (
+        <Field label="Who?"><input style={inputStyle} value={paidByOther} onChange={(e) => setPaidByOther(e.target.value)} placeholder="e.g. a name, or how it was paid" /></Field>
+      )}
+
       <Field label="Notes (optional)"><textarea style={{ ...inputStyle, minHeight: 60 }} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       <Field label="Receipt (optional, max 5MB)">
         <input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
@@ -124,6 +140,7 @@ function typeLabel(e) {
 export default function ExpensesView() {
   const [expenses, setExpenses] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [adminUsers, setAdminUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -131,12 +148,14 @@ export default function ExpensesView() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [eRes, cRes] = await Promise.all([
+    const [eRes, cRes, uRes] = await Promise.all([
       supabase.from("expenses").select("*").order("start_date", { ascending: false }),
       supabase.from("classes").select("id, label, day, time"),
+      supabase.rpc("list_admin_users"),
     ]);
     setExpenses(eRes.data || []);
     setClasses(cRes.data || []);
+    setAdminUsers(uRes.data || []);
     setLoading(false);
   }, []);
 
@@ -155,6 +174,8 @@ export default function ExpensesView() {
   };
 
   const classById = Object.fromEntries(classes.map((c) => [c.id, c]));
+  const adminUserById = Object.fromEntries(adminUsers.map((u) => [u.id, u]));
+  const paidByLabel = (e) => (e.paid_by_user_id ? adminUserById[e.paid_by_user_id]?.email : e.paid_by_other) || null;
 
   if (loading) return <p style={{ color: T.inkSoft }}>Loading…</p>;
 
@@ -172,6 +193,7 @@ export default function ExpensesView() {
                 {e.expense_type === "per_class" && classById[e.class_id] && ` (${classById[e.class_id].label})`}
                 {" · from "}{e.start_date}{e.end_date ? ` to ${e.end_date}` : ""}
               </div>
+              {paidByLabel(e) && <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 4 }}>Paid by {paidByLabel(e)}</div>}
               {e.notes && <div style={{ fontSize: 12, color: T.ink, marginTop: 4 }}>{e.notes}</div>}
               {e.receipt_path && (
                 <button onClick={() => viewReceipt(e.receipt_path)} style={{ fontSize: 11, color: T.gold, textDecoration: "underline", marginTop: 4 }}>View receipt</button>
@@ -185,7 +207,7 @@ export default function ExpensesView() {
         ))}
       </div>
       {(adding || editing) && (
-        <ExpenseModal initial={editing} classes={classes} onClose={() => { setAdding(false); setEditing(null); }} onSaved={() => { setAdding(false); setEditing(null); load(); }} />
+        <ExpenseModal initial={editing} classes={classes} adminUsers={adminUsers} onClose={() => { setAdding(false); setEditing(null); }} onSaved={() => { setAdding(false); setEditing(null); load(); }} />
       )}
       {confirmRemove && (
         <TypeToConfirmModal
