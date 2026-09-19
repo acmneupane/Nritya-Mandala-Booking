@@ -273,7 +273,10 @@ export default function EnrollForm() {
             p_emergency_same: emergencySame,
             p_emergency_name: emergencySame ? "" : emergencyName.trim(),
             p_emergency_phone: emergencySame ? "" : emergencyPhone.trim(),
-            p_video_consent: null,
+            // No explicit ask on this form anymore (see Important Information's Photos &
+            // Videos note) — consent defaults to given, and an admin can flip it per
+            // student later (Students tab) if a parent contacts us to opt out.
+            p_video_consent: true,
             p_notes: notes.trim(),
             p_payment_claimed: paymentClaimed,
             p_payment_screenshot_path: screenshotPath,
