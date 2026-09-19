@@ -108,7 +108,7 @@ function ExpenseModal({ initial, classes, adminUsers, onClose, onSaved }) {
       <Field label="Who paid? (optional)">
         <select style={inputStyle} value={paidBy} onChange={(e) => setPaidBy(e.target.value)}>
           <option value="">— Not recorded —</option>
-          {adminUsers.map((u) => <option key={u.id} value={u.id}>{u.email}</option>)}
+          {adminUsers.map((u) => <option key={u.id} value={u.id}>{adminUserLabel(u)}</option>)}
           <option value="other">Other…</option>
         </select>
       </Field>
@@ -135,6 +135,12 @@ function typeLabel(e) {
   if (e.expense_type === "one_off") return "One-off";
   if (e.expense_type === "recurring") return e.recurrence === "weekly" ? "Weekly" : "Monthly";
   return "Per class";
+}
+
+// Each admin's own display name (set from their Account page) if they've given
+// one, else their email — same fallback everywhere an admin user shows up.
+function adminUserLabel(u) {
+  return u.display_name || u.email;
 }
 
 export default function ExpensesView() {
@@ -175,7 +181,7 @@ export default function ExpensesView() {
 
   const classById = Object.fromEntries(classes.map((c) => [c.id, c]));
   const adminUserById = Object.fromEntries(adminUsers.map((u) => [u.id, u]));
-  const paidByLabel = (e) => (e.paid_by_user_id ? adminUserById[e.paid_by_user_id]?.email : e.paid_by_other) || null;
+  const paidByLabel = (e) => (e.paid_by_user_id ? (adminUserById[e.paid_by_user_id] && adminUserLabel(adminUserById[e.paid_by_user_id])) : e.paid_by_other) || null;
 
   if (loading) return <p style={{ color: T.inkSoft }}>Loading…</p>;
 

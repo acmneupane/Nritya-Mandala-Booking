@@ -1,7 +1,56 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field } from "./ui";
+
+// Shown instead of your email wherever an admin picks "who" from a list — e.g.
+// the "Who paid?" field on an expense. Purely self-service (each admin sets
+// their own via auth.updateUser); there's no admin-editing-others UI, since
+// this is a small team and everyone already has their own login.
+function DisplayNameEditor() {
+  const [displayName, setDisplayName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setDisplayName(data?.user?.user_metadata?.display_name || "");
+      setLoading(false);
+    });
+  }, []);
+
+  const save = async () => {
+    setError("");
+    setSuccess(false);
+    setSaving(true);
+    try {
+      const { error: updateErr } = await supabase.auth.updateUser({ data: { display_name: displayName.trim() } });
+      if (updateErr) throw updateErr;
+      setSuccess(true);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return null;
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginBottom: 16 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Display name</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        Shown instead of your email wherever the admin app lists studio logins — e.g. picking who paid an expense. Leave blank to keep showing your email.
+      </p>
+      <Field label="Display name"><input style={inputStyle} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Sarita" /></Field>
+      {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 10 }}>{error}</p>}
+      {success && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
+      <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save display name"}</Btn>
+    </div>
+  );
+}
 
 export default function AccountView() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -54,6 +103,7 @@ export default function AccountView() {
 
   return (
     <div style={{ maxWidth: 460 }}>
+      <DisplayNameEditor />
       <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18 }}>
         <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 14 }}>Change password</h3>
         <Field label="Current password"><input style={inputStyle} type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" /></Field>
