@@ -188,6 +188,17 @@ function PackageBadge({ remaining, hasAny }) {
   );
 }
 
+// Which class(es) a student is currently booked into, shown right on their card so
+// "are they already in a class?" doesn't require opening Book class to find out.
+function ClassBadge({ classes }) {
+  if (!classes || classes.length === 0) return null;
+  return (
+    <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 999, background: `${T.gold}18`, color: T.maroonDark, fontWeight: 600 }}>
+      📅 {classes.map((c) => `${c.day} ${formatTimeRange(c.time, c.end_time)}`).join(", ")}
+    </span>
+  );
+}
+
 // Packages purchased (classes bought + amount paid + a note) and a running remaining count.
 // This is what tracks "how many classes has this student booked for, based on payment."
 function PackagesSection({ studentId }) {
@@ -649,9 +660,10 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   );
 }
 
-function BookClassModal({ student, onClose, onBooked }) {
+function BookClassModal({ student, pkg, onClose, onBooked }) {
   const [classes, setClasses] = useState([]);
   const [enrolledIds, setEnrolledIds] = useState([]);
+  const [enrolledClasses, setEnrolledClasses] = useState([]);
   const [skips, setSkips] = useState([]);
   const [selected, setSelected] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -662,11 +674,12 @@ function BookClassModal({ student, onClose, onBooked }) {
   useEffect(() => {
     Promise.all([
       supabase.from("classes").select("*"),
-      supabase.from("enrollments").select("class_id").eq("student_id", student.id),
+      supabase.from("enrollments").select("class_id, classes(id, label, day, time, end_time)").eq("student_id", student.id),
       supabase.from("class_skips").select("class_id, date"),
     ]).then(([cRes, eRes, skRes]) => {
       setClasses((cRes.data || []).slice().sort(compareClassSchedule));
       setEnrolledIds((eRes.data || []).map((e) => e.class_id));
+      setEnrolledClasses((eRes.data || []).map((e) => e.classes).filter(Boolean));
       setSkips(skRes.data || []);
       setLoading(false);
     });
@@ -700,8 +713,18 @@ function BookClassModal({ student, onClose, onBooked }) {
     });
   };
 
+  const pkgRemaining = pkg ? pkg.classes_total - pkg.classes_used : 0;
+  const pkgHasAny = !!pkg && pkg.classes_total > 0;
+
   return (
     <Modal title={`Book ${student.name} into a class`} onClose={onClose}>
+      {!loading && enrolledClasses.length > 0 && (
+        <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 12.5, color: T.ink, lineHeight: 1.6 }}>
+          <strong>Already in:</strong> {enrolledClasses.map((c) => `${c.day} ${formatTimeRange(c.time, c.end_time)}`).join(", ")}
+          <br />
+          <strong>Package:</strong> {pkgHasAny ? `${pkgRemaining} class${pkgRemaining === 1 ? "" : "es"} remaining` : "No package on file"}
+        </div>
+      )}
       {loading ? (
         <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>
       ) : available.length === 0 ? (
@@ -923,6 +946,7 @@ export default function StudentsView() {
   const [levels, setLevels] = useState([]);
   const [guardians, setGuardians] = useState([]);
   const [pkgSummaryByStudent, setPkgSummaryByStudent] = useState({});
+  const [classesByStudent, setClassesByStudent] = useState({});
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -946,12 +970,13 @@ export default function StudentsView() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [sRes, lRes, gRes, pRes, cRes] = await Promise.all([
+    const [sRes, lRes, gRes, pRes, cRes, enRes] = await Promise.all([
       supabase.from("students").select("*").order("name"),
       supabase.from("levels").select("*"),
       supabase.from("guardians").select("*").order("name"),
       supabase.from("student_package_summary").select("*"),
       supabase.from("classes").select("id", { count: "exact", head: true }),
+      supabase.from("enrollments").select("student_id, classes(id, day, time, end_time)"),
     ]);
     setStudents(sRes.data || []);
     setLevels(lRes.data || []);
@@ -960,6 +985,9 @@ export default function StudentsView() {
     (pRes.data || []).forEach((p) => { map[p.student_id] = p; });
     setPkgSummaryByStudent(map);
     setAllClassesCount(cRes.count || 0);
+    const classesMap = {};
+    (enRes.data || []).forEach((e) => { if (e.classes) (classesMap[e.student_id] ||= []).push(e.classes); });
+    setClassesByStudent(classesMap);
     setLoading(false);
   }, []);
 
@@ -1061,6 +1089,7 @@ export default function StudentsView() {
         {paginated.map((s) => {
           const pkg = pkgSummaryByStudent[s.id];
           const remaining = pkg ? pkg.classes_total - pkg.classes_used : 0;
+          const studentClasses = classesByStudent[s.id] || [];
           return (
             <div key={s.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `5px solid ${s.archived ? T.inkSoft : T.gold}`, borderRadius: 10, padding: 18, opacity: s.archived ? 0.7 : 1 }} className="flex items-center justify-between flex-wrap gap-3">
               <div>
@@ -1076,10 +1105,11 @@ export default function StudentsView() {
                   <LevelBadge level={levelById[s.level_id]} />
                   <PackageBadge remaining={remaining} hasAny={!!pkg && pkg.classes_total > 0} />
                   <ConsentBadge consent={s.video_consent} />
+                  <ClassBadge classes={studentClasses} />
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                {!s.archived && <button onClick={() => setBooking(s)} style={{ ...actionBtnStyle, color: T.sage, borderColor: `${T.sage}55` }}>Book class</button>}
+                {!s.archived && studentClasses.length === 0 && <button onClick={() => setBooking(s)} style={{ ...actionBtnStyle, color: T.sage, borderColor: `${T.sage}55` }}>Book class</button>}
                 {!s.archived && allClassesCount > 1 && (
                   <button onClick={() => setTransferring(s)} style={{ ...actionBtnStyle, color: T.gold, borderColor: `${T.gold}55` }}>⇄ Transfer</button>
                 )}
@@ -1127,6 +1157,7 @@ export default function StudentsView() {
       {booking && (
         <BookClassModal
           student={booking}
+          pkg={pkgSummaryByStudent[booking.id]}
           onClose={() => setBooking(null)}
           onBooked={({ guardianEmails, emailStudents }) => {
             setBooking(null);

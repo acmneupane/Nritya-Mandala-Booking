@@ -3,8 +3,9 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { useLogoUrl } from "../lib/logo";
 import { classesLabel } from "../lib/format";
-import { formatTimeRange, compareClassSchedule, isClassActiveOn } from "../lib/scheduling";
-import { localDateStr } from "../lib/dates";
+import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
+import { localDateStr, formatShortDate } from "../lib/dates";
+import { classStartsInFuture } from "../lib/classAvailability";
 import { publicMediaUrl } from "../lib/media";
 import { Field } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
@@ -160,7 +161,9 @@ export default function HomePage() {
     ]).then(([contentRes, galleryRes, classesRes, levelsRes, tiersRes, noticesRes, instructorsRes, testimonialsRes, faqsRes, videosRes]) => {
       setContent(Object.fromEntries((contentRes.data || []).map((r) => [r.key, r.value])));
       setGallery(galleryRes.data || []);
-      setClasses((classesRes.data || []).filter((c) => isClassActiveOn(c, today)).slice().sort(compareClassSchedule));
+      // Show anything not yet ended — including a class that hasn't started yet,
+      // labeled with its start date below rather than hidden until it begins.
+      setClasses((classesRes.data || []).filter((c) => !c.end_date || c.end_date >= today).slice().sort(compareClassSchedule));
       setLevels(levelsRes.data || []);
       setTiers(tiersRes.data || []);
       setNotices(noticesRes.data || []);
@@ -172,6 +175,7 @@ export default function HomePage() {
     });
   }, []);
 
+  const today = localDateStr(new Date());
   const levelById = Object.fromEntries(levels.map((l) => [l.id, l]));
   const heroPhotoUrl = publicMediaUrl(content.hero_photo_path);
 
@@ -252,6 +256,9 @@ export default function HomePage() {
                       <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 4 }}>
                         {c.day} · {formatTimeRange(c.time, c.end_time)}{levelById[c.level_id] ? ` · ${levelById[c.level_id].name}` : ""}
                       </div>
+                      {classStartsInFuture(c, today) && (
+                        <div style={{ fontSize: 12, color: T.gold, fontWeight: 700, marginTop: 6 }}>Starts {formatShortDate(c.start_date)}</div>
+                      )}
                     </div>
                   ))}
                 </div>

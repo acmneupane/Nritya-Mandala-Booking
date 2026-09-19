@@ -9,3 +9,9 @@ export function localDateStr(date) {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+
+// "2026-09-24" -> "Sep 24" — short enough to sit inline next to a class's day/time
+// in a picker option or badge (e.g. "Starts Sep 24").
+export function formatShortDate(dateStr) {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}

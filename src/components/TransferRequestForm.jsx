@@ -5,17 +5,21 @@ import { useLogoUrl } from "../lib/logo";
 import { Btn, Field, Select } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
+import { fetchOpenClasses, classOptionLabel } from "../lib/classAvailability";
+import { localDateStr } from "../lib/dates";
 
 const RELATION_OPTIONS = ["Mother", "Father", "Guardian", "Grandparent", "Other"];
 
 export default function TransferRequestForm() {
   const logoUrl = useLogoUrl();
+  const today = localDateStr(new Date());
   const code = new URLSearchParams(window.location.search).get("code") || "";
   const [student, setStudent] = useState(undefined); // undefined = loading, null = not found
   const [studentName, setStudentName] = useState("");
   const [studentDob, setStudentDob] = useState("");
-  const [currentClasses, setCurrentClasses] = useState([]);
-  const [allClasses, setAllClasses] = useState([]);
+  const [currentClassIds, setCurrentClassIds] = useState([]);
+  const [currentClassObjs, setCurrentClassObjs] = useState([]); // full class info for whatever they're already in, regardless of capacity
+  const [openClasses, setOpenClasses] = useState([]); // classes with room to transfer into
   const [newClassId, setNewClassId] = useState("");
   const [guardians, setGuardians] = useState([]);
   const [requesterId, setRequesterId] = useState(""); // guardian_id, or "new"
@@ -36,24 +40,24 @@ export default function TransferRequestForm() {
     const upperCode = code.trim().toUpperCase();
     Promise.all([
       supabase.from("student_public").select("id, code, name, dob").eq("code", upperCode).maybeSingle(),
-      supabase.from("classes").select("*"),
+      fetchOpenClasses(),
       supabase.rpc("get_student_guardians", { p_code: upperCode }),
-    ]).then(([sRes, cRes, gRes]) => {
+    ]).then(([sRes, open, gRes]) => {
       if (!sRes.data) { setStudent(null); return; }
       setStudent(sRes.data);
       setStudentName(sRes.data.name);
       setStudentDob(sRes.data.dob || "");
-      setAllClasses((cRes.data || []).slice().sort(compareClassSchedule));
+      setOpenClasses(open.slice().sort(compareClassSchedule));
       setGuardians(gRes.data || []);
-      supabase.from("enrollments").select("class_id").eq("student_id", sRes.data.id).then(({ data }) => {
-        setCurrentClasses((data || []).map((e) => e.class_id));
+      supabase.from("enrollments").select("class_id, classes(id, label, day, time, end_time)").eq("student_id", sRes.data.id).then(({ data }) => {
+        setCurrentClassIds((data || []).map((e) => e.class_id));
+        setCurrentClassObjs((data || []).map((e) => e.classes).filter(Boolean));
         setLoaded(true);
       });
     });
   }, [code]);
 
-  const availableClasses = allClasses.filter((c) => !currentClasses.includes(c.id));
-  const currentClassLabels = allClasses.filter((c) => currentClasses.includes(c.id));
+  const availableClasses = openClasses.filter((c) => !currentClassIds.includes(c.id));
   const noAvailableClasses = loaded && availableClasses.length === 0;
 
   const submit = async () => {
@@ -147,9 +151,9 @@ export default function TransferRequestForm() {
             <Field label="Student's name"><input style={inputStyle} value={studentName} onChange={(e) => setStudentName(e.target.value)} /></Field>
             <Field label="Date of birth"><input style={inputStyle} type="date" value={studentDob} onChange={(e) => setStudentDob(e.target.value)} /></Field>
           </div>
-          {currentClassLabels.length > 0 && (
+          {currentClassObjs.length > 0 && (
             <p style={{ fontSize: 12, color: T.inkSoft, marginTop: -4, marginBottom: 14 }}>
-              Currently in: {currentClassLabels.map((c) => `${c.label} (${c.day} ${formatTimeRange(c.time, c.end_time)})`).join(", ")}
+              Currently in: {currentClassObjs.map((c) => `${c.label} (${c.day} ${formatTimeRange(c.time, c.end_time)})`).join(", ")}
             </p>
           )}
 
@@ -161,7 +165,7 @@ export default function TransferRequestForm() {
               <Field label="New class">
                 <Select value={newClassId} onChange={(e) => setNewClassId(e.target.value)}>
                   <option value="">Select a class…</option>
-                  {availableClasses.map((c) => <option key={c.id} value={c.id}>{c.label} — {c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+                  {availableClasses.map((c) => <option key={c.id} value={c.id}>{c.label} — {classOptionLabel(c, today)}</option>)}
                 </Select>
               </Field>
 

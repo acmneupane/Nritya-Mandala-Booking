@@ -7,6 +7,8 @@ import { Btn, Field, Select, ConfirmModal } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
+import { fetchOpenClasses, classOptionLabel } from "../lib/classAvailability";
+import { localDateStr } from "../lib/dates";
 
 const MAX_SIBLINGS = 2;
 
@@ -81,7 +83,7 @@ function ImportantInfo({ preferredClass }) {
   );
 }
 
-function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
+function SiblingCard({ sibling, index, classes, today, onChange, onRemove }) {
   return (
     <div className="rounded-xl shadow-[0_2px_8px_-3px_rgba(36,27,21,0.1)]" style={{ background: T.paper + "55", border: `1px solid ${T.gold}44`, padding: 16, marginBottom: 12 }}>
       <div className="flex items-center justify-between mb-3">
@@ -96,7 +98,7 @@ function SiblingCard({ sibling, index, classes, onChange, onRemove }) {
         <Field label="Preferred class">
           <Select value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
             <option value="" disabled>Select a class…</option>
-            {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+            {classes.map((c) => <option key={c.id} value={c.id}>{classOptionLabel(c, today)}</option>)}
             <option value="none">No preference</option>
           </Select>
           <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
@@ -140,6 +142,7 @@ function PackageTierPicker({ tiers, selectedId, onSelect, sibling }) {
 
 export default function EnrollForm() {
   const logoUrl = useLogoUrl();
+  const today = localDateStr(new Date());
   const [classes, setClasses] = useState([]);
   const [studentName, setStudentName] = useState("");
   const [studentDob, setStudentDob] = useState("");
@@ -171,15 +174,7 @@ export default function EnrollForm() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      supabase.from("classes").select("id, label, day, time, end_time, capacity"),
-      supabase.rpc("get_effective_class_counts"),
-    ]).then(([cRes, eRes]) => {
-      const counts = {};
-      (eRes.data || []).forEach((row) => { counts[row.class_id] = Number(row.effective_count); });
-      const open = (cRes.data || []).filter((c) => (counts[c.id] || 0) < c.capacity);
-      setClasses(open.slice().sort(compareClassSchedule));
-    });
+    fetchOpenClasses().then((open) => setClasses(open.slice().sort(compareClassSchedule)));
     supabase.from("package_tiers").select("*").eq("active", true).order("sort_order").then(({ data }) => setPackageTiers(data || []));
     supabase.from("settings").select("enrolment_fee_enabled, enrolment_fee_label, enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setFees({ primary: Number(data.enrolment_fee_primary), sibling: Number(data.enrolment_fee_sibling), enabled: data.enrolment_fee_enabled, label: data.enrolment_fee_label });
@@ -354,7 +349,7 @@ export default function EnrollForm() {
               <Field label="Preferred class">
                 <Select value={preferredClassId} onChange={(e) => setPreferredClassId(e.target.value)}>
                   <option value="" disabled>Select a class…</option>
-                  {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+                  {classes.map((c) => <option key={c.id} value={c.id}>{classOptionLabel(c, today)}</option>)}
                   <option value="none">No preference</option>
                 </Select>
                 <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
@@ -418,7 +413,7 @@ export default function EnrollForm() {
             <>
               <button onClick={() => setWantsSiblings(false)} style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8, textDecoration: "underline" }}>Actually, no additional students</button>
               {siblings.map((s, i) => (
-                <SiblingCard key={i} sibling={s} index={i} classes={classes} onChange={(val) => updateSibling(i, val)} onRemove={() => removeSibling(i)} />
+                <SiblingCard key={i} sibling={s} index={i} classes={classes} today={today} onChange={(val) => updateSibling(i, val)} onRemove={() => removeSibling(i)} />
               ))}
               {siblings.length < MAX_SIBLINGS && (
                 <Btn size="sm" variant="ghost" onClick={addSibling}>+ Add additional student ({siblings.length}/{MAX_SIBLINGS})</Btn>

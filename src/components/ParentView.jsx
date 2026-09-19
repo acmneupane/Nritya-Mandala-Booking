@@ -8,6 +8,7 @@ import { buildQrCardDataUrl } from "../lib/qrCard";
 import { QrCanvas } from "./QrCode";
 import { nextOccurrenceOf, formatTimeRange, isClassActiveOn } from "../lib/scheduling";
 import { classesLabel } from "../lib/format";
+import { fetchOpenClasses } from "../lib/classAvailability";
 import MarkAbsentModal from "./MarkAbsentModal";
 import { APP_ORIGIN } from "../lib/origins";
 
@@ -37,7 +38,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [siblings, setSiblings] = useState([]);
   const [familyPackages, setFamilyPackages] = useState([]);
   const [loadingReceipt, setLoadingReceipt] = useState(null);
-  const [allClassesCount, setAllClassesCount] = useState(0);
+  const [openClasses, setOpenClasses] = useState([]);
   const [dueThreshold, setDueThreshold] = useState(2);
   const [activeNotices, setActiveNotices] = useState([]);
   const [skips, setSkips] = useState([]);
@@ -54,7 +55,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
   const load = async () => {
     setLoading(true);
-    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes, familyPkgsRes, allClassesRes, settingsRes, noticesRes] = await Promise.all([
+    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes, familyPkgsRes, openClassesRes, settingsRes, noticesRes] = await Promise.all([
       student.level_id ? supabase.from("levels").select("id, name").eq("id", student.level_id).maybeSingle() : Promise.resolve({ data: null }),
       supabase.from("levels").select("id, name, order_num").order("order_num"),
       supabase.from("enrollments").select("class_id, classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
@@ -64,7 +65,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
       supabase.rpc("get_family_students", { p_code: student.code }),
       supabase.from("class_skips").select("class_id, date"),
       supabase.rpc("get_family_packages", { p_code: student.code }),
-      supabase.from("classes").select("id", { count: "exact", head: true }),
+      fetchOpenClasses(),
       supabase.from("settings").select("due_threshold").eq("id", 1).maybeSingle(),
       supabase.from("studio_notices").select("*").lte("start_date", localDateStr(new Date())).gte("end_date", localDateStr(new Date())).order("start_date"),
     ]);
@@ -77,7 +78,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     setSiblings((familyRes.data || []).filter((s) => s.id !== student.id));
     setSkips(skipsRes.data || []);
     setFamilyPackages(familyPkgsRes.data || []);
-    setAllClassesCount(allClassesRes.count || 0);
+    setOpenClasses(openClassesRes);
     setDueThreshold(settingsRes.data?.due_threshold ?? 2);
     setActiveNotices(noticesRes.data || []);
     setLoading(false);
@@ -106,6 +107,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     [classes, todayDayName, todayStr, skips]
   );
   const classById = useMemo(() => Object.fromEntries(classes.map((c) => [c.id, c])), [classes]);
+  const canTransfer = useMemo(() => openClasses.some((c) => !classes.some((cc) => cc.id === c.id)), [openClasses, classes]);
   const remaining = pkgSummary ? pkgSummary.classes_total - pkgSummary.classes_used : 0;
   // No active package yet (nothing paid/confirmed) — a booking can exist on the
   // class roster before that happens, but there's nothing to actually show up to
@@ -311,7 +313,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
                   </div>
                 );
               })}
-              {allClassesCount > 1 && (
+              {canTransfer && (
                 <a
                   href={`${APP_ORIGIN}/transfer?code=${encodeURIComponent(student.code)}`}
                   style={{ display: "block", textAlign: "center", fontSize: 13, color: T.gold, textDecoration: "underline", marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.line}` }}

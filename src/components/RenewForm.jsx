@@ -6,12 +6,14 @@ import { Btn, Field, Select, ConfirmModal } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import { classesLabel } from "../lib/format";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
+import { fetchOpenClasses, classOptionLabel } from "../lib/classAvailability";
+import { localDateStr } from "../lib/dates";
 import { APP_ORIGIN } from "../lib/origins";
 
 // Shown for a student who isn't currently booked into a class — same picker as the
 // enrolment form's "Preferred class" field, so a renewing student without a class
 // (e.g. reactivated after a pause) can ask for one at the same time.
-function PreferredClassField({ classes, classId, onChangeClassId, text, onChangeText }) {
+function PreferredClassField({ classes, today, classId, onChangeClassId, text, onChangeText }) {
   if (classes.length === 0) {
     return (
       <Field label="Preferred day/time (optional)">
@@ -23,7 +25,7 @@ function PreferredClassField({ classes, classId, onChangeClassId, text, onChange
     <Field label="Preferred class">
       <Select value={classId} onChange={(e) => onChangeClassId(e.target.value)}>
         <option value="" disabled>Select a class…</option>
-        {classes.map((c) => <option key={c.id} value={c.id}>{c.day} {formatTimeRange(c.time, c.end_time)}</option>)}
+        {classes.map((c) => <option key={c.id} value={c.id}>{classOptionLabel(c, today)}</option>)}
         <option value="none">No preference</option>
       </Select>
       <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
@@ -33,6 +35,7 @@ function PreferredClassField({ classes, classId, onChangeClassId, text, onChange
 
 export default function RenewForm() {
   const logoUrl = useLogoUrl();
+  const today = localDateStr(new Date());
   const code = new URLSearchParams(window.location.search).get("code") || "";
   const [student, setStudent] = useState(undefined); // undefined = loading, null = not found
   const [siblings, setSiblings] = useState([]); // other family members, from get_family_students
@@ -60,15 +63,7 @@ export default function RenewForm() {
 
     supabase.from("package_tiers").select("*").eq("active", true).order("sort_order").then(({ data }) => setTiers(data || []));
 
-    Promise.all([
-      supabase.from("classes").select("id, label, day, time, end_time, capacity"),
-      supabase.rpc("get_effective_class_counts"),
-    ]).then(([cRes, eRes]) => {
-      const counts = {};
-      (eRes.data || []).forEach((row) => { counts[row.class_id] = Number(row.effective_count); });
-      const open = (cRes.data || []).filter((c) => (counts[c.id] || 0) < c.capacity);
-      setClasses(open.slice().sort(compareClassSchedule));
-    });
+    fetchOpenClasses().then((open) => setClasses(open.slice().sort(compareClassSchedule)));
 
     Promise.all([
       supabase.from("student_public").select("id, code, name, dob").eq("code", upperCode).maybeSingle(),
@@ -243,6 +238,7 @@ export default function RenewForm() {
               </div>
               <PreferredClassField
                 classes={classes}
+                today={today}
                 classId={preferredClassIds[student.id] || ""}
                 onChangeClassId={(v) => setPreferredClassIds((m) => ({ ...m, [student.id]: v }))}
                 text={preferredClassTexts[student.id] || ""}
@@ -300,6 +296,7 @@ export default function RenewForm() {
                       {needsPreferredClass(s.id) && (
                         <PreferredClassField
                           classes={classes}
+                          today={today}
                           classId={preferredClassIds[s.id] || ""}
                           onChangeClassId={(v) => setPreferredClassIds((m) => ({ ...m, [s.id]: v }))}
                           text={preferredClassTexts[s.id] || ""}
