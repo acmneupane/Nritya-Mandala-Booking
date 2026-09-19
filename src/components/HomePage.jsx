@@ -145,12 +145,15 @@ export default function HomePage() {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [classCounts, setClassCounts] = useState({}); // { [classId]: effective enrolled count }
+
   useEffect(() => {
     const today = localDateStr(new Date());
     Promise.all([
       supabase.from("site_content").select("key, value"),
       supabase.from("site_gallery_images").select("*").order("sort_order"),
       supabase.from("classes").select("*"),
+      supabase.rpc("get_effective_class_counts"),
       supabase.from("levels").select("*").order("order_num"),
       supabase.from("package_tiers").select("*").eq("active", true).order("sort_order"),
       supabase.from("studio_notices").select("*").lte("start_date", today).gte("end_date", today).order("start_date"),
@@ -158,12 +161,13 @@ export default function HomePage() {
       supabase.from("site_testimonials").select("*").order("sort_order"),
       supabase.from("site_faqs").select("*").order("sort_order"),
       supabase.from("site_videos").select("*").order("sort_order"),
-    ]).then(([contentRes, galleryRes, classesRes, levelsRes, tiersRes, noticesRes, instructorsRes, testimonialsRes, faqsRes, videosRes]) => {
+    ]).then(([contentRes, galleryRes, classesRes, countsRes, levelsRes, tiersRes, noticesRes, instructorsRes, testimonialsRes, faqsRes, videosRes]) => {
       setContent(Object.fromEntries((contentRes.data || []).map((r) => [r.key, r.value])));
       setGallery(galleryRes.data || []);
       // Show anything not yet ended — including a class that hasn't started yet,
       // labeled with its start date below rather than hidden until it begins.
       setClasses((classesRes.data || []).filter((c) => !c.end_date || c.end_date >= today).slice().sort(compareClassSchedule));
+      setClassCounts(Object.fromEntries((countsRes.data || []).map((row) => [row.class_id, Number(row.effective_count)])));
       setLevels(levelsRes.data || []);
       setTiers(tiersRes.data || []);
       setNotices(noticesRes.data || []);
@@ -250,18 +254,29 @@ export default function HomePage() {
                 <p style={{ fontSize: 14, color: T.inkSoft, textAlign: "center" }}>Schedule coming soon — get in touch to find out what's running.</p>
               ) : (
                 <div className="flex flex-wrap justify-center gap-4">
-                  {classes.map((c) => (
-                    <div key={c.id} className={`${CARD} w-full sm:w-[300px] flex-none`} style={{ padding: "18px 20px" }}>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{c.label}</div>
-                      <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 4 }}>
-                        {c.day} · {formatTimeRange(c.time, c.end_time)}{levelById[c.level_id] ? ` · ${levelById[c.level_id].name}` : ""}
+                  {classes.map((c) => {
+                    const isFull = (classCounts[c.id] || 0) >= c.capacity;
+                    return (
+                      <div key={c.id} className={`${CARD} w-full sm:w-[300px] flex-none`} style={{ padding: "18px 20px" }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{c.label}</div>
+                        <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 4 }}>
+                          {c.day} · {formatTimeRange(c.time, c.end_time)}{levelById[c.level_id] ? ` · ${levelById[c.level_id].name}` : ""}
+                        </div>
+                        {classStartsInFuture(c, today) && (
+                          <div style={{ fontSize: 12, color: T.gold, fontWeight: 700, marginTop: 6 }}>Starts {formatShortDate(c.start_date)}</div>
+                        )}
+                        {isFull && (
+                          <div style={{ fontSize: 11, fontWeight: 700, color: T.maroon, background: `${T.gold}22`, borderRadius: 999, padding: "3px 10px", marginTop: 8, display: "inline-block" }}>
+                            Popular — currently full, ask about the waitlist
+                          </div>
+                        )}
                       </div>
-                      {classStartsInFuture(c, today) && (
-                        <div style={{ fontSize: 12, color: T.gold, fontWeight: 700, marginTop: 6 }}>Starts {formatShortDate(c.start_date)}</div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
+              )}
+              {content.classes_capacity_note && (
+                <p style={{ fontSize: 12, color: T.inkSoft, textAlign: "center", marginTop: 20, fontStyle: "italic" }}>{content.classes_capacity_note}</p>
               )}
             </div>
           </section>

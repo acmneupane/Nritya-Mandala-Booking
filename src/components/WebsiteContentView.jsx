@@ -5,7 +5,7 @@ import { Btn, Field } from "./ui";
 import { publicMediaUrl } from "../lib/media";
 import { LOGO_DATA_URI } from "../lib/logo";
 
-const SITE_CONTENT_KEYS = ["hero_tagline", "hero_photo_path", "about_blurb", "show_classes", "show_pricing", "show_levels"];
+const SITE_CONTENT_KEYS = ["hero_tagline", "hero_photo_path", "about_blurb", "show_classes", "show_pricing", "show_levels", "classes_capacity_note"];
 
 // Hero photo/tagline, about blurb, video link, and public-visibility toggles for
 // the public homepage — stored as key/value rows in site_content, same shape as
@@ -81,6 +81,18 @@ function HeroAboutEditor() {
           <input type="checkbox" checked={values.show_classes === "true"} onChange={(e) => setField("show_classes", e.target.checked ? "true" : "false")} />
           Show class schedule
         </label>
+        {values.show_classes === "true" && (
+          <div style={{ marginLeft: 22, marginBottom: 8 }}>
+            <Field label="Small note under the class schedule (optional)">
+              <textarea
+                style={{ ...inputStyle, minHeight: 50 }}
+                value={values.classes_capacity_note || ""}
+                onChange={(e) => setField("classes_capacity_note", e.target.value)}
+                placeholder="e.g. More classes can be added on group request…"
+              />
+            </Field>
+          </div>
+        )}
         <label className="flex items-center gap-2 mb-2" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
           <input type="checkbox" checked={values.show_pricing === "true"} onChange={(e) => setField("show_pricing", e.target.checked ? "true" : "false")} />
           Show packages &amp; pricing
