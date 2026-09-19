@@ -31,7 +31,7 @@ function ImportantInfo({ preferredClass }) {
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14 }}>Please read before submitting.</p>
       <div>
         <InfoSection title="Location & Time">
-          72 Central Avenue, Oran Park, NSW 2570<br />
+          72 Central Avenue, Oran Park, NSW 2570 — behind the Oran Park Library, in the Sandown Rooms. Enter from the side/rear of the library (the left-hand side as you face the building). Classes are usually held in Sandown Room 1, though this can occasionally change to Room 2 or 3 depending on room availability.<br /><br />
           {preferredClass ? (
             <>Requested time: <strong>{formatTimeRange(preferredClass.time, preferredClass.end_time)}</strong></>
           ) : (
@@ -50,6 +50,10 @@ function ImportantInfo({ preferredClass }) {
 
         <InfoSection title="Clothing, Shoes & Hair">
           Students should wear comfortable clothing suitable for dancing, such as activewear. Correctly fitting and comfortable dance shoes should be worn — flip-flops are not permitted. Long hair should be neatly tied back and kept away from the face where possible.
+        </InfoSection>
+
+        <InfoSection title="Water Bottle">
+          Dancing is thirsty work — please send your student along with a labelled water bottle (or another hydrating drink) so they can stay refreshed and get the most out of class.
         </InfoSection>
 
         <InfoSection title="Parents & Guardians">
