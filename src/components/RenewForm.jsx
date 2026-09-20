@@ -352,9 +352,9 @@ export default function RenewForm() {
             </div>
           </div>
 
-          <div className="rounded-xl" style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, padding: "14px 18px", marginBottom: 14 }}>
-            <p style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.5, marginBottom: referenceCodes ? 10 : 0 }}>
-              Please pay using the bank details above, with the reference below. Once paid, tick the box and attach a screenshot so we can confirm it faster.
+          <div className="rounded-xl" style={{ background: `${T.gold}20`, border: `2px solid ${T.gold}`, padding: "14px 18px", marginBottom: 14 }}>
+            <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.5, marginBottom: referenceCodes ? 10 : 0 }}>
+              ⚠️ Please pay using the bank details above, with the reference below. Once paid, tick the box and attach a screenshot so we can confirm it faster.
             </p>
             {referenceCodes && (
               <>
@@ -378,7 +378,7 @@ export default function RenewForm() {
           )}
 
           <div style={{ marginTop: 6, paddingTop: 18, borderTop: `1px solid ${T.gold}33` }}>
-            {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 6 }}>{error}</p>}
+            {error && <p style={{ color: T.terracotta, fontSize: 16, fontWeight: 700, textAlign: "center", marginBottom: 10, lineHeight: 1.4 }}>{error}</p>}
             <TurnstileWidget onVerify={setTurnstileToken} />
             <div style={{ marginTop: 10, textAlign: "right" }}>
               <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting || tiers.length === 0 || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>

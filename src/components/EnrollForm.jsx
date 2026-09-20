@@ -504,9 +504,11 @@ export default function EnrollForm() {
                     <p><span style={{ fontWeight: 600 }}>Account Number:</span> 846746850</p>
                   </div>
                 </div>
-                <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5 }}>
-                  Please pay using the bank details above, with the reference below — this is what tells us the payment is for {studentName || "your student"}'s enrolment.
-                </p>
+                <div className="rounded-xl" style={{ background: `${T.gold}20`, border: `2px solid ${T.gold}`, padding: "14px 16px", marginBottom: 12 }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.5 }}>
+                    ⚠️ Please pay using the bank details above, with the reference below — this is what tells us the payment is for {studentName || "your student"}'s enrolment.
+                  </p>
+                </div>
                 <div className="rounded-xl shadow-sm" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: "16px 18px", marginBottom: 10 }}>
                   <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 4, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>Pay with this reference</div>
                   <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>
@@ -546,7 +548,7 @@ export default function EnrollForm() {
               <span>I have read and agree to the Important Information above.</span>
             </label>
 
-            {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
+            {error && <p style={{ color: T.terracotta, fontSize: 16, fontWeight: 700, textAlign: "center", marginTop: 6, marginBottom: 6, lineHeight: 1.4 }}>{error}</p>}
             {agreedToInfo && (
               <>
                 <TurnstileWidget onVerify={setTurnstileToken} />

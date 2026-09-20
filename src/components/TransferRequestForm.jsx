@@ -208,7 +208,7 @@ export default function TransferRequestForm() {
               <Field label="Anything else?"><textarea style={{ ...inputStyle, minHeight: 60 }} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
 
               <div style={{ marginTop: 20, paddingTop: 18, borderTop: `1px solid ${T.gold}33` }}>
-                {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 6 }}>{error}</p>}
+                {error && <p style={{ color: T.terracotta, fontSize: 16, fontWeight: 700, textAlign: "center", marginBottom: 10, lineHeight: 1.4 }}>{error}</p>}
                 <TurnstileWidget onVerify={setTurnstileToken} />
                 <div style={{ marginTop: 10, textAlign: "right" }}>
                   <Btn variant="success" onClick={submit} size="lg" disabled={submitting || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
