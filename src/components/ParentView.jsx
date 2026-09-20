@@ -116,6 +116,10 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const lastAttended = history.find((h) => h.status === "attended");
   const recentLevelUp = levelHistory[0] && (Date.now() - new Date(levelHistory[0].date).getTime()) / 86400000 <= 14 ? levelHistory[0] : null;
 
+  // The literal next calendar occurrence per class, regardless of whether the
+  // student has already marked it absent — this is what drives the "already
+  // marked absent for <date> · Undo" affordance below, which needs to point at
+  // the actual date they skipped.
   const nextOccurrences = useMemo(() => {
     const map = {};
     for (const c of classes) {
@@ -124,11 +128,25 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     }
     return map;
   }, [classes, skips]);
+  // The next occurrence the student is actually still expected to attend — skips
+  // past any date they've already marked absent for themselves, so "Next Class"
+  // doesn't keep showing a class they've said they'll miss.
+  const upcomingAttendableOccurrences = useMemo(() => {
+    const map = {};
+    for (const c of classes) {
+      const excludeDates = new Set(
+        history.filter((h) => h.class_id === c.id && (h.status === "skipped" || (h.status === "missed" && h.reason))).map((h) => h.date)
+      );
+      const occ = nextOccurrenceOf(c, skips, localDateStr, 60, excludeDates);
+      if (occ) map[c.id] = occ;
+    }
+    return map;
+  }, [classes, skips, history]);
   const overallNext = useMemo(() => {
-    const entries = Object.entries(nextOccurrences).map(([classId, occ]) => ({ cls: classById[classId], occ }));
+    const entries = Object.entries(upcomingAttendableOccurrences).map(([classId, occ]) => ({ cls: classById[classId], occ }));
     entries.sort((a, b) => (a.occ.dateStr === b.occ.dateStr ? a.cls.time.localeCompare(b.cls.time) : a.occ.dateStr.localeCompare(b.occ.dateStr)));
     return entries[0] || null;
-  }, [nextOccurrences, classById]);
+  }, [upcomingAttendableOccurrences, classById]);
 
   const undoAbsent = async (classId, dateStr) => {
     setMarkingBusy(classId);

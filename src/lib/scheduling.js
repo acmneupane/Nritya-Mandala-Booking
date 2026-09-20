@@ -26,7 +26,11 @@ export function compareClassSchedule(a, b) {
 
 // Finds up to `count` upcoming occurrences of a weekly-recurring class — same rules
 // as above (active date range, skipped dates, today only counts if not yet finished).
-export function upcomingOccurrencesOf(cls, skips, localDateStrFn, { count = 8, lookaheadDays = 180 } = {}) {
+// excludeDates (optional Set of YYYY-MM-DD strings) additionally skips dates the
+// student themselves has already marked absent for this class — used so "next
+// class" reflects the next one they're actually still expected to attend, not one
+// they've already said they'll miss.
+export function upcomingOccurrencesOf(cls, skips, localDateStrFn, { count = 8, lookaheadDays = 180, excludeDates } = {}) {
   const dayIndex = WEEKDAYS.indexOf(cls.day);
   if (dayIndex === -1) return [];
   const now = new Date();
@@ -44,6 +48,7 @@ export function upcomingOccurrencesOf(cls, skips, localDateStrFn, { count = 8, l
       if (cutoff && cutoff < nowTime) continue;
     }
     if (skips.some((s) => s.class_id === cls.id && s.date === dateStr)) continue;
+    if (excludeDates && excludeDates.has(dateStr)) continue;
     results.push({ date: d, dateStr });
   }
   return results;
@@ -52,9 +57,10 @@ export function upcomingOccurrencesOf(cls, skips, localDateStrFn, { count = 8, l
 // Finds the next real occurrence of a weekly-recurring class from today onward —
 // skipping today if the class's end time has already passed, honoring the class's
 // active start/end date range, and skipping any date the studio has marked as
-// skipped. Returns { date, dateStr } or null if nothing falls within the lookahead.
-export function nextOccurrenceOf(cls, skips, localDateStrFn, lookaheadDays = 60) {
-  return upcomingOccurrencesOf(cls, skips, localDateStrFn, { count: 1, lookaheadDays })[0] || null;
+// skipped (plus, if excludeDates is given, any date the student has already
+// marked absent). Returns { date, dateStr } or null if nothing falls within the lookahead.
+export function nextOccurrenceOf(cls, skips, localDateStrFn, lookaheadDays = 60, excludeDates) {
+  return upcomingOccurrencesOf(cls, skips, localDateStrFn, { count: 1, lookaheadDays, excludeDates })[0] || null;
 }
 
 // Counts how many times a class actually ran within a given date range (inclusive),
