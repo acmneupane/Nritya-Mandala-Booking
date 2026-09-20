@@ -60,14 +60,21 @@ function SectionHeading({ children, center = true }) {
 // gallery, videos) so they all behave the same way. Touch/trackpad swipe and
 // scroll-snap still work underneath; the arrows just call scrollBy on the same
 // track, and hide themselves once there's nothing further to scroll to.
-function Carousel({ children, justifyCenter }) {
+function Carousel({ children }) {
   const trackRef = useRef(null);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(true);
+  // Whether the row's content is actually wider than the visible track — only
+  // center the row when it isn't (e.g. 1-2 cards on a wide screen). Centering a
+  // row that overflows breaks scrolling on mobile: justify-content: center on a
+  // scrollable flex container starts it already scrolled into the middle of the
+  // content, clipping the first card instead of showing it in full.
+  const [overflowing, setOverflowing] = useState(false);
 
   const updateEdges = () => {
     const el = trackRef.current;
     if (!el) return;
+    setOverflowing(el.scrollWidth > el.clientWidth + 4);
     setAtStart(el.scrollLeft <= 4);
     setAtEnd(el.scrollLeft >= el.scrollWidth - el.clientWidth - 4);
   };
@@ -91,7 +98,7 @@ function Carousel({ children, justifyCenter }) {
       <div
         ref={trackRef}
         onScroll={updateEdges}
-        className={`no-scrollbar flex items-start gap-4 ${justifyCenter ? "justify-center" : ""}`}
+        className={`no-scrollbar flex items-start gap-4 ${overflowing ? "" : "justify-center"}`}
         style={{ overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", paddingBottom: 4 }}
       >
         {children}
@@ -304,7 +311,7 @@ export default function HomePage() {
               {classes.length === 0 ? (
                 <p style={{ fontSize: 14, color: T.inkSoft, textAlign: "center" }}>Schedule coming soon — get in touch to find out what's running.</p>
               ) : (
-                <Carousel justifyCenter={classes.length <= 3}>
+                <Carousel>
                   {classes.map((c) => {
                     const spotsLeft = c.capacity - (classCounts[c.id] || 0);
                     const isFull = spotsLeft <= 0;
@@ -400,7 +407,7 @@ export default function HomePage() {
           <section className="px-5 md:px-10 py-16">
             <div className="max-w-[1160px] mx-auto">
               <SectionHeading>Gallery</SectionHeading>
-              <Carousel justifyCenter={gallery.length <= 3}>
+              <Carousel>
                 {gallery.map((g) => (
                   <div key={g.id} className="flex-none group" style={{ width: 260, scrollSnapAlign: "start" }}>
                     <div className="rounded-2xl overflow-hidden shadow-[0_4px_16px_-4px_rgba(36,27,21,0.14)]" style={{ aspectRatio: "1", background: T.paper }}>
@@ -437,7 +444,7 @@ export default function HomePage() {
           <section className="px-5 md:px-10 py-16">
             <div className="max-w-[1160px] mx-auto">
               <SectionHeading>Watch us dance</SectionHeading>
-              <Carousel justifyCenter={videos.length <= 2}>
+              <Carousel>
                 {videos.map((v) => {
                   const embed = videoEmbed(v.url);
                   if (!embed) return null;
