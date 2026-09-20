@@ -17,7 +17,7 @@ function hoursUntil(dateStr, time) {
 // no point offering to mark absent for classes they haven't paid for — and, since
 // upcomingOccurrencesOf already filters out anything the studio has skipped, it never
 // shows a date the admin has cancelled.
-export default function MarkAbsentModal({ student, classes, skips, remaining, lockTo, onClose, onDone }) {
+export default function MarkAbsentModal({ student, classes, skips, history, remaining, lockTo, onClose, onDone }) {
   const cap = typeof remaining === "number" && remaining > 0 ? remaining : 8;
   // Pull a generous pool per class, merge everything chronologically, then keep only
   // as many as the student actually has left on their package. If lockTo is given
@@ -25,12 +25,18 @@ export default function MarkAbsentModal({ student, classes, skips, remaining, lo
   const options = (lockTo
     ? [{ classId: lockTo.classId, day: lockTo.day, time: lockTo.time, endTime: lockTo.endTime, date: lockTo.date, dateStr: lockTo.dateStr, key: `${lockTo.classId}-${lockTo.dateStr}` }]
     : classes
-        .flatMap((c) =>
-          upcomingOccurrencesOf(c, skips, localDateStr, { count: cap }).map((occ) => ({
+        .flatMap((c) => {
+          // Don't re-offer a date they've already marked absent (skipped, or a
+          // late cancellation with a reason) — without this, the bulk picker kept
+          // showing dates that were, in effect, already handled.
+          const excludeDates = new Set(
+            (history || []).filter((h) => h.class_id === c.id && (h.status === "skipped" || (h.status === "missed" && h.reason))).map((h) => h.date)
+          );
+          return upcomingOccurrencesOf(c, skips, localDateStr, { count: cap, excludeDates }).map((occ) => ({
             classId: c.id, day: c.day, time: c.time, endTime: c.end_time, date: occ.date, dateStr: occ.dateStr,
             key: `${c.id}-${occ.dateStr}`,
-          }))
-        )
+          }));
+        })
         .sort((a, b) => a.dateStr.localeCompare(b.dateStr))
         .slice(0, cap)
   ).map((o) => ({ ...o, lateNotice: hoursUntil(o.dateStr, o.time) < 24 }));

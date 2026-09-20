@@ -113,6 +113,10 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   // until it's confirmed, so next-class/today/weekly-classes all stay hidden.
   const hasActivePackage = !!(pkgSummary && pkgSummary.classes_total > 0);
   const lastAttended = history.find((h) => h.status === "attended");
+  // Attendance history is past-only — an upcoming pre-marked absence has a future
+  // date, so it'd otherwise sort to the top of "recent" (most recent date first)
+  // and crowd out genuinely recent past entries.
+  const pastHistory = history.filter((h) => h.date <= todayStr);
   const recentLevelUp = levelHistory[0] && (Date.now() - new Date(levelHistory[0].date).getTime()) / 86400000 <= 14 ? levelHistory[0] : null;
 
   // The literal next calendar occurrence per class, regardless of whether the
@@ -343,8 +347,13 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
           <div className={CARD} style={{ padding: 20 }}>
             <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 12 }}>Recent attendance</h3>
-            {history.length === 0 && <p style={{ fontSize: 13, color: T.inkSoft }}>No history yet.</p>}
-            {history.map((h) => {
+            {/* "Recent" means past — an upcoming date the parent has pre-marked
+                absent isn't attendance history yet, and showing it here (sorted to
+                the top, since it's the latest date) pushed genuinely recent past
+                entries out of the list. It's already visible on the class's own
+                row above via the "Marked absent for <date>" note. */}
+            {pastHistory.length === 0 && <p style={{ fontSize: 13, color: T.inkSoft }}>No history yet.</p>}
+            {pastHistory.map((h) => {
               const lateCancel = h.status === "missed" && h.reason;
               const label = h.status === "attended" ? "Attended" : h.status === "skipped" ? "Marked absent" : lateCancel ? "Late cancellation" : "Missed";
               const color = h.status === "attended" ? T.sage : h.status === "skipped" ? T.gold : T.terracotta;
@@ -428,6 +437,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           student={student}
           classes={classes}
           skips={skips}
+          history={history}
           remaining={pkgSummary ? pkgSummary.classes_total - pkgSummary.classes_used : null}
           onClose={() => setMarkAbsentOpen(false)}
           onDone={() => { setMarkAbsentOpen(false); load(); }}
@@ -438,6 +448,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           student={student}
           classes={classes}
           skips={skips}
+          history={history}
           lockTo={singleMarkAbsent}
           onClose={() => setSingleMarkAbsent(null)}
           onDone={() => { setSingleMarkAbsent(null); load(); }}
