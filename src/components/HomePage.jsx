@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { useLogoUrl } from "../lib/logo";
@@ -52,6 +52,57 @@ function SectionHeading({ children, center = true }) {
     >
       {children}
     </h2>
+  );
+}
+
+// A horizontally-swipeable row with arrow controls instead of a visible
+// scrollbar — used for every card-row section on the homepage (classes,
+// gallery, videos) so they all behave the same way. Touch/trackpad swipe and
+// scroll-snap still work underneath; the arrows just call scrollBy on the same
+// track, and hide themselves once there's nothing further to scroll to.
+function Carousel({ children, justifyCenter }) {
+  const trackRef = useRef(null);
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(true);
+
+  const updateEdges = () => {
+    const el = trackRef.current;
+    if (!el) return;
+    setAtStart(el.scrollLeft <= 4);
+    setAtEnd(el.scrollLeft >= el.scrollWidth - el.clientWidth - 4);
+  };
+
+  useEffect(() => { updateEdges(); });
+  useEffect(() => {
+    window.addEventListener("resize", updateEdges);
+    return () => window.removeEventListener("resize", updateEdges);
+  }, []);
+
+  const scrollByPage = (dir) => {
+    const el = trackRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: "smooth" });
+  };
+
+  const arrowStyle = { position: "absolute", top: "50%", transform: "translateY(-50%)", width: 40, height: 40, borderRadius: "50%", background: "#fff", boxShadow: "0 4px 14px -2px rgba(36,27,21,0.25)", alignItems: "center", justifyContent: "center", color: T.maroon, fontSize: 20, zIndex: 2, border: "none" };
+
+  return (
+    <div className="relative">
+      <div
+        ref={trackRef}
+        onScroll={updateEdges}
+        className={`no-scrollbar flex items-start gap-4 ${justifyCenter ? "justify-center" : ""}`}
+        style={{ overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", paddingBottom: 4 }}
+      >
+        {children}
+      </div>
+      {!atStart && (
+        <button onClick={() => scrollByPage(-1)} aria-label="Previous" className="hidden sm:flex hover:scale-105 transition-transform" style={{ ...arrowStyle, left: -18 }}>‹</button>
+      )}
+      {!atEnd && (
+        <button onClick={() => scrollByPage(1)} aria-label="Next" className="hidden sm:flex hover:scale-105 transition-transform" style={{ ...arrowStyle, right: -18 }}>›</button>
+      )}
+    </div>
   );
 }
 
@@ -253,11 +304,11 @@ export default function HomePage() {
               {classes.length === 0 ? (
                 <p style={{ fontSize: 14, color: T.inkSoft, textAlign: "center" }}>Schedule coming soon — get in touch to find out what's running.</p>
               ) : (
-                <div className="flex flex-wrap justify-center gap-4">
+                <Carousel justifyCenter={classes.length <= 3}>
                   {classes.map((c) => {
                     const isFull = (classCounts[c.id] || 0) >= c.capacity;
                     return (
-                      <div key={c.id} className={`${CARD} w-full sm:w-[300px] flex-none`} style={{ padding: "18px 20px" }}>
+                      <div key={c.id} className={`${CARD} w-[85vw] sm:w-[300px] flex-none`} style={{ padding: "18px 20px", scrollSnapAlign: "start" }}>
                         <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{c.label}</div>
                         <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 4 }}>
                           {c.day} · {formatTimeRange(c.time, c.end_time)}{levelById[c.level_id] ? ` · ${levelById[c.level_id].name}` : ""}
@@ -273,7 +324,7 @@ export default function HomePage() {
                       </div>
                     );
                   })}
-                </div>
+                </Carousel>
               )}
               {content.classes_capacity_note && (
                 <p style={{ fontSize: 12, color: T.inkSoft, textAlign: "center", marginTop: 20, fontStyle: "italic" }}>{content.classes_capacity_note}</p>
@@ -343,7 +394,7 @@ export default function HomePage() {
           <section className="px-5 md:px-10 py-16">
             <div className="max-w-[1160px] mx-auto">
               <SectionHeading>Gallery</SectionHeading>
-              <div className={`flex gap-4 ${gallery.length <= 3 ? "justify-center" : ""}`} style={{ overflowX: "auto", scrollSnapType: "x mandatory", paddingBottom: 10, WebkitOverflowScrolling: "touch" }}>
+              <Carousel justifyCenter={gallery.length <= 3}>
                 {gallery.map((g) => (
                   <div key={g.id} className="flex-none group" style={{ width: 260, scrollSnapAlign: "start" }}>
                     <div className="rounded-2xl overflow-hidden shadow-[0_4px_16px_-4px_rgba(36,27,21,0.14)]" style={{ aspectRatio: "1", background: T.paper }}>
@@ -352,7 +403,7 @@ export default function HomePage() {
                     {g.caption && <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 8 }}>{g.caption}</div>}
                   </div>
                 ))}
-              </div>
+              </Carousel>
             </div>
           </section>
         )}
@@ -380,7 +431,7 @@ export default function HomePage() {
           <section className="px-5 md:px-10 py-16">
             <div className="max-w-[1160px] mx-auto">
               <SectionHeading>Watch us dance</SectionHeading>
-              <div className={`flex items-start gap-6 ${videos.length <= 2 ? "justify-center" : ""}`} style={{ overflowX: "auto", scrollSnapType: "x mandatory", paddingBottom: 10, WebkitOverflowScrolling: "touch" }}>
+              <Carousel justifyCenter={videos.length <= 2}>
                 {videos.map((v) => {
                   const embed = videoEmbed(v.url);
                   if (!embed) return null;
@@ -410,7 +461,7 @@ export default function HomePage() {
                     </div>
                   );
                 })}
-              </div>
+              </Carousel>
             </div>
           </section>
         )}

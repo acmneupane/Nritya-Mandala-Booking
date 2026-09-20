@@ -5,3 +5,15 @@ body {
   margin: 0;
   font-family: 'Inter', sans-serif;
 }
+
+/* Hides the native scrollbar on a horizontally-scrollable carousel track while
+   keeping touch/trackpad swipe and scroll-snap working — used by HomePage's
+   Carousel component (classes, gallery, videos) so arrows/swipe are the only
+   visible way to navigate, not a raw browser scrollbar. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
