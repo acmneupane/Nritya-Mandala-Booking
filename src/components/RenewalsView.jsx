@@ -25,21 +25,24 @@ function DueForRenewalSection({ onChanged }) {
 
   const load = useCallback(async (limit) => {
     setLoading(true);
-    const [sRes, pRes, settingsRes, emptiedRes] = await Promise.all([
+    const [sRes, pRes, settingsRes, emptiedRes, pendingReqRes] = await Promise.all([
       supabase.from("students").select("id, name, code, last_renewal_reminder_sent_at").eq("archived", false),
       supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
       supabase.from("settings").select("renewal_grace_period_days").eq("id", 1).maybeSingle(),
       supabase.rpc("get_package_emptied_dates"),
+      supabase.from("package_renewal_requests").select("student_id").eq("status", "pending"),
     ]);
     const pkgByStudent = Object.fromEntries((pRes.data || []).map((p) => [p.student_id, p]));
     const emptiedByStudent = Object.fromEntries((emptiedRes.data || []).map((e) => [e.student_id, e.emptied_date]));
     const graceDays = settingsRes.data?.renewal_grace_period_days ?? 7;
+    const studentsWithPendingRequest = new Set((pendingReqRes.data || []).map((r) => r.student_id));
     const today = localDateStr(new Date());
 
     const due = (sRes.data || [])
       .map((s) => {
         const pkg = pkgByStudent[s.id];
         const hasPackage = !!pkg && pkg.classes_total > 0;
+        const hasPendingRequest = studentsWithPendingRequest.has(s.id);
         if (hasPackage) {
           const remaining = pkg.classes_total - pkg.classes_used;
           if (remaining > limit) return null;
@@ -48,11 +51,11 @@ function DueForRenewalSection({ onChanged }) {
             const daysSinceEmptied = Math.floor((new Date(today) - new Date(emptiedByStudent[s.id])) / 86400000);
             daysUntilSpotFrees = graceDays - daysSinceEmptied;
           }
-          return { student: s, packageSize: pkg.classes_total, classesUsed: pkg.classes_used, remaining, hasPackage: true, daysUntilSpotFrees, emptiedDate: emptiedByStudent[s.id] || null };
+          return { student: s, packageSize: pkg.classes_total, classesUsed: pkg.classes_used, remaining, hasPackage: true, daysUntilSpotFrees, emptiedDate: emptiedByStudent[s.id] || null, hasPendingRequest };
         }
         // No package on file at all (e.g. just reactivated from archive) — still
         // worth a nudge, just phrased differently since there's nothing to "run out".
-        return { student: s, packageSize: 0, classesUsed: 0, remaining: 0, hasPackage: false, daysUntilSpotFrees: null, emptiedDate: null };
+        return { student: s, packageSize: 0, classesUsed: 0, remaining: 0, hasPackage: false, daysUntilSpotFrees: null, emptiedDate: null, hasPendingRequest };
       })
       .filter(Boolean)
       // Fewest classes remaining (most urgent) first; among ties, whoever's been
@@ -98,7 +101,12 @@ function DueForRenewalSection({ onChanged }) {
             {rows.map((row) => (
               <div key={row.student.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.terracotta}`, borderRadius: 8, padding: 14 }} className="flex items-center justify-between flex-wrap gap-3">
                 <div>
-                  <div style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>{row.student.name}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark }}>{row.student.name}</div>
+                    {row.hasPendingRequest && (
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: `${T.sage}22`, color: T.sage }}>✓ RENEWAL SUBMITTED</span>
+                    )}
+                  </div>
                   <div style={{ fontSize: 12, color: row.hasPackage && row.remaining > 0 ? T.gold : T.terracotta, fontWeight: 600 }}>
                     {!row.hasPackage ? "No package on file" : row.remaining <= 0 ? "Package fully used" : `${row.remaining} class${row.remaining === 1 ? "" : "es"} remaining`}
                   </div>
