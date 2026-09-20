@@ -3,10 +3,10 @@ import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
 import { useLogoUrl } from "../lib/logo";
 import { Btn } from "./ui";
-import { localDateStr } from "../lib/dates";
+import { localDateStr, formatShortDate } from "../lib/dates";
 import { buildQrCardDataUrl } from "../lib/qrCard";
 import { QrCanvas } from "./QrCode";
-import { nextOccurrenceOf, formatTimeRange, isClassActiveOn } from "../lib/scheduling";
+import { nextOccurrenceOf, upcomingOccurrencesOf, formatTimeRange, isClassActiveOn } from "../lib/scheduling";
 import { classesLabel } from "../lib/format";
 import { fetchOpenClasses } from "../lib/classAvailability";
 import { attendanceStatusInfo, isSelfMarkedAbsence } from "../lib/attendance";
@@ -151,6 +151,20 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     entries.sort((a, b) => (a.occ.dateStr === b.occ.dateStr ? a.cls.time.localeCompare(b.cls.time) : a.occ.dateStr.localeCompare(b.occ.dateStr)));
     return entries[0] || null;
   }, [upcomingAttendableOccurrences, classById]);
+
+  // Next 10 occurrences across every class the student's booked into, each
+  // annotated with its attendance status if one's already been recorded
+  // (skipped/late-cancelled) — unlike overallNext/upcomingAttendableOccurrences,
+  // this intentionally does NOT skip past self-marked absences, since the point
+  // here is to show the family everything coming up, including what they've
+  // already said they'll miss, not just what's left to attend.
+  const upcomingClasses = useMemo(() => {
+    return classes
+      .flatMap((c) => upcomingOccurrencesOf(c, skips, localDateStr, { count: 10 }).map((occ) => ({ cls: c, occ })))
+      .sort((a, b) => (a.occ.dateStr === b.occ.dateStr ? a.cls.time.localeCompare(b.cls.time) : a.occ.dateStr.localeCompare(b.occ.dateStr)))
+      .slice(0, 10)
+      .map((o) => ({ ...o, attendance: history.find((h) => h.class_id === o.cls.id && h.date === o.occ.dateStr) || null }));
+  }, [classes, skips, history]);
 
   if (loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft }}>Loading…</div>;
 
@@ -343,6 +357,23 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
                   Request a class change
                 </a>
               )}
+            </div>
+          )}
+
+          {hasActivePackage && upcomingClasses.length > 0 && (
+            <div className={CARD} style={{ padding: 20 }}>
+              <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 12 }}>Upcoming classes</h3>
+              {upcomingClasses.map((o, i) => {
+                const info = o.attendance ? attendanceStatusInfo(o.attendance, T) : null;
+                return (
+                  <div key={i} className="flex items-center justify-between" style={{ fontSize: 13, padding: "7px 0", borderTop: `1px solid ${T.line}` }}>
+                    <span style={{ color: T.ink }}>{formatShortDate(o.occ.dateStr)} · {o.cls.day} {formatTimeRange(o.cls.time, o.cls.end_time)}</span>
+                    {/* No attendance record yet just means "not decided" — shown
+                        plainly rather than implying anything's wrong. */}
+                    {info ? <span style={{ color: info.color, fontWeight: 600 }}>{info.label}</span> : <span style={{ color: T.inkSoft }}>Upcoming</span>}
+                  </div>
+                );
+              })}
             </div>
           )}
 

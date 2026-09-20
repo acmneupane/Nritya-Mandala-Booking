@@ -135,11 +135,20 @@ function StudentInfoModal({ student, level, onClose }) {
           {upcoming.length > 1 && (
             <InfoRow label="Next 10 upcoming classes">
               <div className="grid gap-1">
-                {upcoming.map((o, i) => (
-                  <div key={i} style={{ fontSize: 12.5, color: T.ink }}>
-                    {formatShortDate(o.occ.dateStr)} — {o.cls.label} ({o.cls.day} {formatTimeRange(o.cls.time, o.cls.end_time)})
-                  </div>
-                ))}
+                {upcoming.map((o, i) => {
+                  // Shows status inline where one's already been recorded (a
+                  // parent pre-marking themselves absent) — same "Skipped /
+                  // Missed / blank" idea as the parent portal's own Upcoming
+                  // classes section, so admin sees the same picture.
+                  const record = attendanceRows.find((h) => h.class_id === o.cls.id && h.date === o.occ.dateStr);
+                  const info = record ? attendanceStatusInfo(record, T) : null;
+                  return (
+                    <div key={i} className="flex items-center justify-between" style={{ fontSize: 12.5 }}>
+                      <span style={{ color: T.ink }}>{formatShortDate(o.occ.dateStr)} — {o.cls.label} ({o.cls.day} {formatTimeRange(o.cls.time, o.cls.end_time)})</span>
+                      {info && <span style={{ color: info.color, fontWeight: 600, whiteSpace: "nowrap", marginLeft: 8 }}>{info.label}</span>}
+                    </div>
+                  );
+                })}
               </div>
             </InfoRow>
           )}
