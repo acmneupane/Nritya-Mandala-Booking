@@ -1004,6 +1004,7 @@ export default function StudentsView({ focusStudentCode }) {
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [consentFilter, setConsentFilter] = useState("all"); // 'all' | 'yes' | 'no' | 'na'
+  const [bookingFilter, setBookingFilter] = useState("all"); // 'all' | 'unbooked'
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 5;
 
@@ -1054,9 +1055,11 @@ export default function StudentsView({ focusStudentCode }) {
       if (consentFilter === "yes") return s.video_consent === true;
       if (consentFilter === "no") return s.video_consent === false;
       return s.video_consent === null || s.video_consent === undefined;
-    });
+    })
+    .filter((s) => (bookingFilter === "unbooked" ? (classesByStudent[s.id] || []).length === 0 : true));
 
   const setConsentFilterAndResetPage = (val) => { setConsentFilter(val); setPage(1); };
+  const setBookingFilterAndResetPage = (val) => { setBookingFilter(val); setPage(1); };
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const clampedPage = Math.min(page, totalPages);
@@ -1116,6 +1119,10 @@ export default function StudentsView({ focusStudentCode }) {
             <option value="yes">Consent: Yes</option>
             <option value="no">Consent: No</option>
             <option value="na">Consent: N/A</option>
+          </select>
+          <select value={bookingFilter} onChange={(e) => setBookingFilterAndResetPage(e.target.value)} style={{ ...inputStyle, width: "auto", padding: "6px 10px", fontSize: 13 }}>
+            <option value="all">Booking: All</option>
+            <option value="unbooked">Not booked into a class</option>
           </select>
           <button onClick={toggleArchivedAndResetPage} style={{ fontSize: 12, color: showArchived ? T.maroon : T.inkSoft, fontWeight: showArchived ? 600 : 400 }}>
             {showArchived ? "← Back to active students" : "View archived students"}
