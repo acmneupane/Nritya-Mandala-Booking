@@ -31,15 +31,28 @@ function DueForRenewalSection({ onChanged }) {
       supabase.from("settings").select("renewal_grace_period_days").eq("id", 1).maybeSingle(),
       supabase.rpc("get_package_emptied_dates"),
       supabase.from("package_renewal_requests").select("student_id").eq("status", "pending"),
-      supabase.from("enrollments").select("student_id, classes(label, day, time, end_time)"),
+      supabase.from("enrollments").select("student_id, start_date, classes(label, day, time, end_time)"),
     ]);
     const pkgByStudent = Object.fromEntries((pRes.data || []).map((p) => [p.student_id, p]));
     const emptiedByStudent = Object.fromEntries((emptiedRes.data || []).map((e) => [e.student_id, e.emptied_date]));
     const graceDays = settingsRes.data?.renewal_grace_period_days ?? 7;
     const studentsWithPendingRequest = new Set((pendingReqRes.data || []).map((r) => r.student_id));
     const classesByStudent = {};
-    (enRes.data || []).forEach((e) => { if (e.classes) (classesByStudent[e.student_id] ||= []).push(e.classes); });
+    // Earliest booking date per student — for someone who's never had a package,
+    // this is when they started occupying a class spot without paying, which the
+    // grace period below counts down from instead of a package emptying (there's
+    // nothing to "run out" if a package was never bought).
+    const earliestEnrollByStudent = {};
+    (enRes.data || []).forEach((e) => {
+      if (e.classes) (classesByStudent[e.student_id] ||= []).push(e.classes);
+      if (e.start_date && (!earliestEnrollByStudent[e.student_id] || e.start_date < earliestEnrollByStudent[e.student_id])) {
+        earliestEnrollByStudent[e.student_id] = e.start_date;
+      }
+    });
     const today = localDateStr(new Date());
+    // Same "how many days since X" math whether X is a package emptying or a
+    // first-ever booking — shared so both branches below stay consistent.
+    const daysUntilSpotFrees = (sinceDateStr) => graceDays - Math.floor((new Date(today) - new Date(sinceDateStr)) / 86400000);
 
     const due = (sRes.data || [])
       .map((s) => {
@@ -50,21 +63,22 @@ function DueForRenewalSection({ onChanged }) {
         if (hasPackage) {
           const remaining = pkg.classes_total - pkg.classes_used;
           if (remaining > limit) return null;
-          let daysUntilSpotFrees = null;
-          if (remaining <= 0 && emptiedByStudent[s.id]) {
-            const daysSinceEmptied = Math.floor((new Date(today) - new Date(emptiedByStudent[s.id])) / 86400000);
-            daysUntilSpotFrees = graceDays - daysSinceEmptied;
-          }
-          return { student: s, packageSize: pkg.classes_total, classesUsed: pkg.classes_used, remaining, hasPackage: true, daysUntilSpotFrees, emptiedDate: emptiedByStudent[s.id] || null, hasPendingRequest, bookedClasses };
+          // Grace-period countdown only makes sense once the package has actually
+          // run out (remaining <= 0) and we know when that happened.
+          const dueSinceDate = remaining <= 0 ? emptiedByStudent[s.id] || null : null;
+          return { student: s, packageSize: pkg.classes_total, classesUsed: pkg.classes_used, remaining, hasPackage: true, daysUntilSpotFrees: dueSinceDate ? daysUntilSpotFrees(dueSinceDate) : null, dueSinceDate, hasPendingRequest, bookedClasses };
         }
-        // No package on file at all (e.g. just reactivated from archive) — still
-        // worth a nudge, just phrased differently since there's nothing to "run out".
-        return { student: s, packageSize: 0, classesUsed: 0, remaining: 0, hasPackage: false, daysUntilSpotFrees: null, emptiedDate: null, hasPendingRequest, bookedClasses };
+        // No package on file at all (e.g. just reactivated from archive, or a new
+        // enrolment approved but never paid for) — still worth a nudge. If they're
+        // actually holding a class spot, the same grace-period countdown applies,
+        // just counted from their first booking instead of a package emptying.
+        const dueSinceDate = bookedClasses.length > 0 ? earliestEnrollByStudent[s.id] || null : null;
+        return { student: s, packageSize: 0, classesUsed: 0, remaining: 0, hasPackage: false, daysUntilSpotFrees: dueSinceDate ? daysUntilSpotFrees(dueSinceDate) : null, dueSinceDate, hasPendingRequest, bookedClasses };
       })
       .filter(Boolean)
       // Fewest classes remaining (most urgent) first; among ties, whoever's been
       // out the longest — i.e. due the longest — goes first.
-      .sort((a, b) => a.remaining - b.remaining || (a.emptiedDate && b.emptiedDate ? new Date(a.emptiedDate) - new Date(b.emptiedDate) : 0));
+      .sort((a, b) => a.remaining - b.remaining || (a.dueSinceDate && b.dueSinceDate ? new Date(a.dueSinceDate) - new Date(b.dueSinceDate) : 0));
     setRows(due);
     setLoading(false);
   }, []);
@@ -119,9 +133,12 @@ function DueForRenewalSection({ onChanged }) {
                       ? `Booked in: ${row.bookedClasses.map((c) => `${c.label} — ${c.day} ${formatTimeRange(c.time, c.end_time)}`).join(", ")}`
                       : "Not booked into a class"}
                   </div>
-                  {row.emptiedDate && (
-                    <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }} title={formatSydneyDate(row.emptiedDate)}>
-                      Due since {daysAgo(row.emptiedDate)}
+                  {row.dueSinceDate && (
+                    <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }} title={formatSydneyDate(row.dueSinceDate)}>
+                      {/* "Due since" reads correctly either way: a package emptying,
+                          or (for someone who's never paid) the date they were first
+                          booked into a class and started holding a spot. */}
+                      Due since {daysAgo(row.dueSinceDate)}
                     </div>
                   )}
                   {row.student.last_renewal_reminder_sent_at && (
@@ -132,7 +149,7 @@ function DueForRenewalSection({ onChanged }) {
                       <span style={{ fontSize: 18 }}>⚠️</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: T.terracotta }}>
                         {row.daysUntilSpotFrees > 0
-                          ? `Spot free in ${row.daysUntilSpotFrees} day${row.daysUntilSpotFrees === 1 ? "" : "s"} if not renewed`
+                          ? `Spot free in ${row.daysUntilSpotFrees} day${row.daysUntilSpotFrees === 1 ? "" : "s"} if not ${row.hasPackage ? "renewed" : "paid"}`
                           : "Grace period over — spot is now available to new enrolments"}
                       </span>
                     </div>
