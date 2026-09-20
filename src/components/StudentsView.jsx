@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, TypeToConfirmModal, ConfirmModal } from "./ui";
@@ -980,7 +980,7 @@ function SendConfirmationModal({ student, onClose, onReady, onMarkedManually }) 
   );
 }
 
-export default function StudentsView() {
+export default function StudentsView({ focusStudentCode }) {
   const [students, setStudents] = useState([]);
   const [levels, setLevels] = useState([]);
   const [guardians, setGuardians] = useState([]);
@@ -1032,10 +1032,23 @@ export default function StudentsView() {
 
   useEffect(() => { load(); }, [load]);
 
+  // A link from an admin notification email (e.g. an absence notice) lands here
+  // with a specific student in mind — search by their code so they're the only
+  // (or top) result, regardless of which page/filter was last left active.
+  useEffect(() => {
+    if (focusStudentCode) { setQuery(focusStudentCode); setPage(1); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusStudentCode]);
+
+  const focusRef = useRef(null);
+  useEffect(() => {
+    if (focusStudentCode && focusRef.current) focusRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
   const levelById = Object.fromEntries(levels.map((l) => [l.id, l]));
   const filtered = students
     .filter((s) => !!s.archived === showArchived)
-    .filter((s) => s.name.toLowerCase().includes(query.toLowerCase()))
+    .filter((s) => s.name.toLowerCase().includes(query.toLowerCase()) || s.code.toLowerCase().includes(query.toLowerCase()))
     .filter((s) => {
       if (consentFilter === "all") return true;
       if (consentFilter === "yes") return s.video_consent === true;
@@ -1129,8 +1142,19 @@ export default function StudentsView() {
           const pkg = pkgSummaryByStudent[s.id];
           const remaining = pkg ? pkg.classes_total - pkg.classes_used : 0;
           const studentClasses = classesByStudent[s.id] || [];
+          const isFocused = focusStudentCode && s.code.toUpperCase() === focusStudentCode.toUpperCase();
           return (
-            <div key={s.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `5px solid ${s.archived ? T.inkSoft : T.gold}`, borderRadius: 10, padding: 18, opacity: s.archived ? 0.7 : 1 }} className="flex flex-col gap-3">
+            <div
+              key={s.id}
+              ref={isFocused ? focusRef : null}
+              style={{
+                background: "#fff", borderRadius: 10, padding: 18, opacity: s.archived ? 0.7 : 1,
+                border: isFocused ? `2px solid ${T.gold}` : `1px solid ${T.line}`,
+                borderLeft: `5px solid ${s.archived ? T.inkSoft : T.gold}`,
+                boxShadow: isFocused ? `0 0 0 3px ${T.gold}33` : "none",
+              }}
+              className="flex flex-col gap-3"
+            >
               <div>
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <button onClick={() => setViewingInfo(s)} style={{ fontFamily: "Fraunces, serif", fontSize: 19, color: T.maroonDark, textDecoration: "underline", textDecorationColor: `${T.maroonDark}33`, textUnderlineOffset: 3 }}>{s.name}</button>

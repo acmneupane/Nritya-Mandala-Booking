@@ -56,7 +56,8 @@ export default function Dashboard() {
   const logoUrl = useLogoUrl();
   const focusRequestId = new URLSearchParams(window.location.search).get("request");
   const focusRenewalId = new URLSearchParams(window.location.search).get("renewal");
-  const [tab, setTab] = useState(focusRequestId ? "requests" : focusRenewalId ? "renewals" : "home");
+  const focusStudentCode = new URLSearchParams(window.location.search).get("student");
+  const [tab, setTab] = useState(focusRequestId ? "requests" : focusRenewalId ? "renewals" : focusStudentCode ? "students" : "home");
   const [menuOpen, setMenuOpen] = useState(false);
   const [counts, setCounts] = useState({ students: 0, classes: 0, requests: 0, renewals: 0 });
 
@@ -172,7 +173,7 @@ export default function Dashboard() {
           </h2>
           <ShareEnrollLink compact />
         </div>
-        {tab === "students" && <StudentsView />}
+        {tab === "students" && <StudentsView focusStudentCode={focusStudentCode} />}
         {tab === "home" && <HomeView counts={counts} onNavigate={setTab} />}
         {tab === "calendar" && <CalendarView />}
         {tab === "requests" && <RequestsView focusRequestId={focusRequestId} />}
