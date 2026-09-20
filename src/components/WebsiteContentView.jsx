@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
-import { Btn, Field } from "./ui";
+import { Btn, Field, RichTextEditor } from "./ui";
 import { publicMediaUrl } from "../lib/media";
 import { LOGO_DATA_URI } from "../lib/logo";
 
@@ -82,7 +82,9 @@ function HeroAboutEditor() {
         {!heroPreview && <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>No photo set — the hero section will show a plain maroon background instead.</p>}
       </Field>
       <Field label="Tagline"><input style={inputStyle} value={values.hero_tagline || ""} onChange={(e) => setField("hero_tagline", e.target.value)} placeholder="Where every step tells a story." /></Field>
-      <Field label="About us"><textarea style={{ ...inputStyle, minHeight: 120 }} value={values.about_blurb || ""} onChange={(e) => setField("about_blurb", e.target.value)} placeholder="A few paragraphs about the studio…" /></Field>
+      <Field label="About us">
+        <RichTextEditor value={values.about_blurb || ""} onChange={(html) => setField("about_blurb", html)} placeholder="A few paragraphs about the studio…" />
+      </Field>
 
       <div style={{ borderTop: `1px solid ${T.line}`, marginTop: 14, paddingTop: 14, marginBottom: 4 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, marginBottom: 8, letterSpacing: 0.3 }}>PUBLIC VISIBILITY</div>

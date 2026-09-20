@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { T, inputStyle } from "../lib/theme";
 
 export function Btn({ children, onClick, variant = "primary", size = "md", type = "button", disabled }) {
@@ -59,6 +59,82 @@ export function Field({ label, children }) {
       <span className="block text-xs font-medium mb-1" style={{ color: T.inkSoft }}>{label}</span>
       {children}
     </label>
+  );
+}
+
+function ToolbarButton({ onClick, title, children }) {
+  // onMouseDown (not onClick) + preventDefault, so clicking a toolbar button
+  // never steals focus from the editable area first — losing focus first would
+  // collapse the text selection the formatting command is supposed to act on.
+  return (
+    <button
+      type="button"
+      title={title}
+      onMouseDown={(e) => { e.preventDefault(); onClick(); }}
+      style={{ fontSize: 13, fontWeight: 600, color: T.ink, padding: "4px 9px", borderRadius: 6, border: `1px solid ${T.line}`, background: "#fff", lineHeight: 1.3 }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// A minimal WYSIWYG editor for the handful of admin-authored fields that should
+// support basic HTML (bold/italic, links, lists, headings) instead of plain
+// text — e.g. the public homepage's About Us blurb. Built on contentEditable +
+// document.execCommand rather than pulling in a rich-text library, since the
+// formatting needs here are small and fixed. The output is raw HTML, stored and
+// rendered as-is — safe here because only an authenticated admin can ever write
+// it (same trust level as the email templates elsewhere in the app, which are
+// already rendered via dangerouslySetInnerHTML).
+//
+// value is only applied to the DOM once, on mount — this component expects its
+// caller to render it only once the real initial value has loaded (as
+// WebsiteContentView's editors already do via their own loading state), rather
+// than re-syncing on every value change, which would reset the cursor position
+// on every keystroke.
+export function RichTextEditor({ value, onChange, placeholder, minHeight = 140 }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (ref.current) ref.current.innerHTML = value || "";
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const emitChange = () => onChange(ref.current?.innerHTML || "");
+
+  const exec = (command, arg) => {
+    ref.current?.focus();
+    document.execCommand(command, false, arg);
+    emitChange();
+  };
+
+  const addLink = () => {
+    const url = window.prompt("Link URL (e.g. https://example.com):");
+    if (url) exec("createLink", url);
+  };
+
+  return (
+    <div>
+      <div className="flex gap-1.5 flex-wrap" style={{ marginBottom: 6 }}>
+        <ToolbarButton title="Bold" onClick={() => exec("bold")}><b>B</b></ToolbarButton>
+        <ToolbarButton title="Italic" onClick={() => exec("italic")}><i>I</i></ToolbarButton>
+        <ToolbarButton title="Underline" onClick={() => exec("underline")}><u>U</u></ToolbarButton>
+        <ToolbarButton title="Heading" onClick={() => exec("formatBlock", "h3")}>H</ToolbarButton>
+        <ToolbarButton title="Bulleted list" onClick={() => exec("insertUnorderedList")}>• List</ToolbarButton>
+        <ToolbarButton title="Numbered list" onClick={() => exec("insertOrderedList")}>1. List</ToolbarButton>
+        <ToolbarButton title="Link" onClick={addLink}>🔗</ToolbarButton>
+        <ToolbarButton title="Clear formatting" onClick={() => exec("removeFormat")}>Clear</ToolbarButton>
+      </div>
+      <div
+        ref={ref}
+        contentEditable
+        onInput={emitChange}
+        onBlur={emitChange}
+        className="rich-text-content rich-text-editable"
+        data-placeholder={placeholder}
+        style={{ ...inputStyle, minHeight, lineHeight: 1.6, cursor: "text" }}
+      />
+    </div>
   );
 }
 

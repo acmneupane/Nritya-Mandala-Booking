@@ -17,3 +17,50 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Shared styling for RichTextEditor's output — applied both to the editable
+   area itself (WebsiteContentView) and to the public page wherever that HTML
+   is rendered (HomePage's About Us), so what admin sees while editing matches
+   what visitors see. Needed because Tailwind's preflight resets list-style and
+   margins to zero, which would otherwise make an inserted bullet/numbered list
+   render with no markers at all. */
+.rich-text-content p {
+  margin: 0 0 0.8em;
+}
+.rich-text-content p:last-child {
+  margin-bottom: 0;
+}
+.rich-text-content ul,
+.rich-text-content ol {
+  margin: 0 0 0.8em;
+  padding-left: 1.4em;
+}
+.rich-text-content ul {
+  list-style: disc;
+}
+.rich-text-content ol {
+  list-style: decimal;
+}
+.rich-text-content li {
+  margin-bottom: 0.2em;
+}
+.rich-text-content h1,
+.rich-text-content h2,
+.rich-text-content h3 {
+  font-family: 'Fraunces', serif;
+  color: #6E1D17;
+  font-weight: 600;
+  margin: 0.6em 0 0.4em;
+}
+.rich-text-content a {
+  color: #C58D2E;
+  text-decoration: underline;
+}
+
+/* Placeholder text for the empty editable area — data-placeholder is set by
+   RichTextEditor itself. */
+.rich-text-editable:empty::before {
+  content: attr(data-placeholder);
+  color: #7A6A5C;
+  pointer-events: none;
+}

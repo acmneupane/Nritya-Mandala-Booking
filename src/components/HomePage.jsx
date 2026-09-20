@@ -299,7 +299,16 @@ export default function HomePage() {
           <section className="px-5 md:px-10 py-16">
             <div className="max-w-[760px] mx-auto text-center">
               <SectionHeading>About us</SectionHeading>
-              <p style={{ fontSize: 16, color: T.ink, lineHeight: 1.8, whiteSpace: "pre-wrap", opacity: 0.85 }}>{content.about_blurb}</p>
+              {/* Written with the rich-text editor in Website settings, so this is
+                  trusted admin-authored HTML, not user input. Older content saved
+                  before that editor existed is plain text with no tags — rendered
+                  the old way (respecting bare line breaks) so it doesn't collapse
+                  into one line the first time this loads after the change. */}
+              {/<[a-z][\s\S]*>/i.test(content.about_blurb) ? (
+                <div className="rich-text-content" style={{ fontSize: 16, color: T.ink, lineHeight: 1.8, opacity: 0.85, textAlign: "left" }} dangerouslySetInnerHTML={{ __html: content.about_blurb }} />
+              ) : (
+                <p style={{ fontSize: 16, color: T.ink, lineHeight: 1.8, whiteSpace: "pre-wrap", opacity: 0.85 }}>{content.about_blurb}</p>
+              )}
             </div>
           </section>
         )}
