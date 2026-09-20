@@ -1176,6 +1176,12 @@ export default function StudentsView({ focusStudentCode }) {
                   <PackageBadge remaining={remaining} hasAny={!!pkg && pkg.classes_total > 0} />
                   <ConsentBadge consent={s.video_consent} />
                   <ClassBadge classes={studentClasses} />
+                  {/* Keeps the "was this confirmed" fact visible even once a resend
+                      button appears below — resending updates the timestamp but
+                      never hides that a confirmation went out at some point. */}
+                  {s.confirmation_email_sent && (
+                    <span style={{ fontSize: 11, color: T.inkSoft }}>✓ Confirmed {formatSydneyDate(s.confirmation_email_sent_at)}</span>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -1185,6 +1191,14 @@ export default function StudentsView({ focusStudentCode }) {
                 )}
                 {!s.archived && !s.confirmation_email_sent && (
                   <button onClick={() => setSendingConfirmation(s)} style={{ ...actionBtnStyle, color: T.gold, borderColor: `${T.gold}55` }}>⚠ Send confirmation</button>
+                )}
+                {/* A resend is only offered before they've actually started using the
+                    package (classes_used === 0) — e.g. the guardian's email was
+                    wrong or got updated. Once classes have been attended/missed,
+                    the original confirmation has clearly already reached someone
+                    who's been bringing the student, so a resend isn't needed. */}
+                {!s.archived && s.confirmation_email_sent && (!pkg || pkg.classes_used === 0) && (
+                  <button onClick={() => setSendingConfirmation(s)} style={{ ...actionBtnStyle, color: T.gold, borderColor: `${T.gold}55` }}>↻ Resend confirmation</button>
                 )}
                 {!s.archived && pkg && pkg.classes_total > 0 && remaining <= 0 && (
                   <button onClick={() => handlePaymentReminderClick(s, pkg)} style={{ ...actionBtnStyle, color: T.terracotta, borderColor: `${T.terracotta}55` }}>💳 Payment required</button>
