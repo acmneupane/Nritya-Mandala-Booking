@@ -8,7 +8,7 @@ import { RELATION_OPTIONS } from "../lib/relations";
 import { computeAge } from "../lib/age";
 import { generateStudentCode } from "../lib/studentCode";
 import { formatTimeRange, nextOccurrenceOf, compareClassSchedule } from "../lib/scheduling";
-import { localDateStr } from "../lib/dates";
+import { localDateStr, formatSydneyDate } from "../lib/dates";
 import EmailPreviewModal from "./EmailPreviewModal";
 import PendingPackagesEditor from "./PendingPackagesEditor";
 import PackageReminderModal from "./PackageReminderModal";
@@ -453,7 +453,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
 
   const addNote = () => {
     if (!newNoteText.trim()) return;
-    const dateStr = new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    const dateStr = formatSydneyDate(new Date());
     const entry = `${dateStr} by ${currentUserLabel}: ${newNoteText.trim()}`;
     setNotes((prev) => (prev && prev.trim() ? `${prev.trim()}\n${entry}` : entry));
     setNewNoteText("");
@@ -612,7 +612,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
             placeholder="What happened, what to keep an eye on, etc."
             autoFocus
           />
-          <p style={{ fontSize: 11, color: T.inkSoft, margin: "4px 0 8px" }}>Will be appended below as: "{new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} by {currentUserLabel}: …"</p>
+          <p style={{ fontSize: 11, color: T.inkSoft, margin: "4px 0 8px" }}>Will be appended below as: "{formatSydneyDate(new Date())} by {currentUserLabel}: …"</p>
           <div className="flex gap-2">
             <Btn size="sm" onClick={addNote} disabled={!newNoteText.trim()}>Add</Btn>
             <Btn size="sm" variant="ghost" onClick={() => { setAddingNote(false); setNewNoteText(""); }}>Cancel</Btn>

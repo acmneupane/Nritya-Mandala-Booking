@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Modal } from "./ui";
+import { formatSydneyDate, formatSydneyDateTime } from "../lib/dates";
 
 const TABLE_LABELS = { students: "Students", classes: "Classes", levels: "Levels" };
 const ACTION_COLOR = { insert: T.sage, update: T.gold, delete: T.terracotta };
@@ -23,7 +24,7 @@ function timeAgo(dateStr) {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d ago`;
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return formatSydneyDate(d);
 }
 
 const PAGE_SIZE = 25;
@@ -113,7 +114,7 @@ function EmailsSection() {
             <div><strong>Subject:</strong> {viewing.subject || "(no subject)"}</div>
             <div><strong>Type:</strong> {EMAIL_TYPE_LABELS[viewing.email_type] || viewing.email_type}</div>
             <div><strong>Student:</strong> {viewing.student_name || "—"}</div>
-            <div><strong>Sent:</strong> {new Date(viewing.sent_at).toLocaleString()} by {viewing.triggered_by || "unknown"}</div>
+            <div><strong>Sent:</strong> {formatSydneyDateTime(viewing.sent_at)} by {viewing.triggered_by || "unknown"}</div>
             {!viewing.success && <div style={{ color: T.terracotta, fontWeight: 600 }}>This send failed.</div>}
           </div>
           {viewing.body ? (

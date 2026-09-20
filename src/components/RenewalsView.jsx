@@ -4,7 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, ConfirmModal, Modal, Field } from "./ui";
 import PackageReminderModal from "./PackageReminderModal";
 import RenewalApprovalEmailModal from "./RenewalApprovalEmailModal";
-import { localDateStr, relativeDaysAgo as daysAgo } from "../lib/dates";
+import { localDateStr, relativeDaysAgo as daysAgo, formatSydneyDateTime, formatSydneyDate } from "../lib/dates";
 import { classesLabel } from "../lib/format";
 import { formatTimeRange } from "../lib/scheduling";
 
@@ -111,7 +111,7 @@ function DueForRenewalSection({ onChanged }) {
                     {!row.hasPackage ? "No package on file" : row.remaining <= 0 ? "Package fully used" : `${row.remaining} class${row.remaining === 1 ? "" : "es"} remaining`}
                   </div>
                   {row.emptiedDate && (
-                    <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }} title={new Date(row.emptiedDate).toLocaleDateString()}>
+                    <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }} title={formatSydneyDate(row.emptiedDate)}>
                       Due since {daysAgo(row.emptiedDate)}
                     </div>
                   )}
@@ -331,7 +331,7 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
                   <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 2 }}>
                     {r.tier_name_snapshot} · {classesLabel(r.classes_count_snapshot)} · ${Number(r.price_snapshot).toFixed(2)}
                   </div>
-                  <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }} title={new Date(r.created_at).toLocaleString()}>
+                  <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }} title={formatSydneyDateTime(r.created_at)}>
                     Submitted {daysAgo(r.created_at)}
                   </div>
                   <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>

@@ -60,12 +60,10 @@ export default function HomeView({ counts, onNavigate }) {
     return { ok: true, message: `${student.name} checked in ✓` };
   };
 
-  const today = new Date();
-
   return (
     <div>
       <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark, marginBottom: 4 }}>
-        {today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+        {new Date().toLocaleDateString(undefined, { timeZone: "Australia/Sydney", weekday: "long", month: "long", day: "numeric" })}
       </h2>
       <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 20 }}>Here's what's happening today, and what needs your attention.</p>
 
