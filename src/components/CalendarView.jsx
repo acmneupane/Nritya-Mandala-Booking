@@ -119,7 +119,7 @@ function RosterEditor({ cls, onChanged }) {
   useEffect(() => { load(); }, [load]);
 
   const studentById = useMemo(() => Object.fromEntries(students.map((s) => [s.id, s])), [students]);
-  const availableStudents = students.filter((s) => !s.archived && !roster.some((r) => r.student_id === s.id));
+  const availableStudents = students.filter((s) => !s.archived && !roster.some((r) => r.student_id === s.id)).sort((a, b) => a.name.localeCompare(b.name));
   const atRiskCount = roster.filter((r) => {
     const student = studentById[r.student_id];
     if (!student) return true; // booked, but the student record itself is gone
@@ -197,7 +197,7 @@ function RosterEditor({ cls, onChanged }) {
       </div>
       {roster.length === 0 && <p style={{ color: T.inkSoft, fontSize: 13 }}>No one booked into this class yet.</p>}
       <div className="grid gap-2">
-        {roster.map((r) => {
+        {[...roster].sort((a, b) => (studentById[a.student_id]?.name || "").localeCompare(studentById[b.student_id]?.name || "")).map((r) => {
           const student = studentById[r.student_id];
           const remaining = student ? (remainingByStudent[student.id] ?? 0) : 0;
           const atRisk = !student || student.archived || remaining <= 0;

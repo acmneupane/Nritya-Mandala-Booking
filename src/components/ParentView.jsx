@@ -44,7 +44,6 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [skips, setSkips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cardDataUrl, setCardDataUrl] = useState(null);
-  const [markingBusy, setMarkingBusy] = useState(null);
   const [markAbsentOpen, setMarkAbsentOpen] = useState(false);
   const [singleMarkAbsent, setSingleMarkAbsent] = useState(null);
   const [showQr, setShowQr] = useState(false);
@@ -147,13 +146,6 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     entries.sort((a, b) => (a.occ.dateStr === b.occ.dateStr ? a.cls.time.localeCompare(b.cls.time) : a.occ.dateStr.localeCompare(b.occ.dateStr)));
     return entries[0] || null;
   }, [upcomingAttendableOccurrences, classById]);
-
-  const undoAbsent = async (classId, dateStr) => {
-    setMarkingBusy(classId);
-    await supabase.rpc("undo_mark_absence", { p_code: student.code, p_class_id: classId, p_date: dateStr });
-    setMarkingBusy(null);
-    load();
-  };
 
   if (loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft }}>Loading…</div>;
 
@@ -325,9 +317,14 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{c.day} · {formatTimeRange(c.time, c.end_time)}</div>
                       {alreadyAbsent && (
-                        <button onClick={() => undoAbsent(c.id, occ.dateStr)} disabled={markingBusy === c.id} style={{ fontSize: 12, fontWeight: 600, color: T.gold }} title="Tap to undo">
-                          ⊘ Marked absent for {occ.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Undo
-                        </button>
+                        // Undoing is intentionally admin-only (see undo_mark_absence's
+                        // revoked anon/authenticated grants) — a parent can mark an
+                        // absence but shouldn't be able to reverse it themselves,
+                        // e.g. after the studio's already acted on it. Contact the
+                        // studio directly to reverse one.
+                        <span style={{ fontSize: 12, fontWeight: 600, color: T.gold }}>
+                          ⊘ Marked absent for {occ.date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        </span>
                       )}
                     </div>
                   </div>
