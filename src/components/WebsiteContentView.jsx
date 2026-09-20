@@ -699,63 +699,6 @@ function FaqEditor() {
   );
 }
 
-// Read-only inbox for submissions from the public homepage's contact form.
-// Rows are only ever created server-side (submit_contact_message RPC via
-// submit-form, Turnstile-verified) — never directly writable by anon — so this is
-// purely a viewer, plus a read/unread toggle.
-function MessagesViewer() {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = async () => {
-    setLoading(true);
-    const { data } = await supabase.from("contact_messages").select("*").order("created_at", { ascending: false });
-    setRows(data || []);
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const toggleRead = async (r) => {
-    setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, read: !x.read } : x)));
-    await supabase.from("contact_messages").update({ read: !r.read }).eq("id", r.id);
-  };
-
-  const unreadCount = rows.filter((r) => !r.read).length;
-
-  return (
-    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18 }}>
-      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Contact form messages</h3>
-      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        {unreadCount > 0 ? `${unreadCount} unread. ` : ""}Every submission is also emailed to the studio inbox automatically — this is just a browsable record.
-      </p>
-      {loading ? (
-        <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>
-      ) : rows.length === 0 ? (
-        <p style={{ fontSize: 13, color: T.inkSoft }}>No messages yet.</p>
-      ) : (
-        <div className="grid gap-2">
-          {rows.map((r) => (
-            <div key={r.id} style={{ background: r.read ? "#fff" : `${T.gold}0F`, border: `1px solid ${T.line}`, borderLeft: `3px solid ${r.read ? T.line : T.gold}`, borderRadius: 6, padding: "10px 12px" }}>
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <span style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>{r.name}</span>
-                <div className="flex items-center gap-2">
-                  <span style={{ fontSize: 11, color: T.inkSoft }}>{new Date(r.created_at).toLocaleString()}</span>
-                  <button onClick={() => toggleRead(r)} style={{ fontSize: 11, color: T.maroon, fontWeight: 600 }}>{r.read ? "Mark unread" : "Mark read"}</button>
-                </div>
-              </div>
-              <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>
-                {r.email && <>{r.email} · </>}{r.phone || ""}
-              </div>
-              <div style={{ fontSize: 13, color: T.ink, marginTop: 6, whiteSpace: "pre-wrap" }}>{r.message}</div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // Controls whether the public site's root shows the real homepage or a simple
 // coming-soon placeholder (App.jsx's PublicHomeGate reads the same site_live
 // key). Defaults to "off" so a fresh site never accidentally shows an
@@ -876,7 +819,6 @@ const SECTIONS = [
   { id: "instructors", label: "Instructors" },
   { id: "testimonials", label: "Testimonials" },
   { id: "faq", label: "FAQ" },
-  { id: "messages", label: "Messages" },
 ];
 
 export default function WebsiteContentView() {
@@ -904,7 +846,6 @@ export default function WebsiteContentView() {
       {section === "instructors" && <InstructorsEditor />}
       {section === "testimonials" && <TestimonialsEditor />}
       {section === "faq" && <FaqEditor />}
-      {section === "messages" && <MessagesViewer />}
     </div>
   );
 }
