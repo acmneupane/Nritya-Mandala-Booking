@@ -9,6 +9,7 @@ import { QrCanvas } from "./QrCode";
 import { nextOccurrenceOf, formatTimeRange, isClassActiveOn } from "../lib/scheduling";
 import { classesLabel } from "../lib/format";
 import { fetchOpenClasses } from "../lib/classAvailability";
+import { attendanceStatusInfo, isSelfMarkedAbsence } from "../lib/attendance";
 import MarkAbsentModal from "./MarkAbsentModal";
 import { APP_ORIGIN } from "../lib/origins";
 
@@ -138,7 +139,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     const map = {};
     for (const c of classes) {
       const excludeDates = new Set(
-        history.filter((h) => h.class_id === c.id && (h.status === "skipped" || (h.status === "missed" && h.reason))).map((h) => h.date)
+        history.filter((h) => h.class_id === c.id && isSelfMarkedAbsence(h)).map((h) => h.date)
       );
       const occ = nextOccurrenceOf(c, skips, localDateStr, 60, excludeDates);
       if (occ) map[c.id] = occ;
@@ -315,7 +316,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
               {classes.length === 0 && <p style={{ fontSize: 13, color: T.inkSoft }}>No classes booked yet — check with the studio.</p>}
               {classes.map((c) => {
                 const occ = nextOccurrences[c.id];
-                const alreadyAbsent = occ && history.some((h) => h.class_id === c.id && h.date === occ.dateStr && (h.status === "skipped" || (h.status === "missed" && h.reason)));
+                const alreadyAbsent = occ && history.some((h) => h.class_id === c.id && h.date === occ.dateStr && isSelfMarkedAbsence(h));
                 return (
                   <div key={c.id} style={{ padding: "10px 0", borderTop: `1px solid ${T.line}` }}>
                     <div className="flex items-center justify-between flex-wrap gap-2">
@@ -354,9 +355,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
                 row above via the "Marked absent for <date>" note. */}
             {pastHistory.length === 0 && <p style={{ fontSize: 13, color: T.inkSoft }}>No history yet.</p>}
             {pastHistory.map((h) => {
-              const lateCancel = h.status === "missed" && h.reason;
-              const label = h.status === "attended" ? "Attended" : h.status === "skipped" ? "Marked absent" : lateCancel ? "Late cancellation" : "Missed";
-              const color = h.status === "attended" ? T.sage : h.status === "skipped" ? T.gold : T.terracotta;
+              const { label, color } = attendanceStatusInfo(h, T);
               return (
                 <div key={h.id} className="flex items-center justify-between" style={{ fontSize: 13, padding: "7px 0", borderTop: `1px solid ${T.line}` }}>
                   <span>{h.date}</span>

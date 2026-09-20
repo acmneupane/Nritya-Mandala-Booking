@@ -4,6 +4,7 @@ import { T } from "../lib/theme";
 import { Btn, Modal } from "./ui";
 import { upcomingOccurrencesOf, formatTimeRange } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
+import { isSelfMarkedAbsence } from "../lib/attendance";
 
 function hoursUntil(dateStr, time) {
   const target = new Date(`${dateStr}T${time || "00:00"}`);
@@ -30,7 +31,7 @@ export default function MarkAbsentModal({ student, classes, skips, history, rema
           // late cancellation with a reason) — without this, the bulk picker kept
           // showing dates that were, in effect, already handled.
           const excludeDates = new Set(
-            (history || []).filter((h) => h.class_id === c.id && (h.status === "skipped" || (h.status === "missed" && h.reason))).map((h) => h.date)
+            (history || []).filter((h) => h.class_id === c.id && isSelfMarkedAbsence(h)).map((h) => h.date)
           );
           return upcomingOccurrencesOf(c, skips, localDateStr, { count: cap, excludeDates }).map((occ) => ({
             classId: c.id, day: c.day, time: c.time, endTime: c.end_time, date: occ.date, dateStr: occ.dateStr,

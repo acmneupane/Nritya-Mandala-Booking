@@ -7,8 +7,9 @@ import { classesLabel } from "../lib/format";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { computeAge } from "../lib/age";
 import { generateStudentCode } from "../lib/studentCode";
-import { formatTimeRange, nextOccurrenceOf, compareClassSchedule } from "../lib/scheduling";
-import { localDateStr, formatSydneyDate } from "../lib/dates";
+import { formatTimeRange, nextOccurrenceOf, upcomingOccurrencesOf, compareClassSchedule } from "../lib/scheduling";
+import { localDateStr, formatSydneyDate, formatShortDate } from "../lib/dates";
+import { attendanceStatusInfo } from "../lib/attendance";
 import EmailPreviewModal from "./EmailPreviewModal";
 import PendingPackagesEditor from "./PendingPackagesEditor";
 import PackageReminderModal from "./PackageReminderModal";
@@ -23,13 +24,33 @@ function daysAgo(isoDate) {
   return `${days} days ago`;
 }
 
-// Quick read-only glance at a student — name, level, package status, emergency
-// contacts — without opening the full edit form.
+// Labeled read-only row — shared shape for every field in StudentInfoModal so a
+// glance at the JSX below reads as a list of facts, not a pile of repeated divs.
+function InfoRow({ label, children }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+// Full read-only profile for one student — everything from the edit form (but
+// not editable here; use Edit for that), plus schedule and attendance context
+// the edit form doesn't show: what class(es) they're in, their next class, their
+// next 10 upcoming occurrences, and their last/upcoming 10 attendance records
+// (attended, skipped, and missed all mixed together, closest to today first) —
+// so an admin can answer "what's going on with this student" from one place
+// instead of piecing it together across the Students list, Calendar, and
+// package history.
 function StudentInfoModal({ student, level, onClose }) {
   const [packages, setPackages] = useState([]);
   const [used, setUsed] = useState(0);
   const [emergencyContacts, setEmergencyContacts] = useState([]);
   const [otherGuardians, setOtherGuardians] = useState([]);
+  const [enrolledClasses, setEnrolledClasses] = useState([]);
+  const [skips, setSkips] = useState([]);
+  const [attendanceRows, setAttendanceRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,12 +58,22 @@ function StudentInfoModal({ student, level, onClose }) {
       supabase.from("packages").select("*").eq("student_id", student.id).order("purchase_date", { ascending: false }),
       supabase.from("student_package_summary").select("classes_used").eq("student_id", student.id).maybeSingle(),
       supabase.from("student_guardians").select("relation, emergency, guardians(name, phone, email)").eq("student_id", student.id),
-    ]).then(([pkgRes, summaryRes, guardiansRes]) => {
+      supabase.from("enrollments").select("classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
+      supabase.from("class_skips").select("class_id, date"),
+      // Newest date first — for a student with an upcoming pre-marked absence,
+      // that future date is legitimately "newest" and belongs at the top here
+      // (unlike the parent portal's "Recent attendance", this view is explicitly
+      // meant to include what's coming up, not just what already happened).
+      supabase.from("attendance").select("id, class_id, date, status, reason, classes(label)").eq("student_id", student.id).order("date", { ascending: false }).limit(10),
+    ]).then(([pkgRes, summaryRes, guardiansRes, enrollRes, skipsRes, attRes]) => {
       setPackages(pkgRes.data || []);
       setUsed(summaryRes.data?.classes_used || 0);
       const all = guardiansRes.data || [];
       setEmergencyContacts(all.filter((g) => g.emergency));
       setOtherGuardians(all.filter((g) => !g.emergency));
+      setEnrolledClasses((enrollRes.data || []).map((e) => e.classes).filter(Boolean));
+      setSkips(skipsRes.data || []);
+      setAttendanceRows(attRes.data || []);
       setLoading(false);
     });
   }, [student.id]);
@@ -50,29 +81,37 @@ function StudentInfoModal({ student, level, onClose }) {
   const purchased = packages.reduce((sum, p) => sum + p.classes_total, 0);
   const remaining = purchased - used;
 
+  // Same "pool per class, merge chronologically" approach as MarkAbsentModal's
+  // bulk picker — a student can be booked into more than one class, so their
+  // next 10 occurrences overall aren't just the next 10 of a single class.
+  const upcoming = enrolledClasses
+    .flatMap((c) => upcomingOccurrencesOf(c, skips, localDateStr, { count: 10 }).map((occ) => ({ cls: c, occ })))
+    .sort((a, b) => a.occ.dateStr.localeCompare(b.occ.dateStr))
+    .slice(0, 10);
+  const nextClass = upcoming[0] || null;
+
   return (
-    <Modal title={student.name} onClose={onClose}>
+    <Modal title={student.name} onClose={onClose} wide>
       {loading ? (
         <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>
       ) : (
         <div className="grid gap-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            {student.dob && computeAge(student.dob) != null && <span style={{ fontSize: 13, color: T.inkSoft }}>{computeAge(student.dob)} years old</span>}
-            <span style={{ fontSize: 12, color: T.gold, fontWeight: 700, letterSpacing: 1 }}>· {student.code}</span>
+          {student.archived && (
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.inkSoft, background: T.paper, borderRadius: 999, padding: "4px 10px", display: "inline-block", width: "fit-content" }}>ARCHIVED</div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <InfoRow label="Date of birth">
+              <span style={{ fontSize: 13, color: T.ink }}>
+                {student.dob || "—"}{student.dob && computeAge(student.dob) != null ? ` (${computeAge(student.dob)}y)` : ""}
+              </span>
+            </InfoRow>
+            <InfoRow label="Access code"><span style={{ fontSize: 13, color: T.ink, fontFamily: "monospace" }}>{student.code}</span></InfoRow>
+            <InfoRow label="Level"><LevelBadge level={level} /></InfoRow>
+            <InfoRow label="Photo/video consent"><ConsentBadge consent={student.video_consent} /></InfoRow>
           </div>
 
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>LEVEL</div>
-            <LevelBadge level={level} />
-          </div>
-
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>PHOTO/VIDEO CONSENT</div>
-            <ConsentBadge consent={student.video_consent} />
-          </div>
-
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>PACKAGE</div>
+          <InfoRow label="Package">
             {purchased > 0 ? (
               <div style={{ fontSize: 13, color: T.ink }}>
                 <strong>{purchased}</strong> purchased · <strong>{used}</strong> used ·{" "}
@@ -81,10 +120,49 @@ function StudentInfoModal({ student, level, onClose }) {
             ) : (
               <span style={{ fontSize: 12, color: T.terracotta }}>No package on file</span>
             )}
-          </div>
+          </InfoRow>
 
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>EMERGENCY CONTACTS</div>
+          <InfoRow label="Next class">
+            {nextClass ? (
+              <span style={{ fontSize: 13, color: T.ink }}>
+                <strong>{formatShortDate(nextClass.occ.dateStr)}</strong> — {nextClass.cls.label} ({nextClass.cls.day} {formatTimeRange(nextClass.cls.time, nextClass.cls.end_time)})
+              </span>
+            ) : (
+              <span style={{ fontSize: 12, color: T.terracotta }}>Not booked into a class</span>
+            )}
+          </InfoRow>
+
+          {upcoming.length > 1 && (
+            <InfoRow label="Next 10 upcoming classes">
+              <div className="grid gap-1">
+                {upcoming.map((o, i) => (
+                  <div key={i} style={{ fontSize: 12.5, color: T.ink }}>
+                    {formatShortDate(o.occ.dateStr)} — {o.cls.label} ({o.cls.day} {formatTimeRange(o.cls.time, o.cls.end_time)})
+                  </div>
+                ))}
+              </div>
+            </InfoRow>
+          )}
+
+          <InfoRow label="Recent / upcoming attendance">
+            {attendanceRows.length === 0 ? (
+              <span style={{ fontSize: 12, color: T.inkSoft }}>No attendance recorded yet.</span>
+            ) : (
+              <div className="grid gap-1">
+                {attendanceRows.map((h) => {
+                  const { label: statusLabel, color } = attendanceStatusInfo(h, T);
+                  return (
+                    <div key={h.id} className="flex items-center justify-between" style={{ fontSize: 12.5 }}>
+                      <span style={{ color: T.ink }}>{h.date} — {h.classes?.label || "—"}{h.reason ? ` (${h.reason})` : ""}</span>
+                      <span style={{ color, fontWeight: 600, whiteSpace: "nowrap", marginLeft: 8 }}>{statusLabel}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </InfoRow>
+
+          <InfoRow label="Emergency contacts">
             {emergencyContacts.length === 0 ? (
               <span style={{ fontSize: 12, color: T.terracotta }}>None on file</span>
             ) : (
@@ -96,11 +174,10 @@ function StudentInfoModal({ student, level, onClose }) {
                 ))}
               </div>
             )}
-          </div>
+          </InfoRow>
 
           {otherGuardians.length > 0 && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>OTHER CONTACTS</div>
+            <InfoRow label="Other contacts">
               <div className="grid gap-1">
                 {otherGuardians.map((c, i) => (
                   <div key={i} style={{ fontSize: 13, color: T.ink }}>
@@ -108,14 +185,13 @@ function StudentInfoModal({ student, level, onClose }) {
                   </div>
                 ))}
               </div>
-            </div>
+            </InfoRow>
           )}
 
           {student.notes && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: T.inkSoft, marginBottom: 4 }}>NOTES</div>
+            <InfoRow label="Notes">
               <div style={{ fontSize: 13, color: T.ink, whiteSpace: "pre-wrap" }}>{student.notes}</div>
-            </div>
+            </InfoRow>
           )}
         </div>
       )}
