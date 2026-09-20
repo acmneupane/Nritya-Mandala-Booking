@@ -51,7 +51,9 @@ export default function ParentLookup() {
   return (
     <div style={{ minHeight: "100vh", background: T.maroon, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif" }}>
       <div style={{ background: T.ivory, borderRadius: 12, padding: "40px 36px", width: 340, textAlign: "center" }}>
-        <img src={logoUrl} alt="Nritya Mandala" style={{ width: 68, height: 68, borderRadius: "50%", margin: "0 auto 16px", display: "block" }} />
+        <a href="/" className="hover:opacity-90 transition-opacity" style={{ display: "inline-block", marginBottom: 16 }}>
+          <img src={logoUrl} alt="Nritya Mandala" style={{ width: 80, height: 80, borderRadius: "50%", display: "block" }} />
+        </a>
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: T.maroonDark, marginBottom: 4 }}>Nritya Mandala</h1>
         <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 24 }}>Enter your student's code to see their bookings</p>
         <input

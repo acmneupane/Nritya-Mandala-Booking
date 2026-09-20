@@ -125,7 +125,9 @@ export default function TransferRequestForm() {
     return (
       <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
         <div className="rounded-[1.75rem] shadow-2xl" style={{ background: T.ivory, padding: "40px 28px", width: "100%", maxWidth: 380, textAlign: "center", boxSizing: "border-box" }}>
-          <img src={logoUrl} alt="" style={{ width: 60, height: 60, borderRadius: "50%", margin: "0 auto 16px", display: "block" }} />
+          <a href="/" className="hover:opacity-90 transition-opacity" style={{ display: "inline-block", marginBottom: 16 }}>
+            <img src={logoUrl} alt="" style={{ width: 72, height: 72, borderRadius: "50%", display: "block" }} />
+          </a>
           <h1 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: T.maroonDark, marginBottom: 8, fontWeight: 600 }}>Thank you!</h1>
           <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.6 }}>We've received your class transfer request. The studio will review it and confirm once it's actioned.</p>
         </div>
@@ -137,7 +139,9 @@ export default function TransferRequestForm() {
     <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.maroon}, ${T.maroonDark})`, padding: "28px 16px" }} className="sm:py-12">
       <div className="max-w-[460px] sm:max-w-[560px] md:max-w-[680px] lg:max-w-[780px] mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <img src={logoUrl} alt="" style={{ width: 48, height: 48, borderRadius: "50%", boxShadow: "0 4px 14px rgba(0,0,0,0.25)" }} />
+          <a href="/" className="hover:opacity-90 transition-opacity shrink-0">
+            <img src={logoUrl} alt="" style={{ width: 64, height: 64, borderRadius: "50%", boxShadow: "0 4px 14px rgba(0,0,0,0.25)", display: "block" }} />
+          </a>
           <div>
             <h1 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: "#fff", fontWeight: 600, textShadow: "0 2px 10px rgba(0,0,0,0.2)" }}>Request a class change</h1>
             <p style={{ fontSize: 12.5, color: T.goldLight, fontWeight: 600 }}>Nritya Mandala</p>

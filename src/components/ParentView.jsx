@@ -144,7 +144,9 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
       <div className="max-w-[480px] sm:max-w-[620px] md:max-w-[760px] lg:max-w-[860px] mx-auto">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <img src={logoUrl} alt="" style={{ width: 40, height: 40, borderRadius: "50%", marginBottom: 8 }} />
+            <a href="/" className="hover:opacity-90 transition-opacity" style={{ display: "inline-block", marginBottom: 8 }}>
+              <img src={logoUrl} alt="" style={{ width: 56, height: 56, borderRadius: "50%", display: "block" }} />
+            </a>
             <p style={{ fontSize: 12, color: T.gold, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>Nritya Mandala</p>
             <h1 className="font-serif text-3xl sm:text-4xl" style={{ fontFamily: "Fraunces, serif", color: T.maroonDark, fontWeight: 600 }}>{student.name}</h1>
           </div>
