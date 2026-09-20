@@ -29,6 +29,11 @@ function HeroAboutEditor() {
 
   const setField = (key, value) => setValues((v) => ({ ...v, [key]: value }));
 
+  const removeHeroPhoto = () => {
+    setHeroFile(null);
+    setField("hero_photo_path", "");
+  };
+
   const save = async () => {
     setSaving(true);
     setSaved(false);
@@ -70,7 +75,11 @@ function HeroAboutEditor() {
 
       <Field label="Hero photo">
         {heroPreview && <img src={heroPreview} alt="" style={{ width: "100%", maxWidth: 320, borderRadius: 8, marginBottom: 8, display: "block" }} />}
-        <input type="file" accept="image/*" onChange={(e) => setHeroFile(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
+        <div className="flex items-center gap-3 flex-wrap">
+          <input type="file" accept="image/*" onChange={(e) => setHeroFile(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
+          {heroPreview && <button onClick={removeHeroPhoto} style={{ fontSize: 12, color: T.terracotta, fontWeight: 600 }}>Remove photo</button>}
+        </div>
+        {!heroPreview && <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>No photo set — the hero section will show a plain maroon background instead.</p>}
       </Field>
       <Field label="Tagline"><input style={inputStyle} value={values.hero_tagline || ""} onChange={(e) => setField("hero_tagline", e.target.value)} placeholder="Where every step tells a story." /></Field>
       <Field label="About us"><textarea style={{ ...inputStyle, minHeight: 120 }} value={values.about_blurb || ""} onChange={(e) => setField("about_blurb", e.target.value)} placeholder="A few paragraphs about the studio…" /></Field>
