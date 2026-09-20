@@ -51,8 +51,13 @@ function DueForRenewalSection({ onChanged }) {
     });
     const today = localDateStr(new Date());
     // Same "how many days since X" math whether X is a package emptying or a
-    // first-ever booking — shared so both branches below stay consistent.
-    const daysUntilSpotFrees = (sinceDateStr) => graceDays - Math.floor((new Date(today) - new Date(sinceDateStr)) / 86400000);
+    // first-ever booking — shared so both branches below stay consistent. Clamp
+    // to 0: a first-ever booking's start_date can be a future class occurrence
+    // (e.g. booked today for a class that first runs next week), which would
+    // otherwise go negative and inflate the countdown past the full grace period
+    // — the grace period hasn't started ticking down until they've actually
+    // started holding the spot.
+    const daysUntilSpotFrees = (sinceDateStr) => graceDays - Math.max(0, Math.floor((new Date(today) - new Date(sinceDateStr)) / 86400000));
 
     const due = (sRes.data || [])
       .map((s) => {
