@@ -4,6 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
 import { isClassActiveOn, formatTimeRange } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
+import { isLowAttendanceRisk } from "../lib/attendance";
 import QrScanner from "./QrScanner";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -298,7 +299,7 @@ function SkipModal({ cls, onClose, onSaved }) {
 
 // Full inline day view: every class scheduled that weekday, with its complete
 // roster and attendance controls right on the page — no click-through needed.
-function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged, utilCounts, recordedByClassDate, atRiskBookings }) {
+function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged, utilCounts, recordedByClassDate, atRiskBookings, lowAttendanceRisk }) {
   const dateStr = localDateStr(date);
   const dayName = DAYS[(date.getDay() + 6) % 7];
   const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr)).sort((a, b) => a.time.localeCompare(b.time));
@@ -318,12 +319,19 @@ function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChange
       {dayClasses.map((c) => {
         const skip = skips.find((s) => s.class_id === c.id && s.date === dateStr);
         const alreadyRecorded = recordedByClassDate?.[`${c.id}|${dateStr}`];
+        // Distinct from the "haven't renewed" warning below (that's about payment
+        // status; this is about who's actually shown up as absent) — its own
+        // color so the two read as separate concerns at a glance.
+        const isLowAttendance = !skip && lowAttendanceRisk(c.id, dateStr);
         return (
-          <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 16 }}>
+          <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${isLowAttendance ? T.maroon : T.line}`, borderRadius: 8, padding: 16 }}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <span style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark }}>{c.label}</span>
                 <span style={{ fontSize: 13, color: T.inkSoft, marginLeft: 8 }}>{formatTimeRange(c.time, c.end_time)}</span>
+                {isLowAttendance && (
+                  <span style={{ fontSize: 11, color: T.maroon, fontWeight: 700, marginLeft: 8 }}>⚠ Half or more marked absent</span>
+                )}
                 {!skip && atRiskBookings(c.id, dateStr) > 0 && (
                   <span style={{ fontSize: 11, color: T.terracotta, fontWeight: 600, marginLeft: 8 }}>⚠ {atRiskBookings(c.id, dateStr)} haven't renewed</span>
                 )}
@@ -413,9 +421,12 @@ export default function CalendarView() {
   const isAtRisk = (studentId) => studentArchived[studentId] !== false || (remainingByStudent[studentId] ?? 0) <= 0;
   const atRiskBookings = (classId, dateStr) =>
     enrollments.filter((e) => e.class_id === classId && (!e.start_date || e.start_date <= dateStr) && isAtRisk(e.student_id)).length;
+  const bookedCount = (classId, dateStr) =>
+    enrollments.filter((e) => e.class_id === classId && (!e.start_date || e.start_date <= dateStr)).length;
 
   const [utilCounts, setUtilCounts] = useState({}); // { [dateStr]: { attended, missed, skipped } }
   const [recordedByClassDate, setRecordedByClassDate] = useState({}); // { [`${class_id}|${date}`]: true } if attended/missed already recorded
+  const [absentByClassDate, setAbsentByClassDate] = useState({}); // { [`${class_id}|${date}`]: count of skipped+missed }
   useEffect(() => {
     if (dates.length === 0) return;
     const startStr = localDateStr(dates[0].date);
@@ -423,18 +434,23 @@ export default function CalendarView() {
     supabase.from("attendance").select("date, status, class_id").gte("date", startStr).lte("date", endStr).then(({ data }) => {
       const map = {};
       const recorded = {};
+      const absent = {};
       (data || []).forEach((a) => {
         const c = (map[a.date] ||= { attended: 0, missed: 0, skipped: 0 });
         if (a.status === "attended") c.attended++;
         else if (a.status === "missed") c.missed++;
         else if (a.status === "skipped") c.skipped++;
         if (a.status === "attended" || a.status === "missed") recorded[`${a.class_id}|${a.date}`] = true;
+        if (a.status === "missed" || a.status === "skipped") absent[`${a.class_id}|${a.date}`] = (absent[`${a.class_id}|${a.date}`] || 0) + 1;
       });
       setUtilCounts(map);
       setRecordedByClassDate(recorded);
+      setAbsentByClassDate(absent);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, anchor.getTime()]);
+  const lowAttendanceRisk = (classId, dateStr) =>
+    isLowAttendanceRisk(bookedCount(classId, dateStr), absentByClassDate[`${classId}|${dateStr}`] || 0);
 
   const isAnchorToday = viewMode === "day"
     ? localDateStr(anchor) === todayStr
@@ -472,7 +488,7 @@ export default function CalendarView() {
       </div>
 
       {viewMode === "day" ? (
-        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} utilCounts={utilCounts[localDateStr(anchor)]} recordedByClassDate={recordedByClassDate} atRiskBookings={atRiskBookings} />
+        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} utilCounts={utilCounts[localDateStr(anchor)]} recordedByClassDate={recordedByClassDate} atRiskBookings={atRiskBookings} lowAttendanceRisk={lowAttendanceRisk} />
       ) : (
         <div className="grid gap-2 grid-cols-3 md:grid-cols-6">
           {dates.map(({ date, inMonth }, i) => {
@@ -508,14 +524,19 @@ export default function CalendarView() {
                       </div>
                     );
                   }
+                  const isLowAttendance = lowAttendanceRisk(c.id, dateStr);
                   return (
-                    <div key={c.id} style={{ background: T.paper, borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
+                    <div key={c.id} style={{ background: isLowAttendance ? `${T.maroon}14` : T.paper, border: isLowAttendance ? `1px solid ${T.maroon}55` : "none", borderRadius: 6, padding: "5px 8px", marginBottom: 5 }}>
                       <button type="button" onClick={() => setBookingClass({ ...c, dateStr })} style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none", cursor: "pointer" }}>
                         <div style={{ fontSize: 11, fontWeight: 600, color: T.maroonDark }}>{formatTimeRange(c.time, c.end_time)} {c.label}</div>
                         <div style={{ fontSize: 10, color: T.inkSoft }}>
                           {bookedCount} booked
                           {atRiskCount > 0 && <span style={{ color: T.terracotta, fontWeight: 600 }}> · ⚠ {atRiskCount}</span>}
                         </div>
+                        {/* Distinct color/wording from the "haven't renewed" risk
+                            above — this is specifically about turnout (who's
+                            actually shown up as absent), not payment status. */}
+                        {isLowAttendance && <div style={{ fontSize: 10, color: T.maroon, fontWeight: 700 }}>⚠ Half+ absent</div>}
                       </button>
                       {recordedByClassDate[`${c.id}|${dateStr}`] ? (
                         <span style={{ fontSize: 10, color: T.inkSoft }} title="Attendance already recorded — this class already happened">Can't skip</span>

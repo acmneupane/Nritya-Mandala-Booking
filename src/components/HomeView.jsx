@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
 import { localDateStr } from "../lib/dates";
 import { isClassActiveOn, formatTimeRange } from "../lib/scheduling";
+import { isLowAttendanceRisk } from "../lib/attendance";
 import QrScanner from "./QrScanner";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -23,15 +24,22 @@ export default function HomeView({ counts, onNavigate }) {
       supabase.from("enrollments").select("class_id, start_date"),
       supabase.from("class_skips").select("class_id, date").eq("date", todayStr),
       supabase.from("studio_notices").select("*").lte("start_date", todayStr).gte("end_date", todayStr).order("start_date"),
-    ]).then(([cRes, eRes, skRes, noticesRes]) => {
+      // Who's already marked skipped/missed for today — used to flag a session
+      // where enough students have dropped out that turnout will be sparse.
+      supabase.from("attendance").select("class_id, status").eq("date", todayStr),
+    ]).then(([cRes, eRes, skRes, noticesRes, attRes]) => {
       const skippedIds = new Set((skRes.data || []).map((s) => s.class_id));
+      const absentCountByClass = {};
+      (attRes.data || []).forEach((a) => {
+        if (a.status === "skipped" || a.status === "missed") absentCountByClass[a.class_id] = (absentCountByClass[a.class_id] || 0) + 1;
+      });
       const classes = (cRes.data || [])
         .filter((c) => c.day === dayName && isClassActiveOn(c, todayStr) && !skippedIds.has(c.id))
         .sort((a, b) => a.time.localeCompare(b.time))
-        .map((c) => ({
-          ...c,
-          bookedCount: (eRes.data || []).filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= todayStr)).length,
-        }));
+        .map((c) => {
+          const bookedCount = (eRes.data || []).filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= todayStr)).length;
+          return { ...c, bookedCount, lowAttendanceRisk: isLowAttendanceRisk(bookedCount, absentCountByClass[c.id] || 0) };
+        });
       setTodayClasses(classes);
       setNotices(noticesRes.data || []);
       setLoading(false);
@@ -97,11 +105,14 @@ export default function HomeView({ counts, onNavigate }) {
       ) : (
         <div className="grid gap-2">
           {todayClasses.map((c) => (
-            <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "10px 14px" }} className="flex items-center justify-between gap-2">
+            <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${c.lowAttendanceRisk ? T.maroon : T.line}`, borderRadius: 8, padding: "10px 14px" }} className="flex items-center justify-between gap-2">
               <button onClick={() => onNavigate("calendar")} style={{ textAlign: "left", background: "transparent", border: "none", flex: 1, minWidth: 0, cursor: "pointer" }} className="flex items-center justify-between">
                 <div>
                   <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>{c.label}</span>
                   <span style={{ fontSize: 12, color: T.inkSoft, marginLeft: 8 }}>{formatTimeRange(c.time, c.end_time)}</span>
+                  {c.lowAttendanceRisk && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: T.maroon, marginLeft: 8 }}>⚠ Half or more absent</span>
+                  )}
                 </div>
                 <span style={{ fontSize: 12, color: T.inkSoft }}>{c.bookedCount} booked</span>
               </button>

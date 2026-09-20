@@ -16,3 +16,14 @@ export function attendanceStatusInfo(h, T) {
 export function isSelfMarkedAbsence(h) {
   return h.status === "skipped" || (h.status === "missed" && !!h.reason);
 }
+
+// Whether half or fewer of a class occurrence's booked students are actually
+// expected to show up — i.e. enough have been marked skipped/missed that the
+// remaining headcount drops to half the roster or below. Flagged on the
+// Calendar and the admin Home tab so staff notice a sparsely-attended session
+// before it happens, not after. A class with nobody booked isn't "at risk" —
+// there's no session to worry about turnout for.
+export function isLowAttendanceRisk(bookedCount, absentCount) {
+  if (bookedCount <= 0) return false;
+  return bookedCount - absentCount <= bookedCount / 2;
+}
