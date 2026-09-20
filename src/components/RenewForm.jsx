@@ -61,7 +61,7 @@ export default function RenewForm() {
     if (!code) { setStudent(null); return; }
     const upperCode = code.trim().toUpperCase();
 
-    supabase.from("package_tiers").select("*").eq("active", true).order("sort_order").then(({ data }) => setTiers(data || []));
+    supabase.from("package_tiers").select("*").eq("active", true).eq("available_for_renewal", true).order("sort_order").then(({ data }) => setTiers(data || []));
 
     fetchOpenClasses().then((open) => setClasses(open.slice().sort(compareClassSchedule)));
 

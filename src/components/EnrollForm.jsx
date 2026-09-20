@@ -191,7 +191,7 @@ export default function EnrollForm() {
 
   useEffect(() => {
     fetchOpenClasses().then((open) => setClasses(open.slice().sort(compareClassSchedule)));
-    supabase.from("package_tiers").select("*").eq("active", true).order("sort_order").then(({ data }) => setPackageTiers(data || []));
+    supabase.from("package_tiers").select("*").eq("active", true).eq("available_for_enrolment", true).order("sort_order").then(({ data }) => setPackageTiers(data || []));
     supabase.from("settings").select("enrolment_fee_enabled, enrolment_fee_label, enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setFees({ primary: Number(data.enrolment_fee_primary), sibling: Number(data.enrolment_fee_sibling), enabled: data.enrolment_fee_enabled, label: data.enrolment_fee_label });
     });

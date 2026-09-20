@@ -11,6 +11,8 @@ function TierModal({ initial, onClose, onSaved }) {
   const [siblingPrice, setSiblingPrice] = useState(initial?.sibling_price ?? "");
   const [siblingPriceLabel, setSiblingPriceLabel] = useState(initial?.sibling_price_label || "");
   const [active, setActive] = useState(initial ? initial.active : true);
+  const [availableForEnrolment, setAvailableForEnrolment] = useState(initial ? initial.available_for_enrolment : true);
+  const [availableForRenewal, setAvailableForRenewal] = useState(initial ? initial.available_for_renewal : true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -23,6 +25,8 @@ function TierModal({ initial, onClose, onSaved }) {
       sibling_price: siblingPrice === "" ? null : Number(siblingPrice),
       sibling_price_label: siblingPriceLabel.trim() || null,
       active,
+      available_for_enrolment: availableForEnrolment,
+      available_for_renewal: availableForRenewal,
     };
     const { error } = initial?.id
       ? await supabase.from("package_tiers").update(payload).eq("id", initial.id)
@@ -49,8 +53,23 @@ function TierModal({ initial, onClose, onSaved }) {
       )}
       <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink }}>
         <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-        Active — visible to parents on the renewal page
+        Active — this package can be offered at all
       </label>
+      {active && (
+        <div style={{ background: T.paper, borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
+          <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 6 }}>
+            Where it can be selected — e.g. a 1-class trial package for new families that shouldn't be offered again at renewal.
+          </p>
+          <label className="flex items-center gap-2 mb-1" style={{ fontSize: 13, color: T.ink }}>
+            <input type="checkbox" checked={availableForEnrolment} onChange={(e) => setAvailableForEnrolment(e.target.checked)} />
+            Available when enrolling (new students)
+          </label>
+          <label className="flex items-center gap-2" style={{ fontSize: 13, color: T.ink }}>
+            <input type="checkbox" checked={availableForRenewal} onChange={(e) => setAvailableForRenewal(e.target.checked)} />
+            Available when renewing (existing students)
+          </label>
+        </div>
+      )}
       {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
       <div className="flex justify-end gap-2 mt-2">
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
@@ -103,6 +122,11 @@ export default function PackageTiersView() {
                   <span> · Additional Student: ${Number(t.sibling_price).toFixed(2)}{t.sibling_price_label ? ` (${t.sibling_price_label})` : ""}</span>
                 )}
               </div>
+              {t.active && !(t.available_for_enrolment && t.available_for_renewal) && (
+                <div style={{ fontSize: 11, fontWeight: 600, color: T.gold, marginTop: 3 }}>
+                  {t.available_for_enrolment ? "Enrolment only" : t.available_for_renewal ? "Renewal only" : "Not offered on Enrol or Renew"}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <button onClick={() => toggleActive(t)} style={{ fontSize: 13, fontWeight: 500, padding: "5px 12px", borderRadius: 999, border: `1px solid ${T.line}`, background: "#fff", color: T.inkSoft }}>
