@@ -38,11 +38,10 @@ function InfoRow({ label, children }) {
 // Full read-only profile for one student — everything from the edit form (but
 // not editable here; use Edit for that), plus schedule and attendance context
 // the edit form doesn't show: what class(es) they're in, their next class, their
-// next 10 upcoming occurrences, and their last/upcoming 10 attendance records
-// (attended, skipped, and missed all mixed together, closest to today first) —
-// so an admin can answer "what's going on with this student" from one place
-// instead of piecing it together across the Students list, Calendar, and
-// package history.
+// next 10 upcoming occurrences (each flagged with its recorded status, if any),
+// and their last 10 past attendance records (attended/skipped/missed) — so an
+// admin can answer "what's going on with this student" from one place instead
+// of piecing it together across the Students list, Calendar, and package history.
 function StudentInfoModal({ student, level, onClose }) {
   const [packages, setPackages] = useState([]);
   const [used, setUsed] = useState(0);
@@ -60,10 +59,9 @@ function StudentInfoModal({ student, level, onClose }) {
       supabase.from("student_guardians").select("relation, emergency, guardians(name, phone, email)").eq("student_id", student.id),
       supabase.from("enrollments").select("classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
       supabase.from("class_skips").select("class_id, date"),
-      // Newest date first — for a student with an upcoming pre-marked absence,
-      // that future date is legitimately "newest" and belongs at the top here
-      // (unlike the parent portal's "Recent attendance", this view is explicitly
-      // meant to include what's coming up, not just what already happened).
+      // Fetched unfiltered (past and future) since this one set of rows serves two
+      // displays below: Recent attendance (past-only, filtered client-side) and
+      // Next 10 upcoming classes' inline status lookup (needs future rows too).
       supabase.from("attendance").select("id, class_id, date, status, reason, classes(label)").eq("student_id", student.id).order("date", { ascending: false }).limit(10),
     ]).then(([pkgRes, summaryRes, guardiansRes, enrollRes, skipsRes, attRes]) => {
       setPackages(pkgRes.data || []);
@@ -89,6 +87,10 @@ function StudentInfoModal({ student, level, onClose }) {
     .sort((a, b) => a.occ.dateStr.localeCompare(b.occ.dateStr))
     .slice(0, 10);
   const nextClass = upcoming[0] || null;
+  // "Recent attendance" is past-only — anything upcoming (including a pre-marked
+  // absence) is already covered above, in Next 10 upcoming classes' inline status.
+  const today = localDateStr(new Date());
+  const recentAttendance = attendanceRows.filter((h) => h.date <= today);
 
   return (
     <Modal title={student.name} onClose={onClose} wide>
@@ -153,12 +155,12 @@ function StudentInfoModal({ student, level, onClose }) {
             </InfoRow>
           )}
 
-          <InfoRow label="Recent / upcoming attendance">
-            {attendanceRows.length === 0 ? (
+          <InfoRow label="Recent attendance">
+            {recentAttendance.length === 0 ? (
               <span style={{ fontSize: 12, color: T.inkSoft }}>No attendance recorded yet.</span>
             ) : (
               <div className="grid gap-1">
-                {attendanceRows.map((h) => {
+                {recentAttendance.map((h) => {
                   const { label: statusLabel, color } = attendanceStatusInfo(h, T);
                   return (
                     <div key={h.id} className="flex items-center justify-between" style={{ fontSize: 12.5 }}>
