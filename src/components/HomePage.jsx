@@ -306,7 +306,9 @@ export default function HomePage() {
               ) : (
                 <Carousel justifyCenter={classes.length <= 3}>
                   {classes.map((c) => {
-                    const isFull = (classCounts[c.id] || 0) >= c.capacity;
+                    const spotsLeft = c.capacity - (classCounts[c.id] || 0);
+                    const isFull = spotsLeft <= 0;
+                    const isAlmostFull = !isFull && spotsLeft < 5;
                     return (
                       <div key={c.id} className={`${CARD} w-[85vw] sm:w-[300px] flex-none`} style={{ padding: "18px 20px", scrollSnapAlign: "start" }}>
                         <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{c.label}</div>
@@ -316,9 +318,13 @@ export default function HomePage() {
                         {classStartsInFuture(c, today) && (
                           <div style={{ fontSize: 12, color: T.gold, fontWeight: 700, marginTop: 6 }}>Starts {formatShortDate(c.start_date)}</div>
                         )}
-                        {isFull && (
+                        {isFull ? (
                           <div style={{ fontSize: 11, fontWeight: 700, color: T.maroon, background: `${T.gold}22`, borderRadius: 999, padding: "3px 10px", marginTop: 8, display: "inline-block" }}>
                             Popular — currently full, ask about the waitlist
+                          </div>
+                        ) : isAlmostFull && (
+                          <div style={{ fontSize: 11, fontWeight: 700, color: T.gold, background: `${T.gold}18`, borderRadius: 999, padding: "3px 10px", marginTop: 8, display: "inline-block" }}>
+                            Filling up fast — {spotsLeft} spot{spotsLeft === 1 ? "" : "s"} left
                           </div>
                         )}
                       </div>
