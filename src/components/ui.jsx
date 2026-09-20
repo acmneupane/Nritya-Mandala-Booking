@@ -1,4 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
+import Link from "@tiptap/extension-link";
+import Placeholder from "@tiptap/extension-placeholder";
 import { T, inputStyle } from "../lib/theme";
 
 export function Btn({ children, onClick, variant = "primary", size = "md", type = "button", disabled }) {
@@ -62,77 +67,99 @@ export function Field({ label, children }) {
   );
 }
 
-function ToolbarButton({ onClick, title, children }) {
+function ToolbarButton({ onClick, title, active, children }) {
   // onMouseDown (not onClick) + preventDefault, so clicking a toolbar button
-  // never steals focus from the editable area first — losing focus first would
+  // never steals focus from the editor first — losing focus first would
   // collapse the text selection the formatting command is supposed to act on.
   return (
     <button
       type="button"
       title={title}
       onMouseDown={(e) => { e.preventDefault(); onClick(); }}
-      style={{ fontSize: 13, fontWeight: 600, color: T.ink, padding: "4px 9px", borderRadius: 6, border: `1px solid ${T.line}`, background: "#fff", lineHeight: 1.3 }}
+      style={{
+        fontSize: 13, fontWeight: 600, padding: "4px 9px", borderRadius: 6, lineHeight: 1.3,
+        color: active ? T.maroonDark : T.ink,
+        border: `1px solid ${active ? T.gold : T.line}`,
+        background: active ? T.goldLight : "#fff",
+      }}
     >
       {children}
     </button>
   );
 }
 
-// A minimal WYSIWYG editor for the handful of admin-authored fields that should
-// support basic HTML (bold/italic, links, lists, headings) instead of plain
-// text — e.g. the public homepage's About Us blurb. Built on contentEditable +
-// document.execCommand rather than pulling in a rich-text library, since the
-// formatting needs here are small and fixed. The output is raw HTML, stored and
-// rendered as-is — safe here because only an authenticated admin can ever write
-// it (same trust level as the email templates elsewhere in the app, which are
-// already rendered via dangerouslySetInnerHTML).
+// A WYSIWYG editor (Tiptap/ProseMirror) for the handful of admin-authored
+// fields that should support real HTML — headings, paragraphs, lists, links —
+// instead of plain text, e.g. the public homepage's About Us blurb. The
+// output is raw HTML, stored and rendered as-is — safe here because only an
+// authenticated admin can ever write it (same trust level as the email
+// templates elsewhere in the app, which are already rendered via
+// dangerouslySetInnerHTML).
 //
-// value is only applied to the DOM once, on mount — this component expects its
-// caller to render it only once the real initial value has loaded (as
-// WebsiteContentView's editors already do via their own loading state), rather
-// than re-syncing on every value change, which would reset the cursor position
-// on every keystroke.
-export function RichTextEditor({ value, onChange, placeholder, minHeight = 140 }) {
-  const ref = useRef(null);
+// Renders its own label rather than being wrapped in the shared <Field>
+// (a <label>) — a contentEditable region nested inside a <label> loses focus
+// unreliably in WebKit, which is why the previous version of this editor
+// wasn't reliably editable.
+export function RichTextEditor({ label, value, onChange, placeholder, minHeight = 160 }) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      Underline,
+      Link.configure({ openOnClick: false, autolink: true }),
+      Placeholder.configure({ placeholder: placeholder || "" }),
+    ],
+    content: value || "",
+    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    editorProps: {
+      attributes: { class: "rich-text-content rich-text-editable" },
+    },
+  });
 
+  // Keep the editor in sync if `value` changes from outside (e.g. switching
+  // records) without fighting the cursor on every keystroke of our own.
   useEffect(() => {
-    if (ref.current) ref.current.innerHTML = value || "";
+    if (editor && value !== undefined && value !== editor.getHTML()) {
+      editor.commands.setContent(value || "", { emitUpdate: false });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const emitChange = () => onChange(ref.current?.innerHTML || "");
-
-  const exec = (command, arg) => {
-    ref.current?.focus();
-    document.execCommand(command, false, arg);
-    emitChange();
-  };
+  }, [value, editor]);
 
   const addLink = () => {
-    const url = window.prompt("Link URL (e.g. https://example.com):");
-    if (url) exec("createLink", url);
+    if (!editor) return;
+    const prev = editor.getAttributes("link").href || "";
+    const url = window.prompt("Link URL (e.g. https://example.com):", prev);
+    if (url === null) return;
+    if (url === "") {
+      editor.chain().focus().unsetLink().run();
+    } else {
+      editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+    }
   };
+
+  if (!editor) return null;
 
   return (
     <div>
+      {label && <span className="block text-xs font-medium mb-1" style={{ color: T.inkSoft }}>{label}</span>}
       <div className="flex gap-1.5 flex-wrap" style={{ marginBottom: 6 }}>
-        <ToolbarButton title="Bold" onClick={() => exec("bold")}><b>B</b></ToolbarButton>
-        <ToolbarButton title="Italic" onClick={() => exec("italic")}><i>I</i></ToolbarButton>
-        <ToolbarButton title="Underline" onClick={() => exec("underline")}><u>U</u></ToolbarButton>
-        <ToolbarButton title="Heading" onClick={() => exec("formatBlock", "h3")}>H</ToolbarButton>
-        <ToolbarButton title="Bulleted list" onClick={() => exec("insertUnorderedList")}>• List</ToolbarButton>
-        <ToolbarButton title="Numbered list" onClick={() => exec("insertOrderedList")}>1. List</ToolbarButton>
-        <ToolbarButton title="Link" onClick={addLink}>🔗</ToolbarButton>
-        <ToolbarButton title="Clear formatting" onClick={() => exec("removeFormat")}>Clear</ToolbarButton>
+        <ToolbarButton title="Paragraph" active={editor.isActive("paragraph")} onClick={() => editor.chain().focus().setParagraph().run()}>¶</ToolbarButton>
+        <ToolbarButton title="Heading 1" active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</ToolbarButton>
+        <ToolbarButton title="Heading 2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</ToolbarButton>
+        <ToolbarButton title="Heading 3" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</ToolbarButton>
+        <ToolbarButton title="Bold" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></ToolbarButton>
+        <ToolbarButton title="Italic" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></ToolbarButton>
+        <ToolbarButton title="Underline" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></ToolbarButton>
+        <ToolbarButton title="Bulleted list" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>• List</ToolbarButton>
+        <ToolbarButton title="Numbered list" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1. List</ToolbarButton>
+        <ToolbarButton title="Quote" active={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()}>" "</ToolbarButton>
+        <ToolbarButton title="Link" active={editor.isActive("link")} onClick={addLink}>🔗</ToolbarButton>
+        <ToolbarButton title="Clear formatting" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}>Clear</ToolbarButton>
+        <ToolbarButton title="Undo" onClick={() => editor.chain().focus().undo().run()}>↺</ToolbarButton>
+        <ToolbarButton title="Redo" onClick={() => editor.chain().focus().redo().run()}>↻</ToolbarButton>
       </div>
-      <div
-        ref={ref}
-        contentEditable
-        onInput={emitChange}
-        onBlur={emitChange}
-        className="rich-text-content rich-text-editable"
-        data-placeholder={placeholder}
-        style={{ ...inputStyle, minHeight, lineHeight: 1.6, cursor: "text" }}
+      <EditorContent
+        editor={editor}
+        style={{ border: `1px solid ${T.line}`, borderRadius: 6, background: "#fff", cursor: "text", "--rte-min-height": `${minHeight}px` }}
       />
     </div>
   );
