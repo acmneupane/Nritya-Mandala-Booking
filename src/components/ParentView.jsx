@@ -210,6 +210,43 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             </div>
           ))}
 
+          {hasActivePackage && overallNext && (
+            <div className="rounded-2xl relative overflow-hidden text-center" style={{ background: "#f2f5f1", border: `1px solid ${T.sage}55`, padding: "22px 18px" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 4, background: `${T.sage}66` }} />
+              <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 700, letterSpacing: 0.6, marginBottom: 6, textTransform: "uppercase" }}>Next Class</div>
+              <div style={{ fontSize: 21, fontWeight: 700, color: T.sage, marginBottom: 14 }}>
+                {overallNext.occ.date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}, {formatTimeRange(overallNext.cls.time, overallNext.cls.end_time)}
+              </div>
+              <button
+                onClick={() => setSingleMarkAbsent({ classId: overallNext.cls.id, day: overallNext.cls.day, time: overallNext.cls.time, endTime: overallNext.cls.end_time, date: overallNext.occ.date, dateStr: overallNext.occ.dateStr })}
+                className="hover:bg-white transition-colors"
+                style={{ fontSize: 13, fontWeight: 600, color: T.maroon, border: `1px solid ${T.maroon}44`, borderRadius: 999, padding: "8px 20px", background: "#fff" }}
+              >
+                Mark absent for this class
+              </button>
+            </div>
+          )}
+
+          {pkgSummary && pkgSummary.classes_total > 0 ? (
+            <div className="flex items-center justify-between flex-wrap gap-2 rounded-2xl" style={{ background: remaining > 0 ? `${T.sage}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, padding: "14px 20px", fontSize: 13, fontWeight: 600, color: remaining > 0 ? T.sage : T.terracotta }}>
+              <span>{classesLabel(remaining)} remaining on your package</span>
+              {remaining <= dueThreshold ? (
+                <a
+                  href={`/renew?code=${encodeURIComponent(student.code)}`}
+                  style={{ background: T.gold, color: T.maroonDark, fontWeight: 700, fontSize: 14, padding: "8px 16px", borderRadius: 999, textDecoration: "none" }}
+                >
+                  Renew now →
+                </a>
+              ) : (
+                <a href={`/renew?code=${encodeURIComponent(student.code)}`} style={{ color: T.gold, textDecoration: "underline", fontWeight: 700, fontSize: 14 }}>Renew</a>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-2xl" style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, padding: "14px 20px", fontSize: 13, fontWeight: 600, color: T.gold }}>
+              Pending package payment and confirmation
+            </div>
+          )}
+
           {allLevels.length > 0 && (
             <div className={CARD} style={{ padding: 20 }}>
               <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 10 }}>Level Journey</h3>
@@ -240,36 +277,6 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
                   Last attended: <strong style={{ color: T.ink }}>{formatOrdinalDate(lastAttended.date)}</strong>
                 </div>
               )}
-            </div>
-          )}
-
-          {hasActivePackage && overallNext && (
-            <div className="rounded-2xl relative overflow-hidden text-center" style={{ background: "#f2f5f1", border: `1px solid ${T.sage}55`, padding: "22px 18px" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 4, background: `${T.sage}66` }} />
-              <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 700, letterSpacing: 0.6, marginBottom: 6, textTransform: "uppercase" }}>Next Class</div>
-              <div style={{ fontSize: 21, fontWeight: 700, color: T.sage, marginBottom: 14 }}>
-                {overallNext.occ.date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}, {formatTimeRange(overallNext.cls.time, overallNext.cls.end_time)}
-              </div>
-              <button
-                onClick={() => setSingleMarkAbsent({ classId: overallNext.cls.id, day: overallNext.cls.day, time: overallNext.cls.time, endTime: overallNext.cls.end_time, date: overallNext.occ.date, dateStr: overallNext.occ.dateStr })}
-                className="hover:bg-white transition-colors"
-                style={{ fontSize: 13, fontWeight: 600, color: T.maroon, border: `1px solid ${T.maroon}44`, borderRadius: 999, padding: "8px 20px", background: "#fff" }}
-              >
-                Mark absent for this class
-              </button>
-            </div>
-          )}
-
-          {pkgSummary && pkgSummary.classes_total > 0 ? (
-            <div className="flex items-center justify-between flex-wrap gap-2 rounded-2xl" style={{ background: remaining > 0 ? `${T.sage}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, padding: "14px 20px", fontSize: 13, fontWeight: 600, color: remaining > 0 ? T.sage : T.terracotta }}>
-              <span>{classesLabel(remaining)} remaining on your package</span>
-              {remaining <= dueThreshold && (
-                <a href={`/renew?code=${encodeURIComponent(student.code)}`} style={{ color: T.gold, textDecoration: "underline", fontSize: 12.5 }}>Renew now →</a>
-              )}
-            </div>
-          ) : (
-            <div className="rounded-2xl" style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, padding: "14px 20px", fontSize: 13, fontWeight: 600, color: T.gold }}>
-              Pending package payment and confirmation
             </div>
           )}
 
