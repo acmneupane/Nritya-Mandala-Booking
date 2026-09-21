@@ -63,10 +63,22 @@ export default function MarkAbsentModal({ student, classes, skips, history, rema
     const chosen = options.filter((o) => selected.has(o.key));
     let anyFailed = false;
     let lateCount = 0;
+    // Each mark_absence call skips its own email (p_notify: false) — once the whole
+    // batch is recorded, one notify_absence_batch call sends a single combined
+    // email covering every date, instead of one email per date. The studio inbox
+    // is on a metered free plan, so a parent marking 5 Wednesdays off shouldn't
+    // cost 5 emails.
+    const entries = [];
     for (const o of chosen) {
-      const { data: status } = await supabase.rpc("mark_absence", { p_code: student.code, p_class_id: o.classId, p_date: o.dateStr, p_reason: reason.trim() });
+      const { data: status } = await supabase.rpc("mark_absence", { p_code: student.code, p_class_id: o.classId, p_date: o.dateStr, p_reason: reason.trim(), p_notify: false });
       if (!status) anyFailed = true;
-      else if (status === "missed") lateCount++;
+      else {
+        if (status === "missed") lateCount++;
+        entries.push({ class_id: o.classId, date: o.dateStr, reason: reason.trim(), status });
+      }
+    }
+    if (entries.length > 0) {
+      await supabase.rpc("notify_absence_batch", { p_code: student.code, p_entries: entries });
     }
     setSaving(false);
     if (anyFailed) {
