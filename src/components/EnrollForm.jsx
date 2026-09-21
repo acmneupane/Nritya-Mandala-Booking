@@ -328,13 +328,6 @@ export default function EnrollForm() {
           <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.6, marginBottom: 20 }}>
             We've received {studentName}'s enrolment request. We will contact you to confirm the enrolment.
           </p>
-          {(classes.length > 0 || fees.enabled) && !(paymentClaimed && paymentFile) && (
-            <div className="rounded-xl" style={{ background: `${T.gold}20`, border: `2px solid ${T.gold}`, padding: "14px 16px", marginBottom: 16, textAlign: "left" }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.5 }}>
-                ⚠️ If payment hasn't been made, there will be a delay in confirming {studentName}'s enrolment — and classes are filling up fast. Please make payment using the reference below to confirm your spot.
-              </p>
-            </div>
-          )}
           <div className="rounded-2xl" style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, padding: "16px 20px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 3, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>Your payment reference</div>
             <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>{reference}</div>
@@ -573,7 +566,13 @@ export default function EnrollForm() {
       {confirmUnpaid && (
         <ConfirmModal
           title="Payment details incomplete"
-          message={`You haven't ${!paymentClaimed && !paymentFile ? "specified your payment details or attached a screenshot" : !paymentClaimed ? "marked your payment as made" : "attached a payment screenshot"}. Payment has not been confirmed above. Without payment, there will be a delay in confirming this enrolment — and classes are filling up fast. Please make payment to confirm the spot. If you'd like to submit anyway, we will reach out to you afterward regarding payment.`}
+          message={
+            <div className="rounded-xl" style={{ background: `${T.gold}20`, border: `2px solid ${T.gold}`, padding: "14px 16px", textAlign: "left" }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.5 }}>
+                ⚠️ You haven't {!paymentClaimed && !paymentFile ? "specified your payment details or attached a screenshot" : !paymentClaimed ? "marked your payment as made" : "attached a payment screenshot"}. Without payment, there will be a delay in confirming this enrolment — and classes are filling up fast. Please make payment to confirm the spot. If you'd like to submit anyway, we will reach out to you afterward regarding payment.
+              </p>
+            </div>
+          }
           confirmLabel="Submit anyway"
           onConfirm={submit}
           onCancel={() => setConfirmUnpaid(false)}

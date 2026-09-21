@@ -190,7 +190,7 @@ export function Modal({ title, onClose, children, wide }) {
 export function ConfirmModal({ title = "Are you sure?", message, confirmLabel = "Confirm", onConfirm, onCancel }) {
   return (
     <Modal title={title} onClose={onCancel}>
-      <p style={{ fontSize: 13, color: T.ink, marginBottom: 20, lineHeight: 1.5 }}>{message}</p>
+      <div style={{ fontSize: 13, color: T.ink, marginBottom: 20, lineHeight: 1.5 }}>{message}</div>
       <div className="flex justify-end gap-2">
         <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
         <Btn variant="danger" onClick={onConfirm}>{confirmLabel}</Btn>
