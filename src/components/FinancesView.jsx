@@ -169,11 +169,17 @@ export default function FinancesView() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null); // 'revenue' | 'cash' | 'expenses' | null
   const [trend, setTrend] = useState([]);
+  const [loadingReceipt, setLoadingReceipt] = useState(null); // package id currently signing a screenshot URL
 
-  const viewReceipt = async (path) => {
-    const { data, error } = await supabase.storage.from("payment-screenshots").createSignedUrl(path, 300);
-    if (error || !data) { alert("Couldn't load the screenshot."); return; }
-    window.open(data.signedUrl, "_blank");
+  const viewReceipt = async (path, packageId) => {
+    setLoadingReceipt(packageId);
+    try {
+      const { data, error } = await supabase.storage.from("payment-screenshots").createSignedUrl(path, 300);
+      if (error || !data) { alert("Couldn't load the screenshot."); return; }
+      window.open(data.signedUrl, "_blank");
+    } finally {
+      setLoadingReceipt(null);
+    }
   };
 
   const rangeLabel = allTime
@@ -345,7 +351,9 @@ export default function FinancesView() {
                           {p.tier_name || "Package"} ({p.purchase_date})
                           {p.notes && <span style={{ fontStyle: "italic" }}> — internal note: {p.notes}</span>}
                           {data.receiptByPackage[p.id] && (
-                            <button onClick={() => viewReceipt(data.receiptByPackage[p.id])} style={{ marginLeft: 6, color: T.gold, textDecoration: "underline" }}>View screenshot</button>
+                            <button onClick={() => viewReceipt(data.receiptByPackage[p.id], p.id)} disabled={loadingReceipt === p.id} style={{ marginLeft: 6, color: T.gold, textDecoration: "underline" }}>
+                              {loadingReceipt === p.id ? "Loading…" : "View screenshot"}
+                            </button>
                           )}
                         </span>
                         <span>${Number(p.amount).toFixed(2)}</span>

@@ -378,6 +378,7 @@ export default function RequestsView({ focusRequestId }) {
   const [confirmReject, setConfirmReject] = useState(null);
   const [showHandled, setShowHandled] = useState(false);
   const [emailPreview, setEmailPreview] = useState(null);
+  const [loadingScreenshot, setLoadingScreenshot] = useState(null); // request id currently signing a screenshot URL
   const focusRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -415,10 +416,15 @@ export default function RequestsView({ focusRequestId }) {
     if (focusRef.current) focusRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 
-  const viewScreenshot = async (path) => {
-    const { data, error } = await supabase.storage.from("payment-screenshots").createSignedUrl(path, 300);
-    if (error || !data) { alert("Couldn't load the screenshot."); return; }
-    window.open(data.signedUrl, "_blank");
+  const viewScreenshot = async (path, requestId) => {
+    setLoadingScreenshot(requestId);
+    try {
+      const { data, error } = await supabase.storage.from("payment-screenshots").createSignedUrl(path, 300);
+      if (error || !data) { alert("Couldn't load the screenshot."); return; }
+      window.open(data.signedUrl, "_blank");
+    } finally {
+      setLoadingScreenshot(null);
+    }
   };
 
   const reject = async (id) => {
@@ -503,7 +509,9 @@ export default function RequestsView({ focusRequestId }) {
                     {r.payment_screenshot_path && (
                       <>
                         {" · "}
-                        <button onClick={() => viewScreenshot(r.payment_screenshot_path)} style={{ color: T.gold, textDecoration: "underline" }}>View screenshot</button>
+                        <button onClick={() => viewScreenshot(r.payment_screenshot_path, r.id)} disabled={loadingScreenshot === r.id} style={{ color: T.gold, textDecoration: "underline" }}>
+                          {loadingScreenshot === r.id ? "Loading…" : "View screenshot"}
+                        </button>
                       </>
                     )}
                   </div>

@@ -305,6 +305,7 @@ function PackagesSection({ studentId }) {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [receiptFile, setReceiptFile] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [loadingReceipt, setLoadingReceipt] = useState(null); // package id currently signing a screenshot URL
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -326,10 +327,15 @@ function PackagesSection({ studentId }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const viewReceipt = async (path) => {
-    const { data, error } = await supabase.storage.from("payment-screenshots").createSignedUrl(path, 300);
-    if (error || !data) { alert("Couldn't load the screenshot."); return; }
-    window.open(data.signedUrl, "_blank");
+  const viewReceipt = async (path, packageId) => {
+    setLoadingReceipt(packageId);
+    try {
+      const { data, error } = await supabase.storage.from("payment-screenshots").createSignedUrl(path, 300);
+      if (error || !data) { alert("Couldn't load the screenshot."); return; }
+      window.open(data.signedUrl, "_blank");
+    } finally {
+      setLoadingReceipt(null);
+    }
   };
 
   const total = packages.reduce((sum, p) => sum + p.classes_total, 0);
@@ -471,7 +477,9 @@ function PackagesSection({ studentId }) {
               <span style={{ color: T.inkSoft, marginLeft: 6 }}>· {p.purchase_date}</span>
               <span style={{ marginLeft: 6, color: p.payment_confirmed ? T.sage : T.terracotta, fontWeight: 600 }}>· {p.payment_confirmed ? "Confirmed" : "Unconfirmed"}</span>
               {receiptByPackage[p.id] && (
-                <button onClick={() => viewReceipt(receiptByPackage[p.id])} style={{ marginLeft: 6, color: T.gold, textDecoration: "underline" }}>View screenshot</button>
+                <button onClick={() => viewReceipt(receiptByPackage[p.id], p.id)} disabled={loadingReceipt === p.id} style={{ marginLeft: 6, color: T.gold, textDecoration: "underline" }}>
+                  {loadingReceipt === p.id ? "Loading…" : "View screenshot"}
+                </button>
               )}
               {p.notes && <div style={{ color: T.inkSoft, marginTop: 2 }}><em>Internal note:</em> {p.notes}</div>}
             </div>
