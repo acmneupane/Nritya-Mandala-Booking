@@ -232,17 +232,24 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           )}
 
           {pkgSummary && pkgSummary.classes_total > 0 ? (
-            <div className="flex items-center justify-between flex-wrap gap-2 rounded-2xl" style={{ background: remaining > 0 ? `${T.sage}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, padding: "14px 20px", fontSize: 13, fontWeight: 600, color: remaining > 0 ? T.sage : T.terracotta }}>
-              <span>{classesLabel(remaining)} remaining on your package</span>
+            <div className="rounded-2xl" style={{ background: remaining > 0 ? `${T.sage}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, padding: "16px 20px", fontSize: 13, fontWeight: 600, color: remaining > 0 ? T.sage : T.terracotta }}>
+              <div style={{ marginBottom: 12 }}>{classesLabel(remaining)} remaining on your package</div>
               {remaining <= dueThreshold ? (
                 <a
                   href={`/renew?code=${encodeURIComponent(student.code)}`}
-                  style={{ background: T.gold, color: T.maroonDark, fontWeight: 700, fontSize: 14, padding: "8px 16px", borderRadius: 999, textDecoration: "none" }}
+                  className="block text-center hover:opacity-90 transition-opacity"
+                  style={{ background: T.gold, color: T.maroonDark, fontWeight: 700, fontSize: 16, padding: "12px 20px", borderRadius: 999, textDecoration: "none" }}
                 >
                   Renew now →
                 </a>
               ) : (
-                <a href={`/renew?code=${encodeURIComponent(student.code)}`} style={{ color: T.gold, textDecoration: "underline", fontWeight: 700, fontSize: 14 }}>Renew</a>
+                <a
+                  href={`/renew?code=${encodeURIComponent(student.code)}`}
+                  className="block text-center hover:bg-white transition-colors"
+                  style={{ color: T.gold, border: `1px solid ${T.gold}66`, background: "#fff", fontWeight: 700, fontSize: 15, padding: "10px 20px", borderRadius: 999, textDecoration: "none" }}
+                >
+                  Renew
+                </a>
               )}
             </div>
           ) : (
