@@ -18,7 +18,7 @@ import FinancesView from "./FinancesView";
 import HomeView from "./HomeView";
 
 const NAV = [
-  { id: "home", label: "Home" },
+  { id: "home", label: "Dashboard" },
   { id: "calendar", label: "Calendar" },
   { id: "students", label: "Students", countKey: "students" },
   { id: "requests", label: "New Requests", countKey: "requests", urgent: true },

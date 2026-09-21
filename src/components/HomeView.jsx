@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
 import { localDateStr } from "../lib/dates";
-import { isClassActiveOn, formatTimeRange } from "../lib/scheduling";
+import { isClassActiveOn, formatTimeRange, upcomingOccurrencesOf } from "../lib/scheduling";
 import { isLowAttendanceRisk } from "../lib/attendance";
 import QrScanner from "./QrScanner";
 
@@ -10,6 +10,7 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 
 export default function HomeView({ counts, onNavigate }) {
   const [todayClasses, setTodayClasses] = useState([]);
+  const [upcoming, setUpcoming] = useState([]);
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scanningClass, setScanningClass] = useState(null);
@@ -18,6 +19,7 @@ export default function HomeView({ counts, onNavigate }) {
   const load = () => {
     const today = new Date();
     const dayName = DAYS[(today.getDay() + 6) % 7];
+    const weekEndStr = localDateStr(new Date(Date.now() + 6 * 86400000));
 
     Promise.all([
       supabase.from("classes").select("*"),
@@ -27,7 +29,13 @@ export default function HomeView({ counts, onNavigate }) {
       // Who's already marked skipped/missed for today — used to flag a session
       // where enough students have dropped out that turnout will be sparse.
       supabase.from("attendance").select("class_id, status").eq("date", todayStr),
-    ]).then(([cRes, eRes, skRes, noticesRes, attRes]) => {
+      // Broader windows for the "next 7 days" projection below — occurrence
+      // generation needs every skip in the window (not just today's), and the
+      // estimate needs every already-marked absence in the window, with the
+      // student's name so it can list who specifically is out.
+      supabase.from("class_skips").select("class_id, date").gte("date", todayStr).lte("date", weekEndStr),
+      supabase.from("attendance").select("class_id, date, status, students(name)").gte("date", todayStr).lte("date", weekEndStr).in("status", ["skipped", "missed"]),
+    ]).then(([cRes, eRes, skRes, noticesRes, attRes, weekSkipsRes, weekAttRes]) => {
       const skippedIds = new Set((skRes.data || []).map((s) => s.class_id));
       const absentCountByClass = {};
       (attRes.data || []).forEach((a) => {
@@ -42,6 +50,30 @@ export default function HomeView({ counts, onNavigate }) {
         });
       setTodayClasses(classes);
       setNotices(noticesRes.data || []);
+
+      const enrollments = eRes.data || [];
+      const weekSkips = weekSkipsRes.data || [];
+      const weekAttendance = weekAttRes.data || [];
+      const upcomingList = [];
+      (cRes.data || []).forEach((c) => {
+        upcomingOccurrencesOf(c, weekSkips, localDateStr, { count: 20, lookaheadDays: 7 }).forEach((occ) => {
+          const bookedCount = enrollments.filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= occ.dateStr)).length;
+          const absentRows = weekAttendance.filter((a) => a.class_id === c.id && a.date === occ.dateStr);
+          upcomingList.push({
+            key: `${c.id}-${occ.dateStr}`,
+            date: occ.date,
+            dateStr: occ.dateStr,
+            cls: c,
+            bookedCount,
+            estimatedAttending: Math.max(0, bookedCount - absentRows.length),
+            absentees: absentRows.map((a) => a.students?.name).filter(Boolean),
+            lowAttendanceRisk: isLowAttendanceRisk(bookedCount, absentRows.length),
+          });
+        });
+      });
+      upcomingList.sort((a, b) => (a.dateStr === b.dateStr ? a.cls.time.localeCompare(b.cls.time) : a.dateStr.localeCompare(b.dateStr)));
+      setUpcoming(upcomingList);
+
       setLoading(false);
     });
   };
@@ -118,6 +150,38 @@ export default function HomeView({ counts, onNavigate }) {
               </button>
               <button onClick={() => setScanningClass(c)} title="Scan to check in" style={{ fontSize: 15, padding: "4px 6px", background: "transparent", border: "none", cursor: "pointer", flexShrink: 0 }}>📷</button>
             </div>
+          ))}
+        </div>
+      )}
+
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginTop: 24, marginBottom: 10 }}>Next 7 days — estimated attendance</h3>
+      {loading ? (
+        <p style={{ color: T.inkSoft }}>Loading…</p>
+      ) : upcoming.length === 0 ? (
+        <p style={{ color: T.inkSoft }}>No classes scheduled in the next 7 days.</p>
+      ) : (
+        <div className="grid gap-2">
+          {upcoming.map((o) => (
+            <button
+              key={o.key}
+              onClick={() => onNavigate("calendar")}
+              style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${o.lowAttendanceRisk ? T.maroon : T.line}`, borderRadius: 8, padding: "10px 14px", cursor: "pointer" }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span style={{ fontSize: 12, color: T.inkSoft, fontWeight: 600 }}>{o.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</span>
+                  <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginLeft: 8 }}>{o.cls.label}</span>
+                  <span style={{ fontSize: 12, color: T.inkSoft, marginLeft: 8 }}>{formatTimeRange(o.cls.time, o.cls.end_time)}</span>
+                  {o.lowAttendanceRisk && (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: T.maroon, marginLeft: 8 }}>⚠ Half or more absent</span>
+                  )}
+                </div>
+                <span style={{ fontSize: 12, color: T.inkSoft }}>{o.estimatedAttending} of {o.bookedCount} expected</span>
+              </div>
+              {o.absentees.length > 0 && (
+                <div style={{ fontSize: 11, color: T.terracotta, marginTop: 4 }}>Marked absent: {o.absentees.join(", ")}</div>
+              )}
+            </button>
           ))}
         </div>
       )}
