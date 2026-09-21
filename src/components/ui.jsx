@@ -4,6 +4,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import TextAlign from "@tiptap/extension-text-align";
 import { T, inputStyle } from "../lib/theme";
 
 export function Btn({ children, onClick, variant = "primary", size = "md", type = "button", disabled }) {
@@ -107,6 +108,7 @@ export function RichTextEditor({ label, value, onChange, placeholder, minHeight 
       Underline,
       Link.configure({ openOnClick: false, autolink: true }),
       Placeholder.configure({ placeholder: placeholder || "" }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
     content: value || "",
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
@@ -152,6 +154,10 @@ export function RichTextEditor({ label, value, onChange, placeholder, minHeight 
         <ToolbarButton title="Bulleted list" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>• List</ToolbarButton>
         <ToolbarButton title="Numbered list" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1. List</ToolbarButton>
         <ToolbarButton title="Quote" active={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()}>" "</ToolbarButton>
+        <ToolbarButton title="Align left" active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()}>L</ToolbarButton>
+        <ToolbarButton title="Align center" active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()}>C</ToolbarButton>
+        <ToolbarButton title="Align right" active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()}>R</ToolbarButton>
+        <ToolbarButton title="Justify" active={editor.isActive({ textAlign: "justify" })} onClick={() => editor.chain().focus().setTextAlign("justify").run()}>J</ToolbarButton>
         <ToolbarButton title="Link" active={editor.isActive("link")} onClick={addLink}>🔗</ToolbarButton>
         <ToolbarButton title="Clear formatting" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}>Clear</ToolbarButton>
         <ToolbarButton title="Undo" onClick={() => editor.chain().focus().undo().run()}>↺</ToolbarButton>
