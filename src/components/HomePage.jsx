@@ -44,6 +44,11 @@ function videoEmbed(url) {
   }
 }
 
+// Shared caption treatment for gallery photos and videos — an italic serif
+// line (matching the heading font) reads as a formal photo/video credit line
+// rather than plain UI copy.
+const CAPTION_STYLE = { fontFamily: "Fraunces, serif", fontStyle: "italic", fontSize: 13.5, color: T.maroonDark, letterSpacing: 0.2, textAlign: "center", marginTop: 10, opacity: 0.85 };
+
 function SectionHeading({ children, center = true }) {
   return (
     <h2
@@ -422,7 +427,7 @@ export default function HomePage() {
                     <div className="rounded-2xl overflow-hidden shadow-[0_4px_16px_-4px_rgba(36,27,21,0.14)]" style={{ aspectRatio: "1", background: T.paper }}>
                       <img src={publicMediaUrl(g.path)} alt={g.caption || ""} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     </div>
-                    {g.caption && <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 8 }}>{g.caption}</div>}
+                    {g.caption && <div style={CAPTION_STYLE}>{g.caption}</div>}
                   </div>
                 ))}
               </Carousel>
@@ -459,7 +464,21 @@ export default function HomePage() {
                   if (!embed) return null;
                   return (
                     <div key={v.id} className="flex-none" style={{ scrollSnapAlign: "start" }}>
-                      {embed.type === "facebook" || embed.type === "tiktok" ? (
+                      {embed.type === "tiktok" ? (
+                        // TikTok's embed is a full mini-page (video + caption + like/comment/
+                        // share buttons), not just the video frame — a 9:16 crop clipped it,
+                        // so the only way to see the rest was to scroll inside the iframe.
+                        // Sized to TikTok's own embed proportions (~325x730) instead, tall
+                        // enough that nothing inside needs to scroll.
+                        <iframe
+                          src={embed.src}
+                          title="Nritya Mandala video"
+                          className="shadow-[0_10px_30px_-5px_rgba(36,27,21,0.2)]"
+                          style={{ border: "none", width: 325, maxWidth: "85vw", height: 730, borderRadius: 24 }}
+                          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      ) : embed.type === "facebook" ? (
                         <iframe
                           src={embed.src}
                           title="Nritya Mandala video"
@@ -479,7 +498,7 @@ export default function HomePage() {
                           />
                         </div>
                       )}
-                      {v.caption && <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 8, textAlign: "center" }}>{v.caption}</div>}
+                      {v.caption && <div style={CAPTION_STYLE}>{v.caption}</div>}
                     </div>
                   );
                 })}
