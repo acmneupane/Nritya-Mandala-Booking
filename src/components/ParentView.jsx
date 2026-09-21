@@ -232,33 +232,19 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           )}
 
           {pkgSummary && pkgSummary.classes_total > 0 ? (
-            remaining <= dueThreshold ? (
-              // At/below the renewal threshold — this is worth the same visual weight
-              // as Next Class, but in gold (the app's money/payment color, e.g. the bank
-              // details callout on Enrol/Renew) rather than sage, so the two cards read
-              // as "schedule" vs. "billing" at a glance instead of looking identical.
-              <div className="rounded-2xl relative overflow-hidden text-center" style={{ background: remaining > 0 ? `${T.gold}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.gold : T.terracotta}55`, padding: "22px 18px" }}>
-                <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 4, background: `${remaining > 0 ? T.gold : T.terracotta}66` }} />
-                <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 700, letterSpacing: 0.6, marginBottom: 6, textTransform: "uppercase" }}>Package</div>
-                <div style={{ fontSize: 21, fontWeight: 700, color: remaining > 0 ? T.gold : T.terracotta, marginBottom: 14 }}>
-                  {classesLabel(remaining)} remaining
-                </div>
+            <div className="flex items-center justify-between flex-wrap gap-2 rounded-2xl" style={{ background: remaining > 0 ? `${T.sage}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, padding: "14px 20px", fontSize: 13, fontWeight: 600, color: remaining > 0 ? T.sage : T.terracotta }}>
+              <span>{classesLabel(remaining)} remaining on your package</span>
+              {remaining <= dueThreshold ? (
                 <a
                   href={`/renew?code=${encodeURIComponent(student.code)}`}
-                  className="inline-block hover:opacity-90 transition-opacity"
-                  style={{ fontSize: 14, fontWeight: 700, color: T.maroonDark, background: T.gold, borderRadius: 999, padding: "8px 24px", textDecoration: "none" }}
+                  style={{ background: T.gold, color: T.maroonDark, fontWeight: 700, fontSize: 14, padding: "8px 16px", borderRadius: 999, textDecoration: "none" }}
                 >
                   Renew now →
                 </a>
-              </div>
-            ) : (
-              // Comfortably above the threshold — nothing urgent yet, so this stays a
-              // quiet inline row rather than a second bold card competing with Next Class.
-              <div className="flex items-center justify-between flex-wrap gap-2" style={{ padding: "4px 6px" }}>
-                <span style={{ fontSize: 13, color: T.inkSoft, fontWeight: 600 }}>{classesLabel(remaining)} remaining on your package</span>
+              ) : (
                 <a href={`/renew?code=${encodeURIComponent(student.code)}`} style={{ color: T.gold, textDecoration: "underline", fontWeight: 700, fontSize: 14 }}>Renew</a>
-              </div>
-            )
+              )}
+            </div>
           ) : (
             <div className="rounded-2xl" style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, padding: "14px 20px", fontSize: 13, fontWeight: 600, color: T.gold }}>
               Pending package payment and confirmation
