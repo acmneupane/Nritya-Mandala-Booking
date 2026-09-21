@@ -328,6 +328,14 @@ export default function EnrollForm() {
           <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.6, marginBottom: 20 }}>
             We've received {studentName}'s enrolment request. We will contact you to confirm the enrolment.
           </p>
+          {(classes.length > 0 || fees.enabled) && !(paymentClaimed && paymentFile) && (
+            <div className="rounded-2xl" style={{ background: `${T.terracotta}1a`, border: `2px solid ${T.terracotta}`, padding: "16px 20px", marginBottom: 16, textAlign: "left" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: T.terracotta, marginBottom: 6 }}>⚠ Payment not yet confirmed</div>
+              <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.6, fontWeight: 600 }}>
+                If payment hasn't been made, there will be a delay in confirming {studentName}'s enrolment — and classes are filling up fast. Please make payment using the reference below to confirm your spot.
+              </p>
+            </div>
+          )}
           <div className="rounded-2xl" style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, padding: "16px 20px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 3, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>Your payment reference</div>
             <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>{reference}</div>
