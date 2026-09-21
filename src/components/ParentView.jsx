@@ -233,7 +233,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
           {pkgSummary && pkgSummary.classes_total > 0 ? (
             <div className="rounded-2xl" style={{ background: remaining > 0 ? `${T.sage}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, padding: "16px 20px", fontSize: 13, fontWeight: 600, color: remaining > 0 ? T.sage : T.terracotta }}>
-              <div style={{ marginBottom: 12 }}>{classesLabel(remaining)} remaining on your package</div>
+              <div style={{ marginBottom: 12, fontSize: 15, textAlign: "center" }}>{classesLabel(remaining)} remaining on your package</div>
               {remaining <= dueThreshold ? (
                 <a
                   href={`/renew?code=${encodeURIComponent(student.code)}`}
