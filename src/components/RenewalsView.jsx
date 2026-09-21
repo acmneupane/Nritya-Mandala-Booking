@@ -76,8 +76,13 @@ function DueForRenewalSection({ onChanged }) {
         // No package on file at all (e.g. just reactivated from archive, or a new
         // enrolment approved but never paid for) — still worth a nudge. If they're
         // actually holding a class spot, the same grace-period countdown applies,
-        // just counted from their first booking instead of a package emptying.
-        const dueSinceDate = bookedClasses.length > 0 ? earliestEnrollByStudent[s.id] || null : null;
+        // just counted from their first booking instead of a package emptying —
+        // but only once that first booking has actually happened. A booking whose
+        // start_date is still in the future (enrolled in advance of their first
+        // class) isn't "due" yet; the grace period hasn't started ticking, so
+        // don't show a due-since date or countdown until that date arrives.
+        const earliestEnroll = earliestEnrollByStudent[s.id];
+        const dueSinceDate = bookedClasses.length > 0 && earliestEnroll && earliestEnroll <= today ? earliestEnroll : null;
         return { student: s, packageSize: 0, classesUsed: 0, remaining: 0, hasPackage: false, daysUntilSpotFrees: dueSinceDate ? daysUntilSpotFrees(dueSinceDate) : null, dueSinceDate, hasPendingRequest, bookedClasses };
       })
       .filter(Boolean)

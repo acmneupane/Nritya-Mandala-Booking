@@ -40,7 +40,13 @@ export function relativeDaysAgo(isoDate) {
   const eventDateStr = localDateStr(new Date(isoDate));
   const todayStr = localDateStr(new Date());
   const days = Math.round((new Date(todayStr) - new Date(eventDateStr)) / 86400000);
-  if (days <= 0) return "today";
+  if (days === 0) return "today";
   if (days === 1) return "yesterday";
-  return `${days} days ago`;
+  if (days > 1) return `${days} days ago`;
+  // isoDate is in the future — every existing caller passes a past event
+  // (sent_at/created_at), but a "due since" reference date can be a booking's
+  // future start_date, and collapsing that to "today" would misreport it as
+  // already due.
+  if (days === -1) return "tomorrow";
+  return `in ${-days} days`;
 }
