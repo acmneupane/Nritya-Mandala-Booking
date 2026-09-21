@@ -232,17 +232,28 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           )}
 
           {pkgSummary && pkgSummary.classes_total > 0 ? (
-            <div className="flex items-center justify-between flex-wrap gap-2 rounded-2xl" style={{ background: remaining > 0 ? `${T.sage}18` : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, padding: "14px 20px", fontSize: 13, fontWeight: 600, color: remaining > 0 ? T.sage : T.terracotta }}>
-              <span>{classesLabel(remaining)} remaining on your package</span>
+            <div className="rounded-2xl relative overflow-hidden text-center" style={{ background: remaining > 0 ? "#f2f5f1" : `${T.terracotta}18`, border: `1px solid ${remaining > 0 ? T.sage : T.terracotta}55`, padding: "22px 18px" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 4, background: `${remaining > 0 ? T.sage : T.terracotta}66` }} />
+              <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 700, letterSpacing: 0.6, marginBottom: 6, textTransform: "uppercase" }}>Package</div>
+              <div style={{ fontSize: 21, fontWeight: 700, color: remaining > 0 ? T.sage : T.terracotta, marginBottom: 14 }}>
+                {classesLabel(remaining)} remaining
+              </div>
               {remaining <= dueThreshold ? (
                 <a
                   href={`/renew?code=${encodeURIComponent(student.code)}`}
-                  style={{ background: T.gold, color: T.maroonDark, fontWeight: 700, fontSize: 14, padding: "8px 16px", borderRadius: 999, textDecoration: "none" }}
+                  className="inline-block hover:opacity-90 transition-opacity"
+                  style={{ fontSize: 14, fontWeight: 700, color: T.maroonDark, background: T.gold, borderRadius: 999, padding: "8px 24px", textDecoration: "none" }}
                 >
                   Renew now →
                 </a>
               ) : (
-                <a href={`/renew?code=${encodeURIComponent(student.code)}`} style={{ color: T.gold, textDecoration: "underline", fontWeight: 700, fontSize: 14 }}>Renew</a>
+                <a
+                  href={`/renew?code=${encodeURIComponent(student.code)}`}
+                  className="inline-block hover:bg-white transition-colors"
+                  style={{ fontSize: 13, fontWeight: 600, color: T.maroon, border: `1px solid ${T.maroon}44`, borderRadius: 999, padding: "8px 20px", background: "#fff", textDecoration: "none" }}
+                >
+                  Renew
+                </a>
               )}
             </div>
           ) : (
