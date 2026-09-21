@@ -11,7 +11,21 @@ import { classesLabel } from "../lib/format";
 import { fetchOpenClasses } from "../lib/classAvailability";
 import { attendanceStatusInfo, isSelfMarkedAbsence } from "../lib/attendance";
 import MarkAbsentModal from "./MarkAbsentModal";
+import MessageStudioModal from "./MessageStudioModal";
 import { APP_ORIGIN } from "../lib/origins";
+
+// Web Share API opens the device's native share sheet (WhatsApp, Messages, Mail,
+// etc.) — supported on mobile Safari/Chrome, not reliably on desktop browsers. Falls
+// back to a WhatsApp Web link there instead, so the button still does something
+// useful everywhere rather than silently failing on desktop.
+function shareReferral() {
+  const text = "My kid loves dancing at Nritya Mandala! Check out their classes:";
+  if (navigator.share) {
+    navigator.share({ title: "Nritya Mandala", text, url: APP_ORIGIN }).catch(() => {});
+  } else {
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${text} ${APP_ORIGIN}`)}`, "_blank");
+  }
+}
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -48,6 +62,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [markAbsentOpen, setMarkAbsentOpen] = useState(false);
   const [singleMarkAbsent, setSingleMarkAbsent] = useState(null);
   const [showQr, setShowQr] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
 
   const today = new Date();
   const todayStr = localDateStr(today);
@@ -204,6 +219,23 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Facebook</a>
           <span>·</span>
           <a href="https://www.tiktok.com/@nritya.mandala" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>TikTok</a>
+        </div>
+
+        <div className="flex items-center justify-center gap-3 flex-wrap" style={{ marginTop: 14 }}>
+          <button
+            onClick={shareReferral}
+            className="hover:opacity-90 transition-opacity"
+            style={{ fontSize: 12.5, fontWeight: 700, color: T.maroonDark, background: T.goldLight, border: `1px solid ${T.gold}`, borderRadius: 999, padding: "7px 16px" }}
+          >
+            📣 Refer a friend
+          </button>
+          <button
+            onClick={() => setShowMessageModal(true)}
+            className="hover:bg-white transition-colors"
+            style={{ fontSize: 12.5, fontWeight: 600, color: T.maroon, background: "#fff", border: `1px solid ${T.maroon}44`, borderRadius: 999, padding: "7px 16px" }}
+          >
+            ✉️ Message the studio
+          </button>
         </div>
 
         <div className="grid gap-4 mt-6">
@@ -499,6 +531,9 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           onClose={() => setSingleMarkAbsent(null)}
           onDone={() => { setSingleMarkAbsent(null); load(); }}
         />
+      )}
+      {showMessageModal && (
+        <MessageStudioModal student={student} onClose={() => setShowMessageModal(false)} />
       )}
     </div>
   );
