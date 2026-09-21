@@ -215,18 +215,16 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           ))}
 
           {hasActivePackage && overallNext && (
-            <div className="rounded-2xl relative overflow-hidden text-center" style={{ background: "#f2f5f1", border: `1px solid ${T.sage}55`, padding: "22px 18px" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 4, background: `${T.sage}66` }} />
-              <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 700, letterSpacing: 0.6, marginBottom: 6, textTransform: "uppercase" }}>Next Class</div>
-              <div style={{ fontSize: 21, fontWeight: 700, color: T.sage, marginBottom: 14 }}>
-                {overallNext.occ.date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}, {formatTimeRange(overallNext.cls.time, overallNext.cls.end_time)}
+            <div className="rounded-2xl flex items-center justify-between flex-wrap gap-3" style={{ background: "#f2f5f1", border: `1px solid ${T.sage}55`, padding: "14px 20px" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.sage }}>
+                Next class: {overallNext.occ.date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}, {formatTimeRange(overallNext.cls.time, overallNext.cls.end_time)}
               </div>
               <button
                 onClick={() => setSingleMarkAbsent({ classId: overallNext.cls.id, day: overallNext.cls.day, time: overallNext.cls.time, endTime: overallNext.cls.end_time, date: overallNext.occ.date, dateStr: overallNext.occ.dateStr })}
                 className="hover:bg-white transition-colors"
-                style={{ fontSize: 13, fontWeight: 600, color: T.maroon, border: `1px solid ${T.maroon}44`, borderRadius: 999, padding: "8px 20px", background: "#fff" }}
+                style={{ fontSize: 13, fontWeight: 600, color: T.maroon, border: `1px solid ${T.maroon}44`, borderRadius: 999, padding: "8px 16px", background: "#fff", flexShrink: 0 }}
               >
-                Mark absent for this class
+                Mark absent
               </button>
             </div>
           )}
