@@ -568,8 +568,17 @@ export default function EnrollForm() {
           title="Payment details incomplete"
           message={
             <div className="rounded-xl" style={{ background: `${T.gold}20`, border: `2px solid ${T.gold}`, padding: "14px 16px", textAlign: "left" }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.5 }}>
-                ⚠️ You haven't {!paymentClaimed && !paymentFile ? "specified your payment details or attached a screenshot" : !paymentClaimed ? "marked your payment as made" : "attached a payment screenshot"}. Without payment, there will be a delay in confirming this enrolment — and classes are filling up fast. Please make payment to confirm the spot. If you'd like to submit anyway, we will reach out to you afterward regarding payment.
+              <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.6, marginBottom: 10 }}>
+                ⚠️ You haven't {!paymentClaimed && !paymentFile ? "specified your payment details or attached a screenshot" : !paymentClaimed ? "marked your payment as made" : "attached a payment screenshot"}.
+              </p>
+              <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.6, marginBottom: 10 }}>
+                Without payment, there will be a delay in confirming this enrolment — and classes are filling up fast.
+              </p>
+              <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.6, marginBottom: 10 }}>
+                Please make payment to confirm the spot.
+              </p>
+              <p style={{ fontSize: 13, fontWeight: 500, color: T.ink, lineHeight: 1.6 }}>
+                If you'd like to submit anyway, we will reach out to you afterward regarding payment.
               </p>
             </div>
           }
