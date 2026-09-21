@@ -573,7 +573,7 @@ export default function EnrollForm() {
       {confirmUnpaid && (
         <ConfirmModal
           title="Payment details incomplete"
-          message={`You haven't ${!paymentClaimed && !paymentFile ? "specified your payment details or attached a screenshot" : !paymentClaimed ? "marked your payment as made" : "attached a payment screenshot"}. Payment has not been confirmed above. A delay in confirming payment may result in a delay in processing this request. If you'd like to submit anyway, we will reach out to you afterward regarding payment.`}
+          message={`You haven't ${!paymentClaimed && !paymentFile ? "specified your payment details or attached a screenshot" : !paymentClaimed ? "marked your payment as made" : "attached a payment screenshot"}. Payment has not been confirmed above. Without payment, there will be a delay in confirming this enrolment — and classes are filling up fast. Please make payment to confirm the spot. If you'd like to submit anyway, we will reach out to you afterward regarding payment.`}
           confirmLabel="Submit anyway"
           onConfirm={submit}
           onCancel={() => setConfirmUnpaid(false)}
