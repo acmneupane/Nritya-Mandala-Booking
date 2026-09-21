@@ -329,10 +329,9 @@ export default function EnrollForm() {
             We've received {studentName}'s enrolment request. We will contact you to confirm the enrolment.
           </p>
           {(classes.length > 0 || fees.enabled) && !(paymentClaimed && paymentFile) && (
-            <div className="rounded-2xl" style={{ background: `${T.terracotta}1a`, border: `2px solid ${T.terracotta}`, padding: "16px 20px", marginBottom: 16, textAlign: "left" }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: T.terracotta, marginBottom: 6 }}>⚠ Payment not yet confirmed</div>
-              <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.6, fontWeight: 600 }}>
-                If payment hasn't been made, there will be a delay in confirming {studentName}'s enrolment — and classes are filling up fast. Please make payment using the reference below to confirm your spot.
+            <div className="rounded-xl" style={{ background: `${T.gold}20`, border: `2px solid ${T.gold}`, padding: "14px 16px", marginBottom: 16, textAlign: "left" }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.5 }}>
+                ⚠️ If payment hasn't been made, there will be a delay in confirming {studentName}'s enrolment — and classes are filling up fast. Please make payment using the reference below to confirm your spot.
               </p>
             </div>
           )}
