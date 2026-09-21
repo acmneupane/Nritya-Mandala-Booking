@@ -152,19 +152,23 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     return entries[0] || null;
   }, [upcomingAttendableOccurrences, classById]);
 
-  // Next 10 occurrences across every class the student's booked into, each
+  // Up to 10 occurrences across every class the student's booked into, each
   // annotated with its attendance status if one's already been recorded
   // (skipped/late-cancelled) — unlike overallNext/upcomingAttendableOccurrences,
   // this intentionally does NOT skip past self-marked absences, since the point
   // here is to show the family everything coming up, including what they've
   // already said they'll miss, not just what's left to attend.
+  // Capped by their remaining package balance when it's lower than 10 — showing
+  // "next 10" for someone with 3 classes left implies classes they haven't paid
+  // for yet, which isn't accurate once their package runs out or they need to renew.
+  const upcomingCap = Math.min(10, Math.max(0, remaining));
   const upcomingClasses = useMemo(() => {
     return classes
-      .flatMap((c) => upcomingOccurrencesOf(c, skips, localDateStr, { count: 10 }).map((occ) => ({ cls: c, occ })))
+      .flatMap((c) => upcomingOccurrencesOf(c, skips, localDateStr, { count: upcomingCap }).map((occ) => ({ cls: c, occ })))
       .sort((a, b) => (a.occ.dateStr === b.occ.dateStr ? a.cls.time.localeCompare(b.cls.time) : a.occ.dateStr.localeCompare(b.occ.dateStr)))
-      .slice(0, 10)
+      .slice(0, upcomingCap)
       .map((o) => ({ ...o, attendance: history.find((h) => h.class_id === o.cls.id && h.date === o.occ.dateStr) || null }));
-  }, [classes, skips, history]);
+  }, [classes, skips, history, upcomingCap]);
 
   if (loading) return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft }}>Loading…</div>;
 

@@ -81,11 +81,15 @@ function StudentInfoModal({ student, level, onClose }) {
 
   // Same "pool per class, merge chronologically" approach as MarkAbsentModal's
   // bulk picker — a student can be booked into more than one class, so their
-  // next 10 occurrences overall aren't just the next 10 of a single class.
+  // next occurrences overall aren't just the next 10 of a single class. Capped
+  // by their remaining package balance when it's lower than 10 — showing 10
+  // upcoming classes for someone with 3 left implies classes they haven't paid
+  // for yet, once their package runs out or they need to renew.
+  const upcomingCap = Math.min(10, Math.max(0, remaining));
   const upcoming = enrolledClasses
-    .flatMap((c) => upcomingOccurrencesOf(c, skips, localDateStr, { count: 10 }).map((occ) => ({ cls: c, occ })))
+    .flatMap((c) => upcomingOccurrencesOf(c, skips, localDateStr, { count: upcomingCap }).map((occ) => ({ cls: c, occ })))
     .sort((a, b) => a.occ.dateStr.localeCompare(b.occ.dateStr))
-    .slice(0, 10);
+    .slice(0, upcomingCap);
   const nextClass = upcoming[0] || null;
   // "Recent attendance" is past-only — anything upcoming (including a pre-marked
   // absence) is already covered above, in Next 10 upcoming classes' inline status.
