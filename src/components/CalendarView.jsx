@@ -75,7 +75,7 @@ function rangeLabel(mode, anchor, dates) {
   return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 }
 
-function RosterEditor({ cls, onChanged }) {
+export function RosterEditor({ cls, onChanged }) {
   const [students, setStudents] = useState([]);
   const [roster, setRoster] = useState([]);
   const [attendance, setAttendance] = useState([]);
@@ -378,7 +378,7 @@ function UtilizationBadge({ counts }) {
 
 export default function CalendarView({ access }) {
   const canCancelSession = access?.has ? access.has("studio_settings") : true;
-  const [viewMode, setViewMode] = useState("month");
+  const [viewMode, setViewMode] = useState("day");
   const [anchor, setAnchor] = useState(new Date());
   const [classes, setClasses] = useState([]);
   const [enrollments, setEnrollments] = useState([]);

@@ -5,6 +5,8 @@ import { localDateStr } from "../lib/dates";
 import { isClassActiveOn, formatTimeRange, upcomingOccurrencesOf } from "../lib/scheduling";
 import { isLowAttendanceRisk } from "../lib/attendance";
 import QrScanner from "./QrScanner";
+import { Modal } from "./ui";
+import { RosterEditor } from "./CalendarView";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -14,6 +16,7 @@ export default function HomeView({ counts, onNavigate, access }) {
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scanningClass, setScanningClass] = useState(null);
+  const [bookingClass, setBookingClass] = useState(null);
   const todayStr = localDateStr(new Date());
 
   const load = () => {
@@ -150,7 +153,7 @@ export default function HomeView({ counts, onNavigate, access }) {
         <div className="grid gap-2">
           {todayClasses.map((c) => (
             <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${c.lowAttendanceRisk ? T.maroon : T.line}`, borderRadius: 8, padding: "10px 14px" }} className="flex items-center justify-between gap-2">
-              <button onClick={() => onNavigate("calendar")} style={{ textAlign: "left", background: "transparent", border: "none", flex: 1, minWidth: 0, cursor: "pointer" }}>
+              <button onClick={() => setBookingClass({ ...c, dateStr: todayStr })} style={{ textAlign: "left", background: "transparent", border: "none", flex: 1, minWidth: 0, cursor: "pointer" }}>
                 <div className="flex items-center justify-between">
                   <div>
                     <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>{c.label}</span>
@@ -208,6 +211,11 @@ export default function HomeView({ counts, onNavigate, access }) {
           onDetected={(code) => checkInByCode(scanningClass, code)}
           onClose={() => setScanningClass(null)}
         />
+      )}
+      {bookingClass && (
+        <Modal title={`${bookingClass.label} — ${bookingClass.dateStr}`} onClose={() => setBookingClass(null)} wide>
+          <RosterEditor cls={bookingClass} onChanged={load} />
+        </Modal>
       )}
     </div>
   );
