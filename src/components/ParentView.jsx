@@ -29,9 +29,6 @@ function shareReferral() {
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-// Lifetime classes-attended thresholds worth celebrating on the parent page.
-const ATTENDANCE_MILESTONES = [5, 10, 25, 50, 100, 150, 200, 250, 300];
-
 // Shared card treatment for every white panel on the page — soft shadow instead
 // of a flat border-only look, matching the public homepage's card styling.
 const CARD = "bg-white rounded-2xl shadow-[0_2px_12px_-4px_rgba(36,27,21,0.08)]";
@@ -158,8 +155,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     }
     return n;
   }, [streakRows]);
-  const attendanceMilestone = [...ATTENDANCE_MILESTONES].reverse().find((m) => totalAttended >= m) || null;
-  const nextAttendanceMilestone = ATTENDANCE_MILESTONES.find((m) => totalAttended < m) || null;
+  const attendanceMilestone = totalAttended >= 5 ? Math.floor(totalAttended / 5) * 5 : null;
 
   // The literal next calendar occurrence per class, regardless of whether the
   // student has already marked it absent — this is what drives the "already
@@ -343,7 +339,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
               )}
               {attendanceMilestone && (
                 <div style={{ fontSize: 13, color: T.gold, fontWeight: 600 }}>
-                  🏅 {attendanceMilestone} classes attended{nextAttendanceMilestone ? ` — ${nextAttendanceMilestone - totalAttended} more to ${nextAttendanceMilestone}!` : "!"}
+                  🏅 {attendanceMilestone} classes attended!
                 </div>
               )}
               {attendanceStreak >= 3 && (
