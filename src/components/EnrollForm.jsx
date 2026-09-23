@@ -213,9 +213,15 @@ export default function EnrollForm() {
   // debounced so we're not hitting the database on every keystroke. Routed through
   // check_code_available() (not a direct `students` query) so it also can't collide
   // with a code another family's pending request has already been given.
+  //
+  // Once a code exists, further name edits do NOT silently swap it for a new one —
+  // a parent may have already paid using the code shown as their reference, so
+  // changing it out from under them (e.g. fixing a typo in the name afterwards)
+  // would break that. Use "Get a different code" to regenerate on purpose.
   useEffect(() => {
     const trimmed = studentName.trim();
     if (trimmed.length < 2) { setPrimaryCode(""); setGeneratingPrimaryCode(false); return; }
+    if (primaryCode) return;
     setGeneratingPrimaryCode(true);
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -223,16 +229,32 @@ export default function EnrollForm() {
       if (!cancelled) { setPrimaryCode(code); setGeneratingPrimaryCode(false); }
     }, 600);
     return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentName]);
 
+  const regeneratePrimaryCode = async () => {
+    const trimmed = studentName.trim();
+    if (trimmed.length < 2) return;
+    setGeneratingPrimaryCode(true);
+    const code = await generateStudentCode(supabase, trimmed, null, true);
+    setPrimaryCode(code);
+    setGeneratingPrimaryCode(false);
+  };
+
   // Same idea for additional students — one debounce covering all sibling name
-  // fields at once, keyed by their position in the `siblings` array.
+  // fields at once, keyed by their position in the `siblings` array, and likewise
+  // frozen once each one has a code.
   useEffect(() => {
+    siblings.forEach((sib, i) => {
+      if (sib.name.trim().length < 2 && siblingCodes[i]) {
+        setSiblingCodes((c) => { const next = { ...c }; delete next[i]; return next; });
+      }
+    });
     let cancelled = false;
     const timer = setTimeout(() => {
       siblings.forEach((sib, i) => {
         const trimmed = sib.name.trim();
-        if (trimmed.length < 2) return;
+        if (trimmed.length < 2 || siblingCodes[i]) return;
         generateStudentCode(supabase, trimmed, null, true).then((code) => {
           if (cancelled) return;
           setSiblingCodes((c) => ({ ...c, [i]: code }));
@@ -248,7 +270,20 @@ export default function EnrollForm() {
     setSiblings((s) => [...s, { name: "", dob: "", classId: "", classText: "", packageTierId: "" }]);
   };
   const updateSibling = (i, val) => setSiblings((s) => s.map((sib, idx) => (idx === i ? val : sib)));
-  const removeSibling = (i) => setSiblings((s) => s.filter((_, idx) => idx !== i));
+  const removeSibling = (i) => {
+    setSiblings((s) => s.filter((_, idx) => idx !== i));
+    // Reindex so a still-present sibling's already-generated code doesn't end up
+    // attributed to whoever now occupies their old slot.
+    setSiblingCodes((c) => {
+      const next = {};
+      Object.entries(c).forEach(([k, v]) => {
+        const idx = Number(k);
+        if (idx < i) next[idx] = v;
+        else if (idx > i) next[idx - 1] = v;
+      });
+      return next;
+    });
+  };
 
   const togglePaymentClaimed = (checked) => {
     setPaymentClaimed(checked);
@@ -561,11 +596,19 @@ export default function EnrollForm() {
                   </p>
                 </div>
                 <div className="rounded-xl shadow-sm" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: "16px 18px", marginBottom: 10 }}>
-                  <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 4, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>Pay with this reference</div>
-                  <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>
+                  <div className="flex items-center justify-between">
+                    <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>Pay with this reference</div>
+                    {primaryCode && !generatingPrimaryCode && (
+                      <button type="button" onClick={regeneratePrimaryCode} style={{ fontSize: 11, color: T.gold, textDecoration: "underline" }}>↻ Get a different code</button>
+                    )}
+                  </div>
+                  <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, letterSpacing: 1, fontWeight: 700, color: T.maroonDark, marginTop: 4 }}>
                     {studentName.trim().length < 2 ? "Enter student's name above" : generatingPrimaryCode ? "Generating…" : primaryCode || "—"}
                   </div>
-                  <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>This is also {studentName.trim() || "your student"}'s access code, so it stays the same on their QR/parent page once we confirm enrolment.</p>
+                  <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>
+                    This is also {studentName.trim() || "your student"}'s access code, so it stays the same on their QR/parent page once we confirm enrolment.
+                    Once shown, it won't change just from editing the name above — use "Get a different code" if you'd like a new one.
+                  </p>
                 </div>
                 <p style={{ fontSize: 11.5, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
                   Bank transfers can take up to 24 hours to clear, so please allow a little time for your enrolment to be confirmed after paying.
