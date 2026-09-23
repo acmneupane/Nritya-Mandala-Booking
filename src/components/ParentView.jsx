@@ -29,6 +29,9 @@ function shareReferral() {
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+// Lifetime classes-attended thresholds worth celebrating on the parent page.
+const ATTENDANCE_MILESTONES = [5, 10, 25, 50, 100, 150, 200, 250, 300];
+
 // Shared card treatment for every white panel on the page — soft shadow instead
 // of a flat border-only look, matching the public homepage's card styling.
 const CARD = "bg-white rounded-2xl shadow-[0_2px_12px_-4px_rgba(36,27,21,0.08)]";
@@ -63,6 +66,8 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [singleMarkAbsent, setSingleMarkAbsent] = useState(null);
   const [showQr, setShowQr] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  const [totalAttended, setTotalAttended] = useState(0);
+  const [streakRows, setStreakRows] = useState([]);
 
   const today = new Date();
   const todayStr = localDateStr(today);
@@ -70,7 +75,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
   const load = async () => {
     setLoading(true);
-    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes, familyPkgsRes, openClassesRes, settingsRes, noticesRes] = await Promise.all([
+    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes, familyPkgsRes, openClassesRes, settingsRes, noticesRes, attendedCountRes, streakRowsRes] = await Promise.all([
       student.level_id ? supabase.from("levels").select("id, name").eq("id", student.level_id).maybeSingle() : Promise.resolve({ data: null }),
       supabase.from("levels").select("id, name, order_num").order("order_num"),
       supabase.from("enrollments").select("class_id, classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
@@ -83,8 +88,15 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
       fetchOpenClasses(),
       supabase.from("admin_settings").select("due_threshold").eq("id", 1).maybeSingle(),
       supabase.from("studio_notices").select("*").lte("start_date", localDateStr(new Date())).gte("end_date", localDateStr(new Date())).order("start_date"),
+      // Milestones use their own dedicated queries rather than reusing `history`
+      // (capped at 10 for the "recent attendance" list above) — a lifetime count
+      // needs an exact aggregate, and a streak can run longer than 10 classes.
+      supabase.from("attendance").select("id", { count: "exact", head: true }).eq("student_id", student.id).eq("status", "attended"),
+      supabase.from("attendance").select("date, status").eq("student_id", student.id).lte("date", localDateStr(new Date())).order("date", { ascending: false }).limit(60),
     ]);
     setLevel(levelRes.data);
+    setTotalAttended(attendedCountRes.count || 0);
+    setStreakRows(streakRowsRes.data || []);
     setAllLevels(allLevelsRes.data || []);
     setClasses((enrollRes.data || []).map((e) => e.classes).filter(Boolean));
     setHistory(historyRes.data || []);
@@ -134,6 +146,20 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   // and crowd out genuinely recent past entries.
   const pastHistory = history.filter((h) => h.date <= todayStr);
   const recentLevelUp = levelHistory[0] && (Date.now() - new Date(levelHistory[0].date).getTime()) / 86400000 <= 14 ? levelHistory[0] : null;
+
+  // Consecutive attended classes counting back from most recent — breaks on the
+  // first missed or self-marked-absent class encountered, same as everywhere
+  // else "did they actually show up" is judged (attendanceStatusInfo).
+  const attendanceStreak = useMemo(() => {
+    let n = 0;
+    for (const h of streakRows) {
+      if (h.status !== "attended") break;
+      n++;
+    }
+    return n;
+  }, [streakRows]);
+  const attendanceMilestone = [...ATTENDANCE_MILESTONES].reverse().find((m) => totalAttended >= m) || null;
+  const nextAttendanceMilestone = ATTENDANCE_MILESTONES.find((m) => totalAttended < m) || null;
 
   // The literal next calendar occurrence per class, regardless of whether the
   // student has already marked it absent — this is what drives the "already
@@ -308,11 +334,21 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             </div>
           )}
 
-          {(recentLevelUp || lastAttended) && (
+          {(recentLevelUp || lastAttended || attendanceMilestone || attendanceStreak >= 3) && (
             <div className="flex flex-col gap-1.5 px-1">
               {recentLevelUp && (
                 <div style={{ fontSize: 13, color: T.sage, fontWeight: 600 }}>
                   🎉 Moved up to {recentLevelUp.levels?.name || "a new level"} on {formatOrdinalDate(recentLevelUp.date)}
+                </div>
+              )}
+              {attendanceMilestone && (
+                <div style={{ fontSize: 13, color: T.gold, fontWeight: 600 }}>
+                  🏅 {attendanceMilestone} classes attended{nextAttendanceMilestone ? ` — ${nextAttendanceMilestone - totalAttended} more to ${nextAttendanceMilestone}!` : "!"}
+                </div>
+              )}
+              {attendanceStreak >= 3 && (
+                <div style={{ fontSize: 13, color: T.terracotta, fontWeight: 600 }}>
+                  🔥 {attendanceStreak}-class attendance streak
                 </div>
               )}
               {lastAttended && (
