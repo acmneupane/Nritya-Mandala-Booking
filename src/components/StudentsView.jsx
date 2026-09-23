@@ -1112,6 +1112,7 @@ export default function StudentsView({ focusStudentCode }) {
   const [showArchived, setShowArchived] = useState(false);
   const [consentFilter, setConsentFilter] = useState("all"); // 'all' | 'yes' | 'no' | 'na'
   const [bookingFilter, setBookingFilter] = useState("all"); // 'all' | 'unbooked'
+  const [levelFilter, setLevelFilter] = useState("all"); // 'all' | 'unassigned' | <level id>
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 5;
 
@@ -1163,10 +1164,16 @@ export default function StudentsView({ focusStudentCode }) {
       if (consentFilter === "no") return s.video_consent === false;
       return s.video_consent === null || s.video_consent === undefined;
     })
-    .filter((s) => (bookingFilter === "unbooked" ? (classesByStudent[s.id] || []).length === 0 : true));
+    .filter((s) => (bookingFilter === "unbooked" ? (classesByStudent[s.id] || []).length === 0 : true))
+    .filter((s) => {
+      if (levelFilter === "all") return true;
+      if (levelFilter === "unassigned") return !s.level_id;
+      return s.level_id === levelFilter;
+    });
 
   const setConsentFilterAndResetPage = (val) => { setConsentFilter(val); setPage(1); };
   const setBookingFilterAndResetPage = (val) => { setBookingFilter(val); setPage(1); };
+  const setLevelFilterAndResetPage = (val) => { setLevelFilter(val); setPage(1); };
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const clampedPage = Math.min(page, totalPages);
@@ -1230,6 +1237,11 @@ export default function StudentsView({ focusStudentCode }) {
           <select value={bookingFilter} onChange={(e) => setBookingFilterAndResetPage(e.target.value)} style={{ ...inputStyle, width: "auto", padding: "6px 10px", fontSize: 13 }}>
             <option value="all">Booking: All</option>
             <option value="unbooked">Not booked into a class</option>
+          </select>
+          <select value={levelFilter} onChange={(e) => setLevelFilterAndResetPage(e.target.value)} style={{ ...inputStyle, width: "auto", padding: "6px 10px", fontSize: 13 }}>
+            <option value="all">Level: All</option>
+            <option value="unassigned">Unassigned</option>
+            {[...levels].sort((a, b) => a.order_num - b.order_num).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
           <button onClick={toggleArchivedAndResetPage} style={{ fontSize: 12, color: showArchived ? T.maroon : T.inkSoft, fontWeight: showArchived ? 600 : 400 }}>
             {showArchived ? "← Back to active students" : "View archived students"}
