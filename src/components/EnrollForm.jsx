@@ -188,6 +188,11 @@ export default function EnrollForm() {
   const [reference, setReference] = useState(null);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState("");
+  // Captured once from ?ref=<code> if this visit came from a "Refer a friend"
+  // link — passed through on submit so the referral can be credited once the
+  // request is approved. Read once at mount; not something the form ever
+  // shows or lets a parent edit.
+  const [referredByCode] = useState(() => new URLSearchParams(window.location.search).get("ref") || "");
 
   useEffect(() => {
     fetchOpenClasses().then((open) => setClasses(open.slice().sort(compareClassSchedule)));
@@ -306,6 +311,7 @@ export default function EnrollForm() {
             p_payment_screenshot_path: screenshotPath,
             p_reference: paymentReference,
             p_students: studentRows,
+            p_referred_by_code: referredByCode || null,
           },
         },
       });

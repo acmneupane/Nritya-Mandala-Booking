@@ -146,6 +146,13 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
       }).eq("id", request.id);
       if (updErr) throw updErr;
 
+      // Credited once per request (against the primary student, not each
+      // sibling) — a no-op server-side if there's no referral code, it's
+      // blank, or the program's off.
+      if (request.referred_by_code && emailStudents[0]) {
+        await supabase.rpc("apply_referral_reward", { p_new_student_id: emailStudents[0].id, p_referral_code: request.referred_by_code });
+      }
+
       const createdIds = emailStudents.map((s) => s.id);
       const { data: guardianLinks } = await supabase.from("student_guardians").select("guardians(email)").in("student_id", createdIds);
       const guardianEmails = [...new Set((guardianLinks || []).map((g) => g.guardians?.email).filter(Boolean))];

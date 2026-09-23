@@ -6,6 +6,7 @@ import { localDateStr } from "../lib/dates";
 import { nextOccurrenceOf, formatTimeRange } from "../lib/scheduling";
 import { shareReferral } from "../lib/share";
 import MessageStudioModal from "./MessageStudioModal";
+import ReviewModal from "./ReviewModal";
 
 // The family-summary landing screen for a multi-kid household — shown once,
 // right after identity verification, instead of dropping straight into
@@ -18,6 +19,7 @@ export default function FamilyView({ students, usedCode, onSelectStudent }) {
   const [overviewByStudent, setOverviewByStudent] = useState({});
   const [loading, setLoading] = useState(true);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   const usedStudent = students.find((s) => s.code === usedCode) || students[0];
 
@@ -75,8 +77,12 @@ export default function FamilyView({ students, usedCode, onSelectStudent }) {
           </p>
         )}
 
-        <div className="flex flex-wrap gap-2" style={{ marginTop: 18 }}>
-          <button onClick={shareReferral} className="hover:opacity-90 transition-opacity" style={{ fontSize: 12.5, fontWeight: 700, color: T.maroonDark, background: T.goldLight, border: `1px solid ${T.gold}`, borderRadius: 999, padding: "7px 16px" }}>
+        <div className="text-center" style={{ marginTop: 18, marginBottom: 4 }}>
+          <button onClick={() => setShowReviewModal(true)} style={{ fontSize: 12.5, fontWeight: 600, color: T.gold }}>⭐ Leave us a review</button>
+        </div>
+
+        <div className="flex items-center justify-center gap-2 flex-wrap" style={{ marginTop: 14 }}>
+          <button onClick={() => shareReferral(usedStudent?.code)} className="hover:opacity-90 transition-opacity" style={{ fontSize: 12.5, fontWeight: 700, color: T.maroonDark, background: T.goldLight, border: `1px solid ${T.gold}`, borderRadius: 999, padding: "7px 16px" }}>
             📣 Refer a friend
           </button>
           <button onClick={() => setShowMessageModal(true)} className="hover:opacity-90 transition-opacity" style={{ fontSize: 12.5, fontWeight: 700, color: T.maroonDark, background: "#fff", border: `1px solid ${T.line}`, borderRadius: 999, padding: "7px 16px" }}>
@@ -131,6 +137,7 @@ export default function FamilyView({ students, usedCode, onSelectStudent }) {
       {showMessageModal && (
         <MessageStudioModal student={usedStudent} onClose={() => setShowMessageModal(false)} />
       )}
+      {showReviewModal && <ReviewModal onClose={() => setShowReviewModal(false)} />}
     </div>
   );
 }
