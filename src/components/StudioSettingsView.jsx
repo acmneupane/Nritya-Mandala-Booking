@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field } from "./ui";
 import { localDateStr } from "../lib/dates";
+import { toCsv, downloadCsv } from "../lib/csv";
 
 function EmailTemplateEditor({ templateKey, title, description, placeholders }) {
   const [subject, setSubject] = useState("");
@@ -350,6 +351,207 @@ function DataExport() {
   );
 }
 
+// Row of a date-range picker shared by the Attendance and Finances exports below —
+// a plain function (not a component) so its two <input>s stay controlled by the
+// caller's own from/to state instead of needing to lift state back up through props.
+function dateRangeInputs(from, setFrom, to, setTo) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 10 }}>
+      <label style={{ fontSize: 12, color: T.inkSoft }}>From</label>
+      <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ ...inputStyle, width: 150 }} />
+      <label style={{ fontSize: 12, color: T.inkSoft }}>To</label>
+      <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ ...inputStyle, width: 150 }} />
+    </div>
+  );
+}
+
+// Three purpose-built exports, as opposed to "Download everything" above (one raw
+// JSON dump of every table) — these open cleanly in Excel/Sheets and only include
+// the columns someone would actually want for a mailing list, an attendance
+// register, or a bookkeeping ledger.
+function CsvExport() {
+  const today = localDateStr(new Date());
+  const monthAgo = localDateStr(new Date(Date.now() - 30 * 86400000));
+
+  const [studentsExporting, setStudentsExporting] = useState(false);
+  const [attFrom, setAttFrom] = useState(monthAgo);
+  const [attTo, setAttTo] = useState(today);
+  const [attExporting, setAttExporting] = useState(false);
+  const [finFrom, setFinFrom] = useState(monthAgo);
+  const [finTo, setFinTo] = useState(today);
+  const [finExporting, setFinExporting] = useState(false);
+  const [error, setError] = useState("");
+
+  const exportStudents = async () => {
+    setStudentsExporting(true);
+    setError("");
+    try {
+      const [sRes, levelsRes, guardiansRes, pkgRes] = await Promise.all([
+        supabase.from("students").select("id, name, code, dob, level_id, archived").order("name"),
+        supabase.from("levels").select("id, name"),
+        supabase.from("student_guardians").select("student_id, emergency, guardians(name, phone, email)"),
+        supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
+      ]);
+      if (sRes.error) throw new Error(sRes.error.message);
+      const levelById = Object.fromEntries((levelsRes.data || []).map((l) => [l.id, l.name]));
+      const pkgByStudent = Object.fromEntries((pkgRes.data || []).map((p) => [p.student_id, p]));
+      const guardiansByStudent = {};
+      (guardiansRes.data || []).forEach((g) => {
+        if (g.guardians) (guardiansByStudent[g.student_id] ||= []).push(g.guardians);
+      });
+
+      const rows = (sRes.data || []).map((s) => {
+        const guardians = guardiansByStudent[s.id] || [];
+        const pkg = pkgByStudent[s.id];
+        const remaining = pkg ? pkg.classes_total - pkg.classes_used : 0;
+        return {
+          name: s.name,
+          code: s.code,
+          level: levelById[s.level_id] || "",
+          dob: s.dob || "",
+          guardian_names: guardians.map((g) => g.name).filter(Boolean).join("; "),
+          guardian_phones: guardians.map((g) => g.phone).filter(Boolean).join("; "),
+          guardian_emails: guardians.map((g) => g.email).filter(Boolean).join("; "),
+          classes_remaining: pkg ? remaining : "",
+          archived: s.archived ? "Yes" : "No",
+        };
+      });
+
+      downloadCsv(`students-${today}.csv`, toCsv(rows, [
+        { key: "name", label: "Name" },
+        { key: "code", label: "Code" },
+        { key: "level", label: "Level" },
+        { key: "dob", label: "DOB" },
+        { key: "guardian_names", label: "Guardian name(s)" },
+        { key: "guardian_phones", label: "Phone(s)" },
+        { key: "guardian_emails", label: "Email(s)" },
+        { key: "classes_remaining", label: "Classes remaining" },
+        { key: "archived", label: "Archived" },
+      ]));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setStudentsExporting(false);
+    }
+  };
+
+  const exportAttendance = async () => {
+    if (!attFrom || !attTo) { setError("Pick both a from and to date for attendance."); return; }
+    setAttExporting(true);
+    setError("");
+    try {
+      const { data, error: err } = await supabase
+        .from("attendance")
+        .select("date, status, reason, students(name), classes(label)")
+        .gte("date", attFrom).lte("date", attTo)
+        .order("date");
+      if (err) throw new Error(err.message);
+      const rows = (data || []).map((a) => ({
+        date: a.date,
+        student: a.students?.name || "",
+        class: a.classes?.label || "",
+        status: a.status,
+        reason: a.reason || "",
+      }));
+      downloadCsv(`attendance-${attFrom}-to-${attTo}.csv`, toCsv(rows, [
+        { key: "date", label: "Date" },
+        { key: "student", label: "Student" },
+        { key: "class", label: "Class" },
+        { key: "status", label: "Status" },
+        { key: "reason", label: "Reason" },
+      ]));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setAttExporting(false);
+    }
+  };
+
+  // A combined income/expense ledger for the range — income from confirmed package
+  // purchases, expenses as their own raw rows (a recurring expense appears once,
+  // as booked, not expanded into one row per occurrence — matching what's actually
+  // stored rather than reproducing FinancesView's revenue-recognition math, which
+  // spreads a package's income across classes as they're delivered rather than
+  // listing it as a single transaction). Expense amounts are negative so the
+  // Amount column nets out to a running cash total if summed.
+  const exportFinances = async () => {
+    if (!finFrom || !finTo) { setError("Pick both a from and to date for finances."); return; }
+    setFinExporting(true);
+    setError("");
+    try {
+      const [pkgRes, expRes] = await Promise.all([
+        supabase.from("packages").select("purchase_date, amount, tier_name, payment_confirmed, students(name)")
+          .eq("payment_confirmed", true).gte("purchase_date", finFrom).lte("purchase_date", finTo).order("purchase_date"),
+        supabase.from("expenses").select("start_date, end_date, description, category, amount")
+          .lte("start_date", finTo).order("start_date"),
+      ]);
+      if (pkgRes.error) throw new Error(pkgRes.error.message);
+      if (expRes.error) throw new Error(expRes.error.message);
+
+      const incomeRows = (pkgRes.data || []).map((p) => ({
+        date: p.purchase_date,
+        type: "Income",
+        description: p.tier_name || "Package",
+        student: p.students?.name || "",
+        amount: Number(p.amount).toFixed(2),
+      }));
+      // An expense with no end_date is ongoing (still counts if it started before
+      // the range ends); one with an end_date only counts if that end is on or
+      // after the range's start — same "does this interval overlap the range"
+      // check used elsewhere in the app (e.g. studio notices).
+      const expenseRows = (expRes.data || [])
+        .filter((e) => !e.end_date || e.end_date >= finFrom)
+        .map((e) => ({
+          date: e.start_date,
+          type: "Expense",
+          description: `${e.description}${e.category ? ` (${e.category})` : ""}`,
+          student: "",
+          amount: (-Number(e.amount)).toFixed(2),
+        }));
+
+      const rows = [...incomeRows, ...expenseRows].sort((a, b) => a.date.localeCompare(b.date));
+      downloadCsv(`finances-${finFrom}-to-${finTo}.csv`, toCsv(rows, [
+        { key: "date", label: "Date" },
+        { key: "type", label: "Type" },
+        { key: "description", label: "Description" },
+        { key: "student", label: "Student" },
+        { key: "amount", label: "Amount" },
+      ]));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setFinExporting(false);
+    }
+  };
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Export to CSV</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 16, lineHeight: 1.5 }}>
+        Opens cleanly in Excel or Google Sheets — unlike the JSON backup above, these are just the columns you'd actually want for a mailing list, an attendance register, or a bookkeeping ledger.
+      </p>
+      {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 12 }}>{error}</p>}
+
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Students</div>
+        <Btn size="sm" onClick={exportStudents} disabled={studentsExporting}>{studentsExporting ? "Exporting…" : "⬇ Download students.csv"}</Btn>
+      </div>
+
+      <div style={{ marginBottom: 18, borderTop: `1px solid ${T.line}`, paddingTop: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Attendance</div>
+        {dateRangeInputs(attFrom, setAttFrom, attTo, setAttTo)}
+        <Btn size="sm" onClick={exportAttendance} disabled={attExporting}>{attExporting ? "Exporting…" : "⬇ Download attendance.csv"}</Btn>
+      </div>
+
+      <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Finances</div>
+        {dateRangeInputs(finFrom, setFinFrom, finTo, setFinTo)}
+        <Btn size="sm" onClick={exportFinances} disabled={finExporting}>{finExporting ? "Exporting…" : "⬇ Download finances.csv"}</Btn>
+      </div>
+    </div>
+  );
+}
+
 export default function StudioSettingsView() {
   const [section, setSection] = useState("fee");
 
@@ -391,7 +593,7 @@ export default function StudioSettingsView() {
       {section === "fee" && <EnrolmentFeesEditor />}
       {section === "capacity" && <CapacityEditor />}
       {section === "notices" && <NoticeBoardEditor />}
-      {section === "data" && (<><EmailLimitEditor /><DataExport /></>)}
+      {section === "data" && (<><EmailLimitEditor /><CsvExport /><DataExport /></>)}
       {section === "emails" && (
         <>
           <EmailTemplateEditor
