@@ -529,6 +529,7 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   const [notes, setNotes] = useState(initial?.notes || "");
   const [code, setCode] = useState(initial?.code || "");
   const [videoConsent, setVideoConsent] = useState(initial && "video_consent" in initial ? (initial.video_consent === null ? "" : String(initial.video_consent)) : "");
+  const [reminderOptOut, setReminderOptOut] = useState(initial?.renewal_reminder_opt_out || false);
   // Only used when creating a brand-new student — a package entered here gets saved
   // right after the student is created, since there's no student id to attach it to yet.
   const [pendingPackages, setPendingPackages] = useState([]);
@@ -636,11 +637,13 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
       if (studentId) {
         const { error } = await supabase.from("students").update({
           name: name.trim(), dob: dob || null, level_id: levelId || null, notes: notes.trim(), code: finalCode, video_consent: consentValue,
+          renewal_reminder_opt_out: reminderOptOut,
         }).eq("id", studentId);
         if (error) throw error;
       } else {
         const { data, error } = await supabase.from("students").insert({
           name: name.trim(), dob: dob || null, level_id: levelId || null, notes: notes.trim(), code: finalCode, video_consent: consentValue,
+          renewal_reminder_opt_out: reminderOptOut,
         }).select().single();
         if (error) throw error;
         studentId = data.id;
@@ -729,6 +732,11 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
           <option value="false">No</option>
         </select>
       </Field>
+
+      <label className="flex items-center gap-2" style={{ fontSize: 13, color: T.ink, marginBottom: 12 }}>
+        <input type="checkbox" checked={reminderOptOut} onChange={(e) => setReminderOptOut(e.target.checked)} />
+        Opt out of automatic renewal reminder emails (a staff member may still follow up directly)
+      </label>
 
       <Field label="Access code (parent lookup & QR)">
         <div className="flex gap-2">

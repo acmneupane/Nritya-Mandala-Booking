@@ -28,9 +28,11 @@ const TAB_PERMISSIONS = {
   website: ["website"],
   "studio-settings": ["studio_settings"],
   // "ADMIN_ONLY" is a sentinel, not a permission name — no permission ever
-  // satisfies it, only the is_admin flag. Managing everyone else's access has
-  // to stay admin-exclusive regardless of how many permissions someone holds.
-  team: "ADMIN_ONLY",
+  // satisfies it, only the is_admin flag. Capacity, email limits/templates,
+  // renewal reminder config, and managing everyone else's access (folded in
+  // here as the Team section) all stay admin-exclusive regardless of how many
+  // permissions someone holds.
+  "admin-config": "ADMIN_ONLY",
 };
 
 // Fetches the logged-in admin's access once per mount — Dashboard is the root of

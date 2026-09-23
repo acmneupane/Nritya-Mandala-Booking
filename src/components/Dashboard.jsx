@@ -16,7 +16,7 @@ import PackageTiersView from "./PackageTiersView";
 import RenewalsView from "./RenewalsView";
 import FinancesView from "./FinancesView";
 import HomeView from "./HomeView";
-import TeamView from "./TeamView";
+import AdminConfigView from "./AdminConfigView";
 import { useMyAccess } from "../lib/permissions";
 
 const NAV = [
@@ -32,7 +32,7 @@ const NAV = [
   { id: "history", label: "History" },
   { id: "website", label: "Website" },
   { id: "studio-settings", label: "Studio Settings" },
-  { id: "team", label: "Team" },
+  { id: "admin-config", label: "Admin Config" },
   { id: "account", label: "Account" },
 ];
 
@@ -206,7 +206,7 @@ export default function Dashboard() {
         {access.canAccessTab(tab) && tab === "history" && <HistoryView />}
         {access.canAccessTab(tab) && tab === "website" && <WebsiteContentView />}
         {access.canAccessTab(tab) && tab === "studio-settings" && <StudioSettingsView />}
-        {access.canAccessTab(tab) && tab === "team" && <TeamView />}
+        {access.canAccessTab(tab) && tab === "admin-config" && <AdminConfigView />}
         {access.canAccessTab(tab) && tab === "account" && <AccountView />}
       </main>
     </div>

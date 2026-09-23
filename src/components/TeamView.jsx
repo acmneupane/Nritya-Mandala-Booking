@@ -4,11 +4,12 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, ConfirmModal } from "./ui";
 import { ALL_PERMISSIONS } from "../lib/permissions";
 
-// Admin-only: this tab itself is gated by canAccessTab("team") = "ADMIN_ONLY"
-// in Dashboard.jsx, and the underlying admin_users/user_permissions tables are
-// separately locked down by RLS to admin-write/self-read — so even a stray
-// render of this component couldn't actually change anyone's access without
-// the viewer genuinely being an admin.
+// Admin-only: rendered as a section inside AdminConfigView, itself gated by
+// canAccessTab("admin-config") = "ADMIN_ONLY" in Dashboard.jsx — and the
+// underlying admin_users/user_permissions tables are separately locked down
+// by RLS to admin-write/self-read, so even a stray render of this component
+// couldn't actually change anyone's access without the viewer genuinely being
+// an admin.
 export default function TeamView() {
   const [users, setUsers] = useState([]);
   const [permsByUser, setPermsByUser] = useState({});
