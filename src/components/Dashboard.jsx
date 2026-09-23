@@ -16,6 +16,8 @@ import PackageTiersView from "./PackageTiersView";
 import RenewalsView from "./RenewalsView";
 import FinancesView from "./FinancesView";
 import HomeView from "./HomeView";
+import TeamView from "./TeamView";
+import { useMyAccess } from "../lib/permissions";
 
 const NAV = [
   { id: "home", label: "Dashboard" },
@@ -30,6 +32,7 @@ const NAV = [
   { id: "history", label: "History" },
   { id: "website", label: "Website" },
   { id: "studio-settings", label: "Studio Settings" },
+  { id: "team", label: "Team" },
   { id: "account", label: "Account" },
 ];
 
@@ -60,6 +63,7 @@ export default function Dashboard() {
   const [tab, setTab] = useState(focusRequestId ? "requests" : focusRenewalId ? "renewals" : focusStudentCode ? "students" : "home");
   const [menuOpen, setMenuOpen] = useState(false);
   const [counts, setCounts] = useState({ students: 0, classes: 0, requests: 0, renewals: 0 });
+  const access = useMyAccess();
 
   const loadCounts = useCallback(async () => {
     const [sRes, cRes, rRes, renRes, studentsRes, pkgRes] = await Promise.all([
@@ -85,7 +89,20 @@ export default function Dashboard() {
   // shifted while working elsewhere (e.g. approving a request, archiving a student).
   useEffect(() => { loadCounts(); }, [tab, loadCounts]);
 
+  // A deep link (?request=/?renewal=/?student=) can point at a tab this user's
+  // permissions don't actually unlock — once access finishes loading, fall back
+  // to Home instead of rendering nothing.
+  useEffect(() => {
+    if (!access.loading && !access.canAccessTab(tab)) setTab("home");
+  }, [access.loading, access, tab]);
+
   const goTo = (id) => { setTab(id); setMenuOpen(false); };
+
+  if (access.loading) {
+    return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft, fontFamily: "Inter, sans-serif" }}>Loading…</div>;
+  }
+
+  const visibleNav = NAV.filter((n) => access.canAccessTab(n.id));
 
   return (
     <div style={{ minHeight: "100vh", background: T.paper, fontFamily: "Inter, sans-serif" }} className="md:flex">
@@ -108,7 +125,7 @@ export default function Dashboard() {
       </div>
       {menuOpen && (
         <div className="md:hidden" style={{ background: T.maroonDark, padding: "8px 8px 12px" }}>
-          {NAV.map((n) => (
+          {visibleNav.map((n) => (
             <button
               key={n.id}
               onClick={() => goTo(n.id)}
@@ -140,7 +157,7 @@ export default function Dashboard() {
           <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.ivory, lineHeight: 1.15 }}>Nritya Mandala</span>
         </div>
         <nav className="flex flex-col gap-1">
-          {NAV.map((n) => (
+          {visibleNav.map((n) => (
             <button
               key={n.id}
               onClick={() => setTab(n.id)}
@@ -169,23 +186,28 @@ export default function Dashboard() {
       <main className="md:flex-1" style={{ padding: "18px 14px", overflowX: "hidden", minWidth: 0 }}>
         <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
           <h2 style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: T.maroonDark }}>
-            {NAV.find((n) => n.id === tab)?.label}
+            {visibleNav.find((n) => n.id === tab)?.label}
           </h2>
           <ShareEnrollLink compact />
         </div>
-        {tab === "students" && <StudentsView focusStudentCode={focusStudentCode} />}
-        {tab === "home" && <HomeView counts={counts} onNavigate={setTab} />}
-        {tab === "calendar" && <CalendarView />}
-        {tab === "requests" && <RequestsView focusRequestId={focusRequestId} />}
-        {tab === "renewals" && <RenewalsView focusRenewalId={focusRenewalId} />}
-        {tab === "classes" && <ClassesView />}
-        {tab === "levels" && <LevelsView />}
-        {tab === "packages" && <PackageTiersView />}
-        {tab === "finances" && <FinancesView />}
-        {tab === "history" && <HistoryView />}
-        {tab === "website" && <WebsiteContentView />}
-        {tab === "studio-settings" && <StudioSettingsView />}
-        {tab === "account" && <AccountView />}
+        {/* Guarded by canAccessTab, not just visibleNav hiding the link — the
+            useEffect above bounces an inaccessible deep-linked tab back to
+            "home", but this is the belt-and-braces check that actually stops
+            the view from rendering even for a moment. */}
+        {access.canAccessTab(tab) && tab === "students" && <StudentsView focusStudentCode={focusStudentCode} />}
+        {access.canAccessTab(tab) && tab === "home" && <HomeView counts={counts} onNavigate={setTab} access={access} />}
+        {access.canAccessTab(tab) && tab === "calendar" && <CalendarView access={access} />}
+        {access.canAccessTab(tab) && tab === "requests" && <RequestsView focusRequestId={focusRequestId} />}
+        {access.canAccessTab(tab) && tab === "renewals" && <RenewalsView focusRenewalId={focusRenewalId} />}
+        {access.canAccessTab(tab) && tab === "classes" && <ClassesView />}
+        {access.canAccessTab(tab) && tab === "levels" && <LevelsView />}
+        {access.canAccessTab(tab) && tab === "packages" && <PackageTiersView />}
+        {access.canAccessTab(tab) && tab === "finances" && <FinancesView />}
+        {access.canAccessTab(tab) && tab === "history" && <HistoryView />}
+        {access.canAccessTab(tab) && tab === "website" && <WebsiteContentView />}
+        {access.canAccessTab(tab) && tab === "studio-settings" && <StudioSettingsView />}
+        {access.canAccessTab(tab) && tab === "team" && <TeamView />}
+        {access.canAccessTab(tab) && tab === "account" && <AccountView />}
       </main>
     </div>
   );

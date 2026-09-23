@@ -8,7 +8,7 @@ import QrScanner from "./QrScanner";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-export default function HomeView({ counts, onNavigate }) {
+export default function HomeView({ counts, onNavigate, access }) {
   const [todayClasses, setTodayClasses] = useState([]);
   const [upcoming, setUpcoming] = useState([]);
   const [notices, setNotices] = useState([]);
@@ -26,9 +26,10 @@ export default function HomeView({ counts, onNavigate }) {
       supabase.from("enrollments").select("class_id, start_date"),
       supabase.from("class_skips").select("class_id, date").eq("date", todayStr),
       supabase.from("studio_notices").select("*").lte("start_date", todayStr).gte("end_date", todayStr).order("start_date"),
-      // Who's already marked skipped/missed for today — used to flag a session
-      // where enough students have dropped out that turnout will be sparse.
-      supabase.from("attendance").select("class_id, status").eq("date", todayStr),
+      // Who's already marked skipped/missed for today — used both to flag a
+      // session where enough students have dropped out that turnout will be
+      // sparse, and to name who specifically is out.
+      supabase.from("attendance").select("class_id, status, students(name)").eq("date", todayStr),
       // Broader windows for the "next 7 days" projection below — occurrence
       // generation needs every skip in the window (not just today's), and the
       // estimate needs every already-marked absence in the window, with the
@@ -37,16 +38,17 @@ export default function HomeView({ counts, onNavigate }) {
       supabase.from("attendance").select("class_id, date, status, students(name)").gte("date", todayStr).lte("date", weekEndStr).in("status", ["skipped", "missed"]),
     ]).then(([cRes, eRes, skRes, noticesRes, attRes, weekSkipsRes, weekAttRes]) => {
       const skippedIds = new Set((skRes.data || []).map((s) => s.class_id));
-      const absentCountByClass = {};
+      const absenteesByClass = {};
       (attRes.data || []).forEach((a) => {
-        if (a.status === "skipped" || a.status === "missed") absentCountByClass[a.class_id] = (absentCountByClass[a.class_id] || 0) + 1;
+        if (a.status === "skipped" || a.status === "missed") (absenteesByClass[a.class_id] ||= []).push(a.students?.name);
       });
       const classes = (cRes.data || [])
         .filter((c) => c.day === dayName && isClassActiveOn(c, todayStr) && !skippedIds.has(c.id))
         .sort((a, b) => a.time.localeCompare(b.time))
         .map((c) => {
           const bookedCount = (eRes.data || []).filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= todayStr)).length;
-          return { ...c, bookedCount, lowAttendanceRisk: isLowAttendanceRisk(bookedCount, absentCountByClass[c.id] || 0) };
+          const absentees = (absenteesByClass[c.id] || []).filter(Boolean);
+          return { ...c, bookedCount, absentees, lowAttendanceRisk: isLowAttendanceRisk(bookedCount, absentees.length) };
         });
       setTodayClasses(classes);
       setNotices(noticesRes.data || []);
@@ -115,18 +117,27 @@ export default function HomeView({ counts, onNavigate }) {
       ))}
 
       <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-        <button onClick={() => onNavigate("requests")} style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.terracotta}`, borderRadius: 10, padding: 16 }}>
-          <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}>NEW REQUESTS</div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>{counts.requests}</div>
-        </button>
-        <button onClick={() => onNavigate("renewals")} style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.gold}`, borderRadius: 10, padding: 16 }}>
-          <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}>RENEWALS DUE / PENDING</div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>{counts.renewals}</div>
-        </button>
-        <button onClick={() => onNavigate("students")} style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.sage}`, borderRadius: 10, padding: 16 }}>
-          <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}>ACTIVE STUDENTS</div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>{counts.students}</div>
-        </button>
+        {[
+          { key: "requests", label: "NEW REQUESTS", accent: T.terracotta, count: counts.requests },
+          { key: "renewals", label: "RENEWALS DUE / PENDING", accent: T.gold, count: counts.renewals },
+          { key: "students", label: "ACTIVE STUDENTS", accent: T.sage, count: counts.students },
+        ].map((tile) => {
+          const clickable = access.canAccessTab(tile.key);
+          return (
+            <button
+              key={tile.key}
+              onClick={clickable ? () => onNavigate(tile.key) : undefined}
+              disabled={!clickable}
+              style={{
+                textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${tile.accent}`,
+                borderRadius: 10, padding: 16, cursor: clickable ? "pointer" : "default", opacity: clickable ? 1 : 0.7,
+              }}
+            >
+              <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}>{tile.label}</div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: T.maroonDark, fontFamily: "Fraunces, serif" }}>{tile.count}</div>
+            </button>
+          );
+        })}
       </div>
 
       <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 10 }}>Today's classes</h3>
@@ -138,15 +149,20 @@ export default function HomeView({ counts, onNavigate }) {
         <div className="grid gap-2">
           {todayClasses.map((c) => (
             <div key={c.id} style={{ background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${c.lowAttendanceRisk ? T.maroon : T.line}`, borderRadius: 8, padding: "10px 14px" }} className="flex items-center justify-between gap-2">
-              <button onClick={() => onNavigate("calendar")} style={{ textAlign: "left", background: "transparent", border: "none", flex: 1, minWidth: 0, cursor: "pointer" }} className="flex items-center justify-between">
-                <div>
-                  <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>{c.label}</span>
-                  <span style={{ fontSize: 12, color: T.inkSoft, marginLeft: 8 }}>{formatTimeRange(c.time, c.end_time)}</span>
-                  {c.lowAttendanceRisk && (
-                    <span style={{ fontSize: 11, fontWeight: 700, color: T.maroon, marginLeft: 8 }}>⚠ Half or more absent</span>
-                  )}
+              <button onClick={() => onNavigate("calendar")} style={{ textAlign: "left", background: "transparent", border: "none", flex: 1, minWidth: 0, cursor: "pointer" }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>{c.label}</span>
+                    <span style={{ fontSize: 12, color: T.inkSoft, marginLeft: 8 }}>{formatTimeRange(c.time, c.end_time)}</span>
+                    {c.lowAttendanceRisk && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.maroon, marginLeft: 8 }}>⚠ Half or more absent</span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 12, color: T.inkSoft }}>{c.bookedCount} booked</span>
                 </div>
-                <span style={{ fontSize: 12, color: T.inkSoft }}>{c.bookedCount} booked</span>
+                {c.absentees.length > 0 && (
+                  <div style={{ fontSize: 11, color: T.terracotta, marginTop: 4 }}>Marked absent: {c.absentees.join(", ")}</div>
+                )}
               </button>
               <button onClick={() => setScanningClass(c)} title="Scan to check in" style={{ fontSize: 15, padding: "4px 6px", background: "transparent", border: "none", cursor: "pointer", flexShrink: 0 }}>📷</button>
             </div>

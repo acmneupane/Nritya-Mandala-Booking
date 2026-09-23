@@ -299,7 +299,7 @@ function SkipModal({ cls, onClose, onSaved }) {
 
 // Full inline day view: every class scheduled that weekday, with its complete
 // roster and attendance controls right on the page — no click-through needed.
-function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged, utilCounts, recordedByClassDate, atRiskBookings, lowAttendanceRisk }) {
+function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged, utilCounts, recordedByClassDate, atRiskBookings, lowAttendanceRisk, canCancelSession }) {
   const dateStr = localDateStr(date);
   const dayName = DAYS[(date.getDay() + 6) % 7];
   const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr)).sort((a, b) => a.time.localeCompare(b.time));
@@ -337,12 +337,16 @@ function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChange
                 )}
               </div>
               {skip ? (
-                <button onClick={() => onUnskip(skip)} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skipped{skip.reason ? ` — ${skip.reason}` : ""} · Undo</button>
+                canCancelSession ? (
+                  <button onClick={() => onUnskip(skip)} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skipped{skip.reason ? ` — ${skip.reason}` : ""} · Undo</button>
+                ) : (
+                  <span style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skipped{skip.reason ? ` — ${skip.reason}` : ""}</span>
+                )
               ) : alreadyRecorded ? (
                 <span style={{ fontSize: 11, color: T.inkSoft }} title="Someone's already been marked attended or missed — this class already happened">Can't skip — attendance recorded</span>
-              ) : (
+              ) : canCancelSession ? (
                 <button onClick={() => onSkip({ ...c, dateStr, bookedCount: enrollments.filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= dateStr)).length })} style={{ fontSize: 12, color: T.terracotta, padding: "4px 6px" }}>Skip this date</button>
-              )}
+              ) : null}
             </div>
             {skip ? (
               <p style={{ fontSize: 13, color: T.inkSoft }}>This class is skipped for this date — no attendance can be marked.</p>
@@ -372,7 +376,8 @@ function UtilizationBadge({ counts }) {
   );
 }
 
-export default function CalendarView() {
+export default function CalendarView({ access }) {
+  const canCancelSession = access?.has ? access.has("studio_settings") : true;
   const [viewMode, setViewMode] = useState("month");
   const [anchor, setAnchor] = useState(new Date());
   const [classes, setClasses] = useState([]);
@@ -488,7 +493,7 @@ export default function CalendarView() {
       </div>
 
       {viewMode === "day" ? (
-        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} utilCounts={utilCounts[localDateStr(anchor)]} recordedByClassDate={recordedByClassDate} atRiskBookings={atRiskBookings} lowAttendanceRisk={lowAttendanceRisk} />
+        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} utilCounts={utilCounts[localDateStr(anchor)]} recordedByClassDate={recordedByClassDate} atRiskBookings={atRiskBookings} lowAttendanceRisk={lowAttendanceRisk} canCancelSession={canCancelSession} />
       ) : (
         <div className="grid gap-2 grid-cols-3 md:grid-cols-6">
           {dates.map(({ date, inMonth }, i) => {
@@ -540,9 +545,9 @@ export default function CalendarView() {
                       </button>
                       {recordedByClassDate[`${c.id}|${dateStr}`] ? (
                         <span style={{ fontSize: 10, color: T.inkSoft }} title="Attendance already recorded — this class already happened">Can't skip</span>
-                      ) : (
+                      ) : canCancelSession ? (
                         <button type="button" onClick={() => setSkippingClass({ ...c, dateStr, bookedCount })} style={{ fontSize: 10, color: T.terracotta, marginTop: 2 }}>Skip this date</button>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })}
