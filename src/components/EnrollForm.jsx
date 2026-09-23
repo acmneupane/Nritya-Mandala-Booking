@@ -503,7 +503,7 @@ export default function EnrollForm() {
                     {namedSiblings.map((s, i) => (
                       <div key={i} style={{ marginTop: 14 }}>
                         <h4 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 8 }}>Select a package for {s.name}</h4>
-                        <PackageTierPicker tiers={packageTiers} selectedId={s.packageTierId} onSelect={(id) => updateSibling(siblings.indexOf(s), { ...s, packageTierId: id })} sibling />
+                        <PackageTierPicker tiers={packageTiers} selectedId={s.packageTierId} onSelect={(id) => updateSibling(s._idx, { ...siblings[s._idx], packageTierId: id })} sibling />
                       </div>
                     ))}
                   </div>
