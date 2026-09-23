@@ -530,6 +530,13 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
   const [code, setCode] = useState(initial?.code || "");
   const [videoConsent, setVideoConsent] = useState(initial && "video_consent" in initial ? (initial.video_consent === null ? "" : String(initial.video_consent)) : "");
   const [reminderOptOut, setReminderOptOut] = useState(initial?.renewal_reminder_opt_out || false);
+  const [remindersEnabled, setRemindersEnabled] = useState(false);
+
+  useEffect(() => {
+    supabase.from("admin_settings").select("auto_renewal_reminders_enabled").eq("id", 1).maybeSingle().then(({ data }) => {
+      setRemindersEnabled(!!data?.auto_renewal_reminders_enabled);
+    });
+  }, []);
   // Only used when creating a brand-new student — a package entered here gets saved
   // right after the student is created, since there's no student id to attach it to yet.
   const [pendingPackages, setPendingPackages] = useState([]);
@@ -733,10 +740,12 @@ function StudentModal({ initial, levels, allGuardians, onClose, onSaved }) {
         </select>
       </Field>
 
-      <label className="flex items-center gap-2" style={{ fontSize: 13, color: T.ink, marginBottom: 12 }}>
-        <input type="checkbox" checked={reminderOptOut} onChange={(e) => setReminderOptOut(e.target.checked)} />
-        Opt out of automatic renewal reminder emails (a staff member may still follow up directly)
-      </label>
+      {remindersEnabled && (
+        <label className="flex items-center gap-2" style={{ fontSize: 13, color: T.ink, marginBottom: 12 }}>
+          <input type="checkbox" checked={reminderOptOut} onChange={(e) => setReminderOptOut(e.target.checked)} />
+          Opt out of automatic renewal reminder emails (a staff member may still follow up directly)
+        </label>
+      )}
 
       <Field label="Access code (parent lookup & QR)">
         <div className="flex gap-2">
