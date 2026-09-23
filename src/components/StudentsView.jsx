@@ -267,6 +267,28 @@ function UpgradeLevelModal({ student, levels, onClose, onUpgraded }) {
   );
 }
 
+// Small clickable stat tile — an at-a-glance count that doubles as a filter toggle,
+// so "how many students need attention" is visible without opening any dropdown.
+function StatChip({ icon, count, label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2 transition-colors"
+      style={{
+        border: `1px solid ${active ? T.gold : T.line}`,
+        background: active ? `${T.gold}18` : "#fff",
+        borderRadius: 10, padding: "8px 14px", textAlign: "left",
+      }}
+    >
+      <span style={{ fontSize: 17 }}>{icon}</span>
+      <span>
+        <div style={{ fontSize: 16, fontWeight: 700, color: T.maroonDark, lineHeight: 1 }}>{count}</div>
+        <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2, whiteSpace: "nowrap" }}>{label}</div>
+      </span>
+    </button>
+  );
+}
+
 function ConsentBadge({ consent }) {
   if (consent === true) return <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: `${T.sage}22`, color: T.sage, fontWeight: 600 }}>📷 Consent: Yes</span>;
   if (consent === false) return <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: `${T.terracotta}22`, color: T.terracotta, fontWeight: 600 }}>📷 Consent: No</span>;
@@ -1198,6 +1220,18 @@ export default function StudentsView({ focusStudentCode }) {
   const setBookingFilterAndResetPage = (val) => { setBookingFilter(val); setPage(1); };
   const setLevelFilterAndResetPage = (val) => { setLevelFilter(val); setPage(1); };
 
+  // At-a-glance counts for the stat row — computed over the current archived/active
+  // view but ignoring search text and the other filters, so each number always
+  // reflects "how many, total" rather than shrinking as other filters narrow things
+  // down. Clicking a tile toggles that one filter on/off.
+  const inView = students.filter((s) => !!s.archived === showArchived);
+  const unassignedLevelCount = inView.filter((s) => !s.level_id).length;
+  const unbookedCount = inView.filter((s) => (classesByStudent[s.id] || []).length === 0).length;
+  const consentDeclinedCount = inView.filter((s) => s.video_consent === false).length;
+  const toggleLevelFilter = (val) => setLevelFilterAndResetPage(levelFilter === val ? "all" : val);
+  const toggleBookingFilter = (val) => setBookingFilterAndResetPage(bookingFilter === val ? "all" : val);
+  const toggleConsentFilter = (val) => setConsentFilterAndResetPage(consentFilter === val ? "all" : val);
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const clampedPage = Math.min(page, totalPages);
   const paginated = filtered.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE);
@@ -1248,6 +1282,11 @@ export default function StudentsView({ focusStudentCode }) {
 
   return (
     <div>
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <StatChip icon="🎓" count={unassignedLevelCount} label="Level unassigned" active={levelFilter === "unassigned"} onClick={() => toggleLevelFilter("unassigned")} />
+        <StatChip icon="📅" count={unbookedCount} label="Not booked into a class" active={bookingFilter === "unbooked"} onClick={() => toggleBookingFilter("unbooked")} />
+        <StatChip icon="📷" count={consentDeclinedCount} label="Declined social media consent" active={consentFilter === "no"} onClick={() => toggleConsentFilter("no")} />
+      </div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-3 flex-wrap">
           <input style={{ ...inputStyle, width: 220, maxWidth: "60vw" }} placeholder="Search student or parent name…" value={query} onChange={(e) => setQueryAndResetPage(e.target.value)} />
