@@ -4,7 +4,7 @@ import { T } from "../lib/theme";
 import { useLogoUrl } from "../lib/logo";
 import { localDateStr } from "../lib/dates";
 import { nextOccurrenceOf, formatTimeRange } from "../lib/scheduling";
-import { shareReferral } from "../lib/share";
+import { shareReferral, referralCopy } from "../lib/share";
 import MessageStudioModal from "./MessageStudioModal";
 import ReviewModal from "./ReviewModal";
 
@@ -20,6 +20,7 @@ export default function FamilyView({ students, usedCode, onSelectStudent }) {
   const [loading, setLoading] = useState(true);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [referralConfig, setReferralConfig] = useState(null);
 
   const usedStudent = students.find((s) => s.code === usedCode) || students[0];
 
@@ -31,9 +32,10 @@ export default function FamilyView({ students, usedCode, onSelectStudent }) {
         supabase.from("enrollments").select("student_id, classes(id, label, day, time, end_time, start_date, end_date)").in("student_id", ids),
         supabase.from("class_skips").select("class_id, date"),
         supabase.from("student_package_summary").select("student_id, classes_total, classes_used").in("student_id", ids),
-        supabase.from("admin_settings").select("due_threshold").eq("id", 1).maybeSingle(),
+        supabase.from("admin_settings").select("due_threshold, referral_program_enabled, referrals_per_free_class, referred_student_gets_free_class").eq("id", 1).maybeSingle(),
       ]);
       setLevels(levelsRes.data || []);
+      setReferralConfig(settingsRes.data || null);
       const dueThreshold = settingsRes.data?.due_threshold ?? 2;
       const skips = skipsRes.data || [];
       const classesByStudent = {};
@@ -83,12 +85,15 @@ export default function FamilyView({ students, usedCode, onSelectStudent }) {
 
         <div className="flex items-center justify-center gap-2 flex-wrap" style={{ marginTop: 14 }}>
           <button onClick={() => shareReferral(usedStudent?.code)} className="hover:opacity-90 transition-opacity" style={{ fontSize: 12.5, fontWeight: 700, color: T.maroonDark, background: T.goldLight, border: `1px solid ${T.gold}`, borderRadius: 999, padding: "7px 16px" }}>
-            📣 Refer a friend
+            {referralCopy(referralConfig).buttonLabel}
           </button>
           <button onClick={() => setShowMessageModal(true)} className="hover:opacity-90 transition-opacity" style={{ fontSize: 12.5, fontWeight: 700, color: T.maroonDark, background: "#fff", border: `1px solid ${T.line}`, borderRadius: 999, padding: "7px 16px" }}>
             ✉️ Message the studio
           </button>
         </div>
+        {referralConfig?.referral_program_enabled && (
+          <p className="text-center" style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 8 }}>{referralCopy(referralConfig).detailLine}</p>
+        )}
 
         <div className="grid gap-2" style={{ marginTop: 18 }}>
           {loading ? (

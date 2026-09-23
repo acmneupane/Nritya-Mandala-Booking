@@ -14,7 +14,7 @@ import MarkAbsentModal from "./MarkAbsentModal";
 import MessageStudioModal from "./MessageStudioModal";
 import ReviewModal from "./ReviewModal";
 import { APP_ORIGIN } from "../lib/origins";
-import { shareReferral } from "../lib/share";
+import { shareReferral, referralCopy } from "../lib/share";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -43,6 +43,7 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
   const [loadingReceipt, setLoadingReceipt] = useState(null);
   const [openClasses, setOpenClasses] = useState([]);
   const [dueThreshold, setDueThreshold] = useState(2);
+  const [referralConfig, setReferralConfig] = useState(null);
   const [activeNotices, setActiveNotices] = useState([]);
   const [skips, setSkips] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +72,7 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
       supabase.from("class_skips").select("class_id, date"),
       supabase.rpc("get_family_packages", { p_code: student.code }),
       fetchOpenClasses(),
-      supabase.from("admin_settings").select("due_threshold").eq("id", 1).maybeSingle(),
+      supabase.from("admin_settings").select("due_threshold, referral_program_enabled, referrals_per_free_class, referred_student_gets_free_class").eq("id", 1).maybeSingle(),
       supabase.from("studio_notices").select("*").lte("start_date", localDateStr(new Date())).gte("end_date", localDateStr(new Date())).order("start_date"),
       // Milestones use their own dedicated queries rather than reusing `history`
       // (capped at 10 for the "recent attendance" list above) — a lifetime count
@@ -91,6 +92,7 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
     setFamilyPackages(familyPkgsRes.data || []);
     setOpenClasses(openClassesRes);
     setDueThreshold(settingsRes.data?.due_threshold ?? 2);
+    setReferralConfig(settingsRes.data || null);
     setActiveNotices(noticesRes.data || []);
     setLoading(false);
   };
@@ -235,7 +237,7 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
             className="hover:opacity-90 transition-opacity"
             style={{ fontSize: 12.5, fontWeight: 700, color: T.maroonDark, background: T.goldLight, border: `1px solid ${T.gold}`, borderRadius: 999, padding: "7px 16px" }}
           >
-            📣 Refer a friend
+            {referralCopy(referralConfig).buttonLabel}
           </button>
           <button
             onClick={() => setShowMessageModal(true)}
@@ -245,6 +247,9 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
             ✉️ Message the studio
           </button>
         </div>
+        {referralConfig?.referral_program_enabled && (
+          <p className="text-center" style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 8 }}>{referralCopy(referralConfig).detailLine}</p>
+        )}
 
         <div className="grid gap-4 mt-6">
           {activeNotices.map((n) => (

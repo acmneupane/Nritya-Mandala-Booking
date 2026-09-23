@@ -38,12 +38,37 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
   const [error, setError] = useState("");
   const [dirtyPackages, setDirtyPackages] = useState({}); // { [studentIndex]: boolean }
   const [confirmDirtyPackage, setConfirmDirtyPackage] = useState(false);
+  const [referrer, setReferrer] = useState(null); // { id, name, code, referralCount } once resolved
+  const [referralSettings, setReferralSettings] = useState(null);
+  const [applyReferral, setApplyReferral] = useState(false);
+  const [referralLoaded, setReferralLoaded] = useState(!request.referred_by_code);
 
   useEffect(() => {
     supabase.from("settings").select("enrolment_fee_enabled, enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setFees({ enabled: data.enrolment_fee_enabled, primary: Number(data.enrolment_fee_primary), sibling: Number(data.enrolment_fee_sibling) });
     });
   }, []);
+
+  // Resolve the referral code to an actual student, plus the studio's current
+  // referral config, so the admin sees exactly who gets what before deciding
+  // whether to honor it — a code that no longer matches an active student
+  // (mistyped, or that student's since been archived) just shows as such.
+  useEffect(() => {
+    if (!request.referred_by_code) return;
+    (async () => {
+      const [{ data: ref }, { data: settings }] = await Promise.all([
+        supabase.from("students").select("id, name, code").eq("code", request.referred_by_code.toUpperCase()).eq("archived", false).maybeSingle(),
+        supabase.from("admin_settings").select("referral_program_enabled, referrals_per_free_class, referred_student_gets_free_class").eq("id", 1).maybeSingle(),
+      ]);
+      setReferralSettings(settings || null);
+      if (ref) {
+        const { count } = await supabase.from("students").select("id", { count: "exact", head: true }).eq("referred_by_student_id", ref.id).eq("archived", false);
+        setReferrer({ ...ref, referralCount: count || 0 });
+        setApplyReferral(true);
+      }
+      setReferralLoaded(true);
+    })();
+  }, [request.referred_by_code]);
 
   const updateStudent = (i, field, val) => setStudents((ss) => ss.map((s, idx) => (idx === i ? { ...s, [field]: val } : s)));
   const setStudentPackages = (i) => (updater) => {
@@ -147,9 +172,10 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
       if (updErr) throw updErr;
 
       // Credited once per request (against the primary student, not each
-      // sibling) — a no-op server-side if there's no referral code, it's
-      // blank, or the program's off.
-      if (request.referred_by_code && emailStudents[0]) {
+      // sibling), and only when the admin left "Referral program accepted"
+      // checked — unchecking it means no link and no reward for either side,
+      // not just a smaller one.
+      if (applyReferral && referrer && emailStudents[0]) {
         await supabase.rpc("apply_referral_reward", { p_new_student_id: emailStudents[0].id, p_referral_code: request.referred_by_code });
       }
 
@@ -170,6 +196,39 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
     <>
     <Modal title={`Approve enrolment · ${request.reference}`} onClose={onClose} wide>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12 }}>Review and adjust before creating {students.length > 1 ? "these student records" : "this student record"}.</p>
+
+      {request.referred_by_code && (
+        <div style={{ background: `${T.gold}12`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: 12, marginBottom: 12 }}>
+          {!referralLoaded ? (
+            <p style={{ fontSize: 12, color: T.inkSoft }}>Checking referral code…</p>
+          ) : !referrer ? (
+            <p style={{ fontSize: 12.5, color: T.terracotta }}>Referral code "{request.referred_by_code}" was entered, but no matching active student was found — no referral will be applied.</p>
+          ) : (
+            <>
+              <p style={{ fontSize: 12.5, fontWeight: 600, color: T.maroonDark, marginBottom: 6 }}>🔗 Referred by {referrer.name} [{referrer.code}]</p>
+              <label className="flex items-center gap-2 mb-2" style={{ fontSize: 12.5, color: T.ink, fontWeight: 500 }}>
+                <input type="checkbox" checked={applyReferral} onChange={(e) => setApplyReferral(e.target.checked)} />
+                Referral program accepted
+              </label>
+              {!referralSettings?.referral_program_enabled ? (
+                <p style={{ fontSize: 11.5, color: T.inkSoft }}>Referral program is currently off in Admin Config — accepting this won't issue any rewards.</p>
+              ) : (
+                <div style={{ fontSize: 11.5, color: applyReferral ? T.ink : T.inkSoft, textDecoration: applyReferral ? "none" : "line-through", lineHeight: 1.6 }}>
+                  {referralSettings.referred_student_gets_free_class && <div>{students[0]?.name || "This student"} gets 1 free class</div>}
+                  {(() => {
+                    const countAfter = referrer.referralCount + 1;
+                    const perFreeClass = referralSettings.referrals_per_free_class || 1;
+                    const earnsNow = countAfter % perFreeClass === 0;
+                    return earnsNow
+                      ? <div>{referrer.name} gets 1 free class (referral #{countAfter})</div>
+                      : <div>{referrer.name} is now at {countAfter} of {perFreeClass} referrals — no free class yet</div>;
+                  })()}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {students.map((s, i) => (
         <div key={s.id} style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 10, marginBottom: 8 }}>
