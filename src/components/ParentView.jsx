@@ -471,7 +471,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
               const { label, color } = attendanceStatusInfo(h, T);
               return (
                 <div key={h.id} className="flex items-center justify-between" style={{ fontSize: 13, padding: "7px 0", borderTop: `1px solid ${T.line}` }}>
-                  <span>{h.date}</span>
+                  <span>{new Date(h.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</span>
                   <span style={{ color, fontWeight: 600 }}>{label}</span>
                 </div>
               );
