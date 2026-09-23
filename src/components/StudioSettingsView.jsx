@@ -111,7 +111,7 @@ function CapacityEditor() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    supabase.from("settings").select("renewal_grace_period_days, due_threshold").eq("id", 1).maybeSingle().then(({ data }) => {
+    supabase.from("admin_settings").select("renewal_grace_period_days, due_threshold").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) { setDays(String(data.renewal_grace_period_days)); setDueThreshold(String(data.due_threshold)); }
       setLoading(false);
     });
@@ -120,7 +120,7 @@ function CapacityEditor() {
   const save = async () => {
     setSaving(true);
     setSaved(false);
-    await supabase.from("settings").update({ renewal_grace_period_days: Number(days), due_threshold: Number(dueThreshold) }).eq("id", 1);
+    await supabase.from("admin_settings").update({ renewal_grace_period_days: Number(days), due_threshold: Number(dueThreshold) }).eq("id", 1);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -153,7 +153,7 @@ const BACKUP_TABLES = [
   "classes", "enrollments", "attendance", "class_skips",
   "packages", "package_tiers", "enrolment_fee_charges",
   "enrollment_requests", "enrollment_request_students", "package_renewal_requests",
-  "expenses", "settings", "email_templates", "audit_log",
+  "expenses", "settings", "admin_settings", "email_templates", "audit_log",
 ];
 
 function EmailLimitEditor() {
@@ -164,7 +164,7 @@ function EmailLimitEditor() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    supabase.from("settings").select("resend_daily_limit, resend_monthly_limit").eq("id", 1).maybeSingle().then(({ data }) => {
+    supabase.from("admin_settings").select("resend_daily_limit, resend_monthly_limit").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) { setLimit(String(data.resend_daily_limit)); setMonthlyLimit(String(data.resend_monthly_limit)); }
       setLoading(false);
     });
@@ -173,7 +173,7 @@ function EmailLimitEditor() {
   const save = async () => {
     setSaving(true);
     setSaved(false);
-    await supabase.from("settings").update({ resend_daily_limit: Number(limit), resend_monthly_limit: Number(monthlyLimit) }).eq("id", 1);
+    await supabase.from("admin_settings").update({ resend_daily_limit: Number(limit), resend_monthly_limit: Number(monthlyLimit) }).eq("id", 1);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);

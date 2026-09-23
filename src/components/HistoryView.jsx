@@ -48,7 +48,7 @@ function EmailsSection() {
       supabase.from("email_log").select("*", { count: "exact" }).order("sent_at", { ascending: false }).range(from, to),
       supabase.from("email_log").select("id", { count: "exact", head: true }).gte("sent_at", startOfDay.toISOString()),
       supabase.from("email_log").select("id", { count: "exact", head: true }).gte("sent_at", startOfMonth.toISOString()),
-      supabase.from("settings").select("resend_daily_limit, resend_monthly_limit").eq("id", 1).maybeSingle(),
+      supabase.from("admin_settings").select("resend_daily_limit, resend_monthly_limit").eq("id", 1).maybeSingle(),
     ]);
     setRows(listRes.data || []);
     setTotal(listRes.count || 0);

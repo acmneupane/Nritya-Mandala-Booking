@@ -18,7 +18,7 @@ function DueForRenewalSection({ onChanged }) {
   const [threshold, setThreshold] = useState(null); // null until the studio's default loads
 
   useEffect(() => {
-    supabase.from("settings").select("due_threshold").eq("id", 1).maybeSingle().then(({ data }) => {
+    supabase.from("admin_settings").select("due_threshold").eq("id", 1).maybeSingle().then(({ data }) => {
       setThreshold(data?.due_threshold ?? DUE_THRESHOLD);
     });
   }, []);
@@ -28,7 +28,7 @@ function DueForRenewalSection({ onChanged }) {
     const [sRes, pRes, settingsRes, emptiedRes, pendingReqRes, enRes] = await Promise.all([
       supabase.from("students").select("id, name, code, created_at, last_renewal_reminder_sent_at").eq("archived", false),
       supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
-      supabase.from("settings").select("renewal_grace_period_days").eq("id", 1).maybeSingle(),
+      supabase.from("admin_settings").select("renewal_grace_period_days").eq("id", 1).maybeSingle(),
       supabase.rpc("get_package_emptied_dates"),
       supabase.from("package_renewal_requests").select("student_id").eq("status", "pending"),
       supabase.from("enrollments").select("student_id, start_date, classes(label, day, time, end_time)"),
@@ -485,7 +485,7 @@ export default function RenewalsView({ focusRenewalId }) {
       supabase.from("students").select("id").eq("archived", false),
       supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
       supabase.from("package_renewal_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
-      supabase.from("settings").select("due_threshold").eq("id", 1).maybeSingle(),
+      supabase.from("admin_settings").select("due_threshold").eq("id", 1).maybeSingle(),
     ]);
     const dueThreshold = settingsRes.data?.due_threshold ?? DUE_THRESHOLD;
     const pkgByStudent = Object.fromEntries((pkgRes.data || []).map((p) => [p.student_id, p]));

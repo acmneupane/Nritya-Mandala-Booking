@@ -81,7 +81,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
       supabase.from("class_skips").select("class_id, date"),
       supabase.rpc("get_family_packages", { p_code: student.code }),
       fetchOpenClasses(),
-      supabase.from("settings").select("due_threshold").eq("id", 1).maybeSingle(),
+      supabase.from("admin_settings").select("due_threshold").eq("id", 1).maybeSingle(),
       supabase.from("studio_notices").select("*").lte("start_date", localDateStr(new Date())).gte("end_date", localDateStr(new Date())).order("start_date"),
     ]);
     setLevel(levelRes.data);
