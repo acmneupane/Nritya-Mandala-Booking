@@ -439,11 +439,11 @@ function RenewalReminderConfig() {
       <p style={{ fontSize: 11, color: T.inkSoft, marginTop: -8, marginBottom: 14 }}>
         While this is off, runs still happen on schedule and the log below still fills in — each candidate is recorded as "would send" instead of actually emailed. Nothing goes out until this is checked, so it's safe to leave off and watch a few real runs before switching it on.
       </p>
-      <Field label="Schedule (cron expression)">
-        <input style={inputStyle} value={cron} onChange={(e) => setCron(e.target.value)} placeholder="0 9 * * 1" />
+      <Field label={<>Schedule (cron expression, <strong style={{ fontSize: 15, color: T.terracotta }}>UTC</strong>)</>}>
+        <input style={inputStyle} value={cron} onChange={(e) => setCron(e.target.value)} placeholder="0 22 * * 0" />
       </Field>
       <p style={{ fontSize: 11, color: T.inkSoft, marginTop: -8, marginBottom: 14 }}>
-        Default <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>0 9 * * 1</code> = every Monday at 9:00am, in UTC (not Sydney time). Checkpoints are based on remaining classes, not calendar days, so a weekly check is enough — classes recur weekly anyway.
+        Always enter this in <strong>UTC</strong>, not Sydney time — Supabase's scheduler doesn't support a Sydney timezone without a full database restart, so this field is deliberately left in UTC. E.g. <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>0 22 * * 0</code> = Sunday 10:00pm UTC = Monday 9:00am AEDT. Remember to nudge it by an hour around Sydney's daylight saving changes. Checkpoints are based on remaining classes, not calendar days, so a weekly check is enough — classes recur weekly anyway.
       </p>
       <Field label="Test email override (optional)">
         <input style={inputStyle} type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="you@example.com" />
