@@ -217,10 +217,14 @@ function StudentInfoModal({ student, level, onClose }) {
   );
 }
 
+// Every badge gets its own icon and keeps the same pill shape whether it's showing
+// real data or an empty state — that way admins tell fields apart by icon at a
+// glance instead of having to read each one (an unassigned Level, an empty
+// Package, and a Consent chip used to all read as similar muted grey pills).
 function LevelBadge({ level }) {
-  if (!level) return <span style={{ fontSize: 12, color: T.inkSoft }}>Unassigned</span>;
+  if (!level) return <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: `${T.inkSoft}18`, color: T.inkSoft, fontWeight: 600 }}>🎓 Unassigned</span>;
   return (
-    <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: `${T.sage}22`, color: T.sage, fontWeight: 600 }}>{level.name}</span>
+    <span style={{ fontSize: 12, padding: "3px 8px", borderRadius: 999, background: `${T.sage}22`, color: T.sage, fontWeight: 600 }}>🎓 {level.name}</span>
   );
 }
 
@@ -270,11 +274,11 @@ function ConsentBadge({ consent }) {
 }
 
 function PackageBadge({ remaining, hasAny }) {
-  if (!hasAny) return <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 999, background: `${T.terracotta}18`, color: T.terracotta, fontWeight: 600 }}>No package on file</span>;
+  if (!hasAny) return <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 999, background: `${T.terracotta}18`, color: T.terracotta, fontWeight: 600 }}>📦 No package on file</span>;
   const ok = remaining > 0;
   return (
     <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 999, background: ok ? `${T.sage}18` : `${T.terracotta}18`, color: ok ? T.sage : T.terracotta, fontWeight: 600 }}>
-      {remaining} class{remaining === 1 ? "" : "es"} left
+      📦 {remaining} class{remaining === 1 ? "" : "es"} left
     </span>
   );
 }
@@ -1102,6 +1106,7 @@ export default function StudentsView({ focusStudentCode }) {
   const [guardians, setGuardians] = useState([]);
   const [pkgSummaryByStudent, setPkgSummaryByStudent] = useState({});
   const [classesByStudent, setClassesByStudent] = useState({});
+  const [guardiansByStudent, setGuardiansByStudent] = useState({});
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -1127,13 +1132,14 @@ export default function StudentsView({ focusStudentCode }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [sRes, lRes, gRes, pRes, cRes, enRes] = await Promise.all([
+    const [sRes, lRes, gRes, pRes, cRes, enRes, sgRes] = await Promise.all([
       supabase.from("students").select("*").order("name"),
       supabase.from("levels").select("*"),
       supabase.from("guardians").select("*").order("name"),
       supabase.from("student_package_summary").select("*"),
       supabase.from("classes").select("id", { count: "exact", head: true }),
       supabase.from("enrollments").select("student_id, classes(id, day, time, end_time)"),
+      supabase.from("student_guardians").select("student_id, guardians(name)"),
     ]);
     setStudents(sRes.data || []);
     setLevels(lRes.data || []);
@@ -1145,6 +1151,9 @@ export default function StudentsView({ focusStudentCode }) {
     const classesMap = {};
     (enRes.data || []).forEach((e) => { if (e.classes) (classesMap[e.student_id] ||= []).push(e.classes); });
     setClassesByStudent(classesMap);
+    const guardiansMap = {};
+    (sgRes.data || []).forEach((sg) => { if (sg.guardians?.name) (guardiansMap[sg.student_id] ||= []).push(sg.guardians.name); });
+    setGuardiansByStudent(guardiansMap);
     setLoading(false);
   }, []);
 
@@ -1166,7 +1175,12 @@ export default function StudentsView({ focusStudentCode }) {
   const levelById = Object.fromEntries(levels.map((l) => [l.id, l]));
   const filtered = students
     .filter((s) => !!s.archived === showArchived)
-    .filter((s) => s.name.toLowerCase().includes(query.toLowerCase()) || s.code.toLowerCase().includes(query.toLowerCase()))
+    .filter((s) => {
+      const q = query.trim().toLowerCase();
+      if (!q) return true;
+      if (s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)) return true;
+      return (guardiansByStudent[s.id] || []).some((n) => n.toLowerCase().includes(q));
+    })
     .filter((s) => {
       if (consentFilter === "all") return true;
       if (consentFilter === "yes") return s.video_consent === true;
@@ -1236,7 +1250,7 @@ export default function StudentsView({ focusStudentCode }) {
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <input style={{ ...inputStyle, width: 220, maxWidth: "60vw" }} placeholder="Search students…" value={query} onChange={(e) => setQueryAndResetPage(e.target.value)} />
+          <input style={{ ...inputStyle, width: 220, maxWidth: "60vw" }} placeholder="Search student or parent name…" value={query} onChange={(e) => setQueryAndResetPage(e.target.value)} />
           <select value={consentFilter} onChange={(e) => setConsentFilterAndResetPage(e.target.value)} style={{ ...inputStyle, width: "auto", padding: "6px 10px", fontSize: 13 }}>
             <option value="all">Social media consent: All</option>
             <option value="yes">Consent: Yes</option>
@@ -1310,6 +1324,9 @@ export default function StudentsView({ focusStudentCode }) {
                   {s.confirmation_email_sent && (
                     <span style={{ fontSize: 11, color: T.inkSoft }}>✓ Confirmed {formatSydneyDate(s.confirmation_email_sent_at)}</span>
                   )}
+                </div>
+                <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 4 }}>
+                  👪 {(guardiansByStudent[s.id] || []).length > 0 ? guardiansByStudent[s.id].join(", ") : "No parent/guardian on file"}
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">

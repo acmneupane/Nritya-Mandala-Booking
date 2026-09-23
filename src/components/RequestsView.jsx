@@ -539,7 +539,7 @@ export default function RequestsView({ focusRequestId }) {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span style={{ fontSize: 11, color: T.gold, fontWeight: 700, letterSpacing: 0.5 }}>{r.reference}</span>
+                    <span style={{ fontFamily: "Fraunces, serif", fontSize: 14, fontWeight: 700, letterSpacing: 0.5, color: T.maroonDark, background: `${T.gold}22`, border: `1px solid ${T.gold}77`, borderRadius: 6, padding: "2px 9px" }}>{r.reference}</span>
                     {r.is_transfer ? (
                       <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: `${T.gold}22`, color: T.gold }}>🔄 TRANSFER</span>
                     ) : (
