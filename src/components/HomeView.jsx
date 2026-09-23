@@ -10,10 +10,17 @@ import { RosterEditor } from "./CalendarView";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+// A student "goes quiet" when they're still booked in, still have classes left on
+// their package (so it's not just a renewal-due situation, which is already
+// surfaced elsewhere), but haven't actually attended in this many days — worth a
+// staff member reaching out, rather than waiting for them to run out of classes.
+const QUIET_CHURN_DAYS = 14;
+
 export default function HomeView({ counts, onNavigate, access }) {
   const [todayClasses, setTodayClasses] = useState([]);
   const [upcoming, setUpcoming] = useState([]);
   const [notices, setNotices] = useState([]);
+  const [quietChurn, setQuietChurn] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scanningClass, setScanningClass] = useState(null);
   const [bookingClass, setBookingClass] = useState(null);
@@ -23,10 +30,15 @@ export default function HomeView({ counts, onNavigate, access }) {
     const today = new Date();
     const dayName = DAYS[(today.getDay() + 6) % 7];
     const weekEndStr = localDateStr(new Date(Date.now() + 6 * 86400000));
+    const churnCutoffStr = localDateStr(new Date(Date.now() - QUIET_CHURN_DAYS * 86400000));
+    // A wide-but-bounded lookback for "have they attended recently" — well past the
+    // churn window itself so a student's most recent attendance is always caught,
+    // without pulling a growing studio's entire attendance history every load.
+    const historyStartStr = localDateStr(new Date(Date.now() - 120 * 86400000));
 
     Promise.all([
       supabase.from("classes").select("*"),
-      supabase.from("enrollments").select("class_id, start_date"),
+      supabase.from("enrollments").select("student_id, class_id, start_date"),
       supabase.from("class_skips").select("class_id, date").eq("date", todayStr),
       supabase.from("studio_notices").select("*").lte("start_date", todayStr).gte("end_date", todayStr).order("start_date"),
       // Who's already marked skipped/missed for today — used both to flag a
@@ -39,7 +51,12 @@ export default function HomeView({ counts, onNavigate, access }) {
       // student's name so it can list who specifically is out.
       supabase.from("class_skips").select("class_id, date").gte("date", todayStr).lte("date", weekEndStr),
       supabase.from("attendance").select("class_id, date, status, students(name)").gte("date", todayStr).lte("date", weekEndStr).in("status", ["skipped", "missed"]),
-    ]).then(([cRes, eRes, skRes, noticesRes, attRes, weekSkipsRes, weekAttRes]) => {
+      // Quiet-churn detection inputs — active students, their package balance, and
+      // recent attendance history (see below).
+      supabase.from("students").select("id, name, code").eq("archived", false),
+      supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
+      supabase.from("attendance").select("student_id, date, status").gte("date", historyStartStr).lte("date", todayStr),
+    ]).then(([cRes, eRes, skRes, noticesRes, attRes, weekSkipsRes, weekAttRes, studentsRes, pkgRes, historyRes]) => {
       const skippedIds = new Set((skRes.data || []).map((s) => s.class_id));
       const absenteesByClass = {};
       (attRes.data || []).forEach((a) => {
@@ -79,6 +96,39 @@ export default function HomeView({ counts, onNavigate, access }) {
       });
       upcomingList.sort((a, b) => (a.dateStr === b.dateStr ? a.cls.time.localeCompare(b.cls.time) : a.dateStr.localeCompare(b.dateStr)));
       setUpcoming(upcomingList);
+
+      // Quiet churn: still booked in, still have classes left, but haven't actually
+      // attended in QUIET_CHURN_DAYS — and have been booked long enough that they've
+      // genuinely had the chance to (so a student who joined yesterday isn't flagged).
+      const pkgByStudent = Object.fromEntries((pkgRes.data || []).map((p) => [p.student_id, p]));
+      const earliestStartByStudent = {};
+      enrollments.forEach((e) => {
+        const startStr = e.start_date || "0000-01-01"; // no start_date recorded = booked from the start
+        if (!(e.student_id in earliestStartByStudent) || startStr < earliestStartByStudent[e.student_id]) {
+          earliestStartByStudent[e.student_id] = startStr;
+        }
+      });
+      const lastAttendedByStudent = {};
+      (historyRes.data || []).forEach((a) => {
+        if (a.status !== "attended") return;
+        if (!lastAttendedByStudent[a.student_id] || a.date > lastAttendedByStudent[a.student_id]) {
+          lastAttendedByStudent[a.student_id] = a.date;
+        }
+      });
+      const enrolledStudentIds = new Set(enrollments.map((e) => e.student_id));
+      const quiet = (studentsRes.data || [])
+        .filter((s) => enrolledStudentIds.has(s.id))
+        .filter((s) => earliestStartByStudent[s.id] <= churnCutoffStr)
+        .map((s) => {
+          const pkg = pkgByStudent[s.id];
+          const remaining = pkg ? pkg.classes_total - pkg.classes_used : 0;
+          const lastAttended = lastAttendedByStudent[s.id] || null;
+          const daysSince = lastAttended ? Math.round((new Date(todayStr + "T00:00:00") - new Date(lastAttended + "T00:00:00")) / 86400000) : null;
+          return { ...s, remaining, lastAttended, daysSince };
+        })
+        .filter((s) => s.remaining > 0 && (!s.lastAttended || s.lastAttended <= churnCutoffStr))
+        .sort((a, b) => (a.lastAttended || "").localeCompare(b.lastAttended || ""));
+      setQuietChurn(quiet);
 
       setLoading(false);
     });
@@ -143,6 +193,34 @@ export default function HomeView({ counts, onNavigate, access }) {
           );
         })}
       </div>
+
+      {!loading && quietChurn.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 4 }}>🔕 Gone quiet ({quietChurn.length})</h3>
+          <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>Still booked in with classes left, but haven't attended in {QUIET_CHURN_DAYS}+ days — might be worth a check-in.</p>
+          <div className="grid gap-2">
+            {quietChurn.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => access.canAccessTab("students") && onNavigate("students")}
+                style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.terracotta}`, borderRadius: 8, padding: "10px 14px", cursor: access.canAccessTab("students") ? "pointer" : "default" }}
+                className="flex items-center justify-between gap-2"
+              >
+                <div>
+                  <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>{s.name}</span>
+                  <span style={{ fontSize: 12, color: T.gold, fontWeight: 700, marginLeft: 8 }}>{s.code}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: 12, color: T.terracotta, fontWeight: 600 }}>
+                    {s.daysSince == null ? "Never attended" : `${s.daysSince} days since last class`}
+                  </span>
+                  <span style={{ fontSize: 11, color: T.inkSoft }}>· {s.remaining} class{s.remaining === 1 ? "" : "es"} left</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 10 }}>Today's classes</h3>
       {loading ? (
