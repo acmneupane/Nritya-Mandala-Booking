@@ -57,8 +57,9 @@ export default function HomeView({ counts, onNavigate, access }) {
       const weekSkips = weekSkipsRes.data || [];
       const weekAttendance = weekAttRes.data || [];
       const upcomingList = [];
+      // Today is excluded — it's already covered by the "Today's classes" list above.
       (cRes.data || []).forEach((c) => {
-        upcomingOccurrencesOf(c, weekSkips, localDateStr, { count: 20, lookaheadDays: 7 }).forEach((occ) => {
+        upcomingOccurrencesOf(c, weekSkips, localDateStr, { count: 20, lookaheadDays: 7, excludeDates: new Set([todayStr]) }).forEach((occ) => {
           const bookedCount = enrollments.filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= occ.dateStr)).length;
           const absentRows = weekAttendance.filter((a) => a.class_id === c.id && a.date === occ.dateStr);
           upcomingList.push({
