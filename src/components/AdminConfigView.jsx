@@ -430,23 +430,26 @@ function RenewalReminderConfig() {
     <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginBottom: 16 }}>
       <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Automated renewal reminders</h3>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        On each run, checks every active, booked student against the "Coming due" threshold (Capacity, above) and emails whichever families have newly reached a checkpoint — coming due, half of coming due, or fully out — since their last reminder. The cycle resets whenever they buy a new package. Uses the same "Payment required" email template and shared Resend budget as manual reminders (prioritizing whoever's most overdue if the budget runs tight). A student can opt out from their own record in the Students tab.
+        On every run — on the schedule below, regardless of the checkbox — checks every active, booked student against the "Coming due" threshold (Capacity, above) and works out who has newly reached a checkpoint (coming due, half of coming due, or fully out) since their last reminder. The cycle resets whenever they buy a new package. Uses the same "Payment required" email template and shared Resend budget as manual reminders (prioritizing whoever's most overdue if the budget runs tight). A student can opt out from their own record in the Students tab.
       </p>
       <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-        Send automatically
+        Send emails automatically
       </label>
+      <p style={{ fontSize: 11, color: T.inkSoft, marginTop: -8, marginBottom: 14 }}>
+        While this is off, runs still happen on schedule and the log below still fills in — each candidate is recorded as "would send" instead of actually emailed. Nothing goes out until this is checked, so it's safe to leave off and watch a few real runs before switching it on.
+      </p>
       <Field label="Schedule (cron expression)">
         <input style={inputStyle} value={cron} onChange={(e) => setCron(e.target.value)} placeholder="0 9 * * 1" />
       </Field>
       <p style={{ fontSize: 11, color: T.inkSoft, marginTop: -8, marginBottom: 14 }}>
-        Default <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>0 9 * * 1</code> = every Monday at 9:00am. Checkpoints are based on remaining classes, not calendar days, so a weekly check is enough — classes recur weekly anyway.
+        Default <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>0 9 * * 1</code> = every Monday at 9:00am, in UTC (not Sydney time). Checkpoints are based on remaining classes, not calendar days, so a weekly check is enough — classes recur weekly anyway.
       </p>
       <Field label="Test email override (optional)">
         <input style={inputStyle} type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="you@example.com" />
       </Field>
       <p style={{ fontSize: 11, color: T.inkSoft, marginTop: -8, marginBottom: 14 }}>
-        While set, every automatic reminder redirects here instead of the real guardians (the subject line shows who it would really have gone to) — independent of "Send automatically" above, so both need to be set deliberately before any real send goes out.
+        While set, every real send redirects here instead of the real guardians (the subject line shows who it would really have gone to) — independent of "Send emails automatically" above, so both need to be set deliberately before any real send goes out.
       </p>
       {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
       <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Btn>
@@ -458,6 +461,9 @@ const OUTCOME_LABEL = {
   sent_zero: "Sent — fully out",
   sent_half: "Sent — half of coming due",
   sent_coming_due: "Sent — coming due",
+  would_send_zero: "Would send — fully out",
+  would_send_half: "Would send — half of coming due",
+  would_send_coming_due: "Would send — coming due",
   skipped_opted_out: "Skipped — opted out",
   skipped_already_sent_this_cycle: "Skipped — already sent this cycle",
   skipped_no_guardian_email: "Skipped — no guardian email on file",
@@ -510,9 +516,9 @@ function ScheduledRunsLog() {
                   <span style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>{formatSydneyDateTime(r.run_at)}</span>
                   <span style={{
                     fontSize: 11, fontWeight: 700, marginLeft: 8, textTransform: "uppercase", letterSpacing: 0.3,
-                    color: r.status === "error" ? T.terracotta : r.status === "disabled" ? T.inkSoft : T.sage,
+                    color: r.status === "error" ? T.terracotta : r.status === "dry_run" ? T.gold : T.sage,
                   }}>
-                    {r.status}
+                    {r.status === "dry_run" ? "dry run" : r.status}
                   </span>
                 </div>
                 <span style={{ fontSize: 12, color: T.inkSoft }}>{r.checked_count} checked · {r.sent_count} sent</span>
@@ -529,7 +535,7 @@ function ScheduledRunsLog() {
                       {(detail[r.id] || []).map((row, i) => (
                         <div key={i} className="flex items-center justify-between gap-2" style={{ fontSize: 12 }}>
                           <span style={{ color: T.ink }}>{row.students?.name || "Unknown"}{row.students?.code ? ` (${row.students.code})` : ""}</span>
-                          <span style={{ color: row.outcome === "sent" ? T.sage : T.inkSoft, flexShrink: 0 }}>{OUTCOME_LABEL[row.reason] || row.reason}</span>
+                          <span style={{ color: row.outcome === "sent" ? T.sage : row.reason?.startsWith("would_send") ? T.gold : T.inkSoft, flexShrink: 0 }}>{OUTCOME_LABEL[row.reason] || row.reason}</span>
                         </div>
                       ))}
                     </div>
