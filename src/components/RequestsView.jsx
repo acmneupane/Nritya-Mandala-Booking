@@ -454,6 +454,8 @@ export default function RequestsView({ focusRequestId }) {
   const [showHandled, setShowHandled] = useState(false);
   const [emailPreview, setEmailPreview] = useState(null);
   const [loadingScreenshot, setLoadingScreenshot] = useState(null); // request id currently signing a screenshot URL
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 5;
   const focusRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -515,6 +517,20 @@ export default function RequestsView({ focusRequestId }) {
     .sort((a, b) => (showHandled ? new Date(b.created_at) - new Date(a.created_at) : new Date(a.created_at) - new Date(b.created_at)));
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
+  // Once the right pending/handled view is showing, jump to whichever page
+  // actually contains the focused request — it may not be on page 1.
+  useEffect(() => {
+    if (!focusRequestId) return;
+    const idx = filtered.findIndex((r) => r.id === focusRequestId);
+    if (idx >= 0) setPage(Math.floor(idx / PAGE_SIZE) + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequestId, showHandled, requests]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const clampedPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE);
+  const toggleShowHandled = () => { setShowHandled((v) => !v); setPage(1); };
+
   if (loading) return <p style={{ color: T.inkSoft }}>Loading…</p>;
 
   return (
@@ -523,15 +539,25 @@ export default function RequestsView({ focusRequestId }) {
         <p style={{ fontSize: 13, color: T.inkSoft }}>
           {pendingCount} pending request{pendingCount === 1 ? "" : "s"}. Share your public form link: <code style={{ background: T.paper, padding: "2px 6px", borderRadius: 4 }}>{APP_ORIGIN}/enroll</code>
         </p>
-        <button onClick={() => setShowHandled((v) => !v)} style={{ fontSize: 12, color: showHandled ? T.maroon : T.inkSoft, fontWeight: showHandled ? 600 : 400, whiteSpace: "nowrap" }}>
+        <button onClick={toggleShowHandled} style={{ fontSize: 12, color: showHandled ? T.maroon : T.inkSoft, fontWeight: showHandled ? 600 : 400, whiteSpace: "nowrap" }}>
           {showHandled ? "← Back to pending" : "View approved/rejected"}
         </button>
       </div>
 
       {filtered.length === 0 && <p style={{ color: T.inkSoft }}>{showHandled ? "No handled requests yet." : "No pending requests."}</p>}
 
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <span style={{ fontSize: 12, color: T.inkSoft }}>{filtered.length} request{filtered.length === 1 ? "" : "s"} · Page {clampedPage} of {totalPages}</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={clampedPage === 1} style={{ fontSize: 12, color: clampedPage === 1 ? `${T.inkSoft}66` : T.maroon, fontWeight: 500 }}>← Prev</button>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={clampedPage === totalPages} style={{ fontSize: 12, color: clampedPage === totalPages ? `${T.inkSoft}66` : T.maroon, fontWeight: 500 }}>Next →</button>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-3">
-        {filtered.map((r) => {
+        {paginated.map((r) => {
           const kids = (r.enrollment_request_students || []).slice().sort((a, b) => a.sort_order - b.sort_order);
           const isFocused = r.id === focusRequestId;
           return (
@@ -605,6 +631,15 @@ export default function RequestsView({ focusRequestId }) {
           );
         })}
       </div>
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between flex-wrap gap-2 mt-4">
+          <span style={{ fontSize: 12, color: T.inkSoft }}>{filtered.length} request{filtered.length === 1 ? "" : "s"} · Page {clampedPage} of {totalPages}</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={clampedPage === 1} style={{ fontSize: 12, color: clampedPage === 1 ? `${T.inkSoft}66` : T.maroon, fontWeight: 500 }}>← Prev</button>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={clampedPage === totalPages} style={{ fontSize: 12, color: clampedPage === totalPages ? `${T.inkSoft}66` : T.maroon, fontWeight: 500 }}>Next →</button>
+          </div>
+        </div>
+      )}
 
       {approving && (
         <ApproveModal

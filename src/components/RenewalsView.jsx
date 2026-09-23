@@ -248,6 +248,8 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
   const [loadingScreenshot, setLoadingScreenshot] = useState(null); // request id currently signing a screenshot URL
   const [paymentSettings, setPaymentSettings] = useState({}); // { [requestId]: { confirmed, method } }
   const [emailPreview, setEmailPreview] = useState(null); // { student, tierName, classesTotal, amount }
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 5;
   const focusRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -340,21 +342,45 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
     groups.push(filtered.filter((x) => (x.family_submission_id || x.id) === key));
   });
 
+  // Once the right pending/handled view is showing, jump to whichever page
+  // actually contains the focused submission's group — it may not be on page 1.
+  useEffect(() => {
+    if (!focusRenewalId) return;
+    const idx = groups.findIndex((group) => group.some((r) => r.id === focusRenewalId));
+    if (idx >= 0) setPage(Math.floor(idx / PAGE_SIZE) + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRenewalId, showHandled, requests]);
+
+  const totalPages = Math.max(1, Math.ceil(groups.length / PAGE_SIZE));
+  const clampedPage = Math.min(page, totalPages);
+  const paginatedGroups = groups.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE);
+  const toggleShowHandled = () => { setShowHandled((v) => !v); setPage(1); };
+
   if (loading) return <p style={{ color: T.inkSoft }}>Loading…</p>;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <p style={{ fontSize: 13, color: T.inkSoft }}>{pendingCount} submission{pendingCount === 1 ? "" : "s"} waiting on your confirmation.</p>
-        <button onClick={() => setShowHandled((v) => !v)} style={{ fontSize: 12, color: showHandled ? T.maroon : T.inkSoft, fontWeight: showHandled ? 600 : 400, whiteSpace: "nowrap" }}>
+        <button onClick={toggleShowHandled} style={{ fontSize: 12, color: showHandled ? T.maroon : T.inkSoft, fontWeight: showHandled ? 600 : 400, whiteSpace: "nowrap" }}>
           {showHandled ? "← Back to pending" : "View approved/rejected"}
         </button>
       </div>
 
       {filtered.length === 0 && <p style={{ color: T.inkSoft }}>{showHandled ? "No handled submissions yet." : "No submissions waiting."}</p>}
 
+      {groups.length > 0 && (
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <span style={{ fontSize: 12, color: T.inkSoft }}>{filtered.length} submission{filtered.length === 1 ? "" : "s"} · Page {clampedPage} of {totalPages}</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={clampedPage === 1} style={{ fontSize: 12, color: clampedPage === 1 ? `${T.inkSoft}66` : T.maroon, fontWeight: 500 }}>← Prev</button>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={clampedPage === totalPages} style={{ fontSize: 12, color: clampedPage === totalPages ? `${T.inkSoft}66` : T.maroon, fontWeight: 500 }}>Next →</button>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-3">
-        {groups.map((group) => {
+        {paginatedGroups.map((group) => {
           const groupKey = group[0].family_submission_id || group[0].id;
           const together = group.length > 1;
           const cards = group.map((r) => {
@@ -443,6 +469,15 @@ function SubmittedRequestsSection({ focusRenewalId, onChanged }) {
           );
         })}
       </div>
+      {groups.length > 0 && (
+        <div className="flex items-center justify-between flex-wrap gap-2 mt-4">
+          <span style={{ fontSize: 12, color: T.inkSoft }}>{filtered.length} submission{filtered.length === 1 ? "" : "s"} · Page {clampedPage} of {totalPages}</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={clampedPage === 1} style={{ fontSize: 12, color: clampedPage === 1 ? `${T.inkSoft}66` : T.maroon, fontWeight: 500 }}>← Prev</button>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={clampedPage === totalPages} style={{ fontSize: 12, color: clampedPage === totalPages ? `${T.inkSoft}66` : T.maroon, fontWeight: 500 }}>Next →</button>
+          </div>
+        </div>
+      )}
 
       {confirmReject && (
         <ConfirmModal

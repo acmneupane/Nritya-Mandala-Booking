@@ -214,10 +214,10 @@ export default function EnrollForm() {
   // check_code_available() (not a direct `students` query) so it also can't collide
   // with a code another family's pending request has already been given.
   //
-  // Once a code exists, further name edits do NOT silently swap it for a new one —
-  // a parent may have already paid using the code shown as their reference, so
-  // changing it out from under them (e.g. fixing a typo in the name afterwards)
-  // would break that. Use "Get a different code" to regenerate on purpose.
+  // Once a code exists, further name edits do NOT swap it for a new one — a parent
+  // may have already paid using the code shown as their reference, so changing it
+  // out from under them (e.g. fixing a typo in the name afterwards) would break
+  // that. Only an admin can change it, from the approval screen.
   useEffect(() => {
     const trimmed = studentName.trim();
     if (trimmed.length < 2) { setPrimaryCode(""); setGeneratingPrimaryCode(false); return; }
@@ -231,15 +231,6 @@ export default function EnrollForm() {
     return () => { cancelled = true; clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentName]);
-
-  const regeneratePrimaryCode = async () => {
-    const trimmed = studentName.trim();
-    if (trimmed.length < 2) return;
-    setGeneratingPrimaryCode(true);
-    const code = await generateStudentCode(supabase, trimmed, null, true);
-    setPrimaryCode(code);
-    setGeneratingPrimaryCode(false);
-  };
 
   // Same idea for additional students — one debounce covering all sibling name
   // fields at once, keyed by their position in the `siblings` array, and likewise
@@ -596,18 +587,12 @@ export default function EnrollForm() {
                   </p>
                 </div>
                 <div className="rounded-xl shadow-sm" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: "16px 18px", marginBottom: 10 }}>
-                  <div className="flex items-center justify-between">
-                    <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>Pay with this reference</div>
-                    {primaryCode && !generatingPrimaryCode && (
-                      <button type="button" onClick={regeneratePrimaryCode} style={{ fontSize: 11, color: T.gold, textDecoration: "underline" }}>↻ Get a different code</button>
-                    )}
-                  </div>
+                  <div style={{ fontSize: 11, color: T.inkSoft, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>Pay with this reference</div>
                   <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, letterSpacing: 1, fontWeight: 700, color: T.maroonDark, marginTop: 4 }}>
                     {studentName.trim().length < 2 ? "Enter student's name above" : generatingPrimaryCode ? "Generating…" : primaryCode || "—"}
                   </div>
                   <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>
                     This is also {studentName.trim() || "your student"}'s access code, so it stays the same on their QR/parent page once we confirm enrolment.
-                    Once shown, it won't change just from editing the name above — use "Get a different code" if you'd like a new one.
                   </p>
                 </div>
                 <p style={{ fontSize: 11.5, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
