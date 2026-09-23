@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { T } from "../lib/theme";
-import { ConfirmModal } from "./ui";
+import { T, inputStyle } from "../lib/theme";
+import { Btn, ConfirmModal } from "./ui";
 import { ALL_PERMISSIONS } from "../lib/permissions";
 
 // Admin-only: this tab itself is gated by canAccessTab("team") = "ADMIN_ONLY"
@@ -12,6 +12,8 @@ import { ALL_PERMISSIONS } from "../lib/permissions";
 export default function TeamView() {
   const [users, setUsers] = useState([]);
   const [permsByUser, setPermsByUser] = useState({});
+  const [displayNames, setDisplayNames] = useState({}); // saved values, keyed by user id
+  const [nameDrafts, setNameDrafts] = useState({}); // in-progress edits, keyed by user id
   const [loading, setLoading] = useState(true);
   const [myId, setMyId] = useState(null);
   const [confirmSelfDemote, setConfirmSelfDemote] = useState(null); // user row pending confirmation
@@ -19,20 +21,31 @@ export default function TeamView() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: { user } }, uRes, pRes] = await Promise.all([
+    const [{ data: { user } }, uRes, pRes, namesRes] = await Promise.all([
       supabase.auth.getUser(),
       supabase.from("admin_users").select("*").order("email"),
       supabase.from("user_permissions").select("*"),
+      supabase.rpc("list_admin_users"),
     ]);
     setMyId(user?.id || null);
     setUsers(uRes.data || []);
     const byUser = {};
     (pRes.data || []).forEach((p) => (byUser[p.user_id] ||= new Set()).add(p.permission));
     setPermsByUser(byUser);
+    const names = Object.fromEntries((namesRes.data || []).map((r) => [r.id, r.display_name || ""]));
+    setDisplayNames(names);
+    setNameDrafts(names);
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const saveDisplayName = async (userId) => {
+    setSaving(`${userId}:display_name`);
+    await supabase.rpc("admin_set_display_name", { p_user_id: userId, p_display_name: (nameDrafts[userId] || "").trim() });
+    await load();
+    setSaving(null);
+  };
 
   const setAdmin = async (u, isAdmin) => {
     if (u.id === myId && !isAdmin) { setConfirmSelfDemote(u); return; }
@@ -78,6 +91,22 @@ export default function TeamView() {
                   />
                   Admin (full access)
                 </label>
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  style={{ ...inputStyle, maxWidth: 220 }}
+                  value={nameDrafts[u.id] ?? ""}
+                  onChange={(e) => setNameDrafts((d) => ({ ...d, [u.id]: e.target.value }))}
+                  placeholder="Display name (shown instead of email)"
+                />
+                <Btn
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => saveDisplayName(u.id)}
+                  disabled={saving === `${u.id}:display_name` || (nameDrafts[u.id] ?? "") === (displayNames[u.id] ?? "")}
+                >
+                  {saving === `${u.id}:display_name` ? "Saving…" : "Save name"}
+                </Btn>
               </div>
               <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", opacity: u.is_admin ? 0.55 : 1 }}>
                 {ALL_PERMISSIONS.map((p) => (
