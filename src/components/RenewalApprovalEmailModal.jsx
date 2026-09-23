@@ -136,7 +136,7 @@ export default function RenewalApprovalEmailModal({ student, guardianEmails, tie
             <div><strong>Subject:</strong> {subject}</div>
           </div>
           <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 4 }}>
-            Edit the body for this send only — this won't change the saved template in Studio Settings.
+            Edit the body for this send only — this won't change the saved template in Admin Config.
           </div>
           <textarea
             style={{ ...inputStyle, minHeight: 140, fontFamily: "monospace", fontSize: 12.5, lineHeight: 1.5 }}
