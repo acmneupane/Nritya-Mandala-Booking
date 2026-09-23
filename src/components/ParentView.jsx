@@ -13,19 +13,7 @@ import { attendanceStatusInfo, isSelfMarkedAbsence } from "../lib/attendance";
 import MarkAbsentModal from "./MarkAbsentModal";
 import MessageStudioModal from "./MessageStudioModal";
 import { APP_ORIGIN } from "../lib/origins";
-
-// Web Share API opens the device's native share sheet (WhatsApp, Messages, Mail,
-// etc.) — supported on mobile Safari/Chrome, not reliably on desktop browsers. Falls
-// back to a WhatsApp Web link there instead, so the button still does something
-// useful everywhere rather than silently failing on desktop.
-function shareReferral() {
-  const text = "My kid loves dancing at Nritya Mandala! Check out their classes:";
-  if (navigator.share) {
-    navigator.share({ title: "Nritya Mandala", text, url: APP_ORIGIN }).catch(() => {});
-  } else {
-    window.open(`https://wa.me/?text=${encodeURIComponent(`${text} ${APP_ORIGIN}`)}`, "_blank");
-  }
-}
+import { shareReferral } from "../lib/share";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -42,7 +30,7 @@ function formatOrdinalDate(dateStr) {
   return `${n}${suffix} ${d.toLocaleDateString(undefined, { month: "long" })}, ${d.getFullYear()}`;
 }
 
-export default function ParentView({ student, onBack, onSwitchStudent }) {
+export default function ParentView({ student, onBack, onBackToFamily }) {
   const logoUrl = useLogoUrl();
   const [level, setLevel] = useState(null);
   const [allLevels, setAllLevels] = useState([]);
@@ -50,7 +38,6 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
   const [history, setHistory] = useState([]);
   const [levelHistory, setLevelHistory] = useState([]);
   const [pkgSummary, setPkgSummary] = useState(null);
-  const [siblings, setSiblings] = useState([]);
   const [familyPackages, setFamilyPackages] = useState([]);
   const [loadingReceipt, setLoadingReceipt] = useState(null);
   const [openClasses, setOpenClasses] = useState([]);
@@ -73,14 +60,13 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
 
   const load = async () => {
     setLoading(true);
-    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, familyRes, skipsRes, familyPkgsRes, openClassesRes, settingsRes, noticesRes, attendedCountRes, streakRowsRes] = await Promise.all([
+    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, skipsRes, familyPkgsRes, openClassesRes, settingsRes, noticesRes, attendedCountRes, streakRowsRes] = await Promise.all([
       student.level_id ? supabase.from("levels").select("id, name").eq("id", student.level_id).maybeSingle() : Promise.resolve({ data: null }),
       supabase.from("levels").select("id, name, order_num").order("order_num"),
       supabase.from("enrollments").select("class_id, classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
       supabase.from("attendance").select("id, class_id, date, status, reason").eq("student_id", student.id).order("date", { ascending: false }).limit(10),
       supabase.from("level_history").select("id, level_id, date, levels(name)").eq("student_id", student.id).order("date", { ascending: false }),
       supabase.from("student_package_summary").select("classes_total, classes_used").eq("student_id", student.id).maybeSingle(),
-      supabase.rpc("get_family_students", { p_code: student.code }),
       supabase.from("class_skips").select("class_id, date"),
       supabase.rpc("get_family_packages", { p_code: student.code }),
       fetchOpenClasses(),
@@ -100,7 +86,6 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
     setHistory(historyRes.data || []);
     setLevelHistory(levelHistRes.data || []);
     setPkgSummary(pkgRes.data);
-    setSiblings((familyRes.data || []).filter((s) => s.id !== student.id));
     setSkips(skipsRes.data || []);
     setFamilyPackages(familyPkgsRes.data || []);
     setOpenClasses(openClassesRes);
@@ -234,6 +219,10 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             <button onClick={() => setShowQr(true)} style={{ fontSize: 11, color: T.gold, fontWeight: 600, marginTop: 10 }}>Tap QR code to enlarge</button>
           </div>
         </div>
+
+        {onBackToFamily && (
+          <button onClick={onBackToFamily} style={{ fontSize: 13, fontWeight: 600, color: T.gold, marginTop: 14 }}>‹ Back to family</button>
+        )}
 
         <div className="text-center" style={{ marginTop: 20, marginBottom: 4 }}>
           <button onClick={() => setShowReviewModal(true)} style={{ fontSize: 12.5, fontWeight: 600, color: T.gold }}>⭐ Leave us a review</button>
@@ -486,24 +475,6 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
             </div>
           </div>
 
-          {siblings.length > 0 && (
-            <div className={CARD} style={{ padding: 20 }}>
-              <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 12 }}>Other Students</h3>
-              <div className="grid gap-2">
-                {siblings.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => onSwitchStudent && onSwitchStudent(s)}
-                    className="hover:bg-gray-50 transition-colors"
-                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${T.line}`, borderRadius: 10, padding: "10px 14px", textAlign: "left" }}
-                  >
-                    <span style={{ fontSize: 14, fontWeight: 600, color: T.maroonDark }}>{s.name}</span>
-                    {s.guardian_names && <span style={{ fontSize: 11, color: T.inkSoft }}>{s.guardian_names}</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="text-center" style={{ paddingTop: 20, paddingBottom: 24 }}>

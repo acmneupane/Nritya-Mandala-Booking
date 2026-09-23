@@ -4,6 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { useLogoUrl } from "../lib/logo";
 import { Btn } from "./ui";
 import ParentView from "./ParentView";
+import FamilyView from "./FamilyView";
 import { isVerified, markVerified } from "../lib/parentVerify";
 
 // First name plus a last initial — enough for a parent to recognize their own
@@ -68,11 +69,37 @@ export default function ParentLookup() {
   const [student, setStudent] = useState(null);
   const [verified, setVerified] = useState(false);
   const [loading, setLoading] = useState(false);
+  // The student whose code resolved the lookup — the family list's anchor,
+  // and who VerifyIdentity checks a DOB against. Not necessarily who's shown:
+  // family (once loaded) decides whether that's this page directly or the
+  // family summary first.
+  const [family, setFamily] = useState(null); // null = not loaded yet
+  const [familyLoading, setFamilyLoading] = useState(false);
+  const [activeStudent, setActiveStudent] = useState(null); // which child's full page is open, if any
 
   const selectStudent = (data) => {
     setStudent(data);
+    setFamily(null);
+    setActiveStudent(null);
     setVerified(isVerified(data.code));
   };
+
+  // Once verified, load who else shares this family (same guardians) — a
+  // household with more than one child lands on the family summary first;
+  // a household with just this one goes straight to their page, same as
+  // before. Verifying one child's DOB is treated as proof for the whole
+  // family, on this device, so every sibling's code is remembered too —
+  // no reason to make a parent re-verify per kid.
+  useEffect(() => {
+    if (!verified || !student) return;
+    setFamilyLoading(true);
+    supabase.rpc("get_family_students", { p_code: student.code }).then(({ data }) => {
+      const members = data && data.length > 0 ? data : [student];
+      members.forEach((m) => markVerified(m.code));
+      setFamily(members);
+      setFamilyLoading(false);
+    });
+  }, [verified, student]);
 
   const lookup = async (rawCode) => {
     setError("");
@@ -117,7 +144,23 @@ export default function ParentLookup() {
     );
   }
 
-  if (student) return <ParentView student={student} onBack={() => { setStudent(null); setVerified(false); }} onSwitchStudent={selectStudent} />;
+  const resetToLookup = () => { setStudent(null); setVerified(false); setFamily(null); setActiveStudent(null); };
+
+  if (student && verified) {
+    if (familyLoading || family === null) {
+      return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft }}>Loading…</div>;
+    }
+    if (family.length > 1 && !activeStudent) {
+      return <FamilyView students={family} usedCode={student.code} onSelectStudent={setActiveStudent} />;
+    }
+    return (
+      <ParentView
+        student={activeStudent || student}
+        onBack={resetToLookup}
+        onBackToFamily={family.length > 1 ? () => setActiveStudent(null) : undefined}
+      />
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: T.maroon, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif" }}>
