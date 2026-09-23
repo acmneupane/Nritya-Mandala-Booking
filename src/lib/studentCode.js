@@ -29,8 +29,17 @@ function initialsCandidates(name) {
   return candidates;
 }
 
-export async function generateStudentCode(supabase, name, excludeId = null) {
+// useServerAvailabilityCheck routes the uniqueness check through the
+// check_code_available() RPC instead of querying `students` directly — needed
+// on the public enrolment form (anon has no SELECT on enrollment_request_students,
+// where other families' not-yet-approved codes are reserved) so a code already
+// promised to one pending family can't also be handed to another.
+export async function generateStudentCode(supabase, name, excludeId = null, useServerAvailabilityCheck = false) {
   const codeExists = async (code) => {
+    if (useServerAvailabilityCheck) {
+      const { data, error } = await supabase.rpc("check_code_available", { p_code: code });
+      return error || data !== true; // treat errors/unknown as taken so a fresh candidate is tried
+    }
     let query = supabase.from("students").select("id").eq("code", code);
     if (excludeId) query = query.neq("id", excludeId);
     const { data } = await query.maybeSingle();

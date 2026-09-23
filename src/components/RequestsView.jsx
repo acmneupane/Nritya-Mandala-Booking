@@ -20,6 +20,10 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
         const tierPrice = selectedTier ? (isSiblingPrice ? Number(selectedTier.sibling_price) : Number(selectedTier.price)) : 0;
         return {
           id: s.id, name: s.student_name, dob: s.student_dob || "", levelId: "", preferredClassId: s.preferred_class_id || "", isSibling: s.is_sibling,
+          // Pre-generated when the family filled out the form — the same code they
+          // were shown (and may have already paid with) as their reference, so
+          // approving them keeps it rather than issuing a different one.
+          code: s.student_code || "",
           pendingPackages: selectedTier ? [{ classesTotal: selectedTier.classes_count, amount: tierPrice, tierName: selectedTier.name, note: "Requested at enrolment", isSiblingPrice }] : [],
         };
       })
@@ -116,7 +120,9 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
 
       const emailStudents = [];
       for (const s of students) {
-        const code = await generateStudentCode(supabase, s.name);
+        // Older requests submitted before codes were pre-generated on the form
+        // won't have one stored — fall back to generating fresh for those.
+        const code = s.code || await generateStudentCode(supabase, s.name);
         const { data: created, error: sErr } = await supabase.from("students").insert({
           name: s.name.trim(), dob: s.dob || null, level_id: s.levelId || null, code, video_consent: request.video_consent,
         }).select().single();
@@ -237,6 +243,9 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
             <Field label="Name"><input style={inputStyle} value={s.name} onChange={(e) => updateStudent(i, "name", e.target.value)} /></Field>
             <Field label="Date of birth"><input style={inputStyle} type="date" value={s.dob} onChange={(e) => updateStudent(i, "dob", e.target.value)} /></Field>
           </div>
+          <Field label="Student code (their payment reference — kept as-is unless it clashes)">
+            <input style={{ ...inputStyle, letterSpacing: 1, fontWeight: 600 }} value={s.code} onChange={(e) => updateStudent(i, "code", e.target.value.toUpperCase())} placeholder="Will be auto-generated if left blank" />
+          </Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Level (optional)">
               <select style={inputStyle} value={s.levelId} onChange={(e) => updateStudent(i, "levelId", e.target.value)}>

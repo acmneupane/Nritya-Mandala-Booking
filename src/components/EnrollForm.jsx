@@ -9,6 +9,7 @@ import { RELATION_OPTIONS } from "../lib/relations";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
 import { fetchOpenClasses, classOptionLabel } from "../lib/classAvailability";
 import { localDateStr } from "../lib/dates";
+import { generateStudentCode } from "../lib/studentCode";
 
 const MAX_SIBLINGS = 2;
 
@@ -182,8 +183,14 @@ export default function EnrollForm() {
   const [notes, setNotes] = useState("");
   const [paymentClaimed, setPaymentClaimed] = useState(false);
   const [paymentFile, setPaymentFile] = useState(null);
-  const [paymentReference, setPaymentReference] = useState(null);
-  const [generatingReference, setGeneratingReference] = useState(false);
+  // The primary student's own access code — generated automatically as soon as
+  // they've typed a name, the same way an admin's "Generate new" button works.
+  // This becomes both their QR/parent-lookup code AND their payment reference,
+  // so whichever comes first (paying now, or paying later once approved) still
+  // lines up with the student record that eventually gets created.
+  const [primaryCode, setPrimaryCode] = useState("");
+  const [generatingPrimaryCode, setGeneratingPrimaryCode] = useState(false);
+  const [siblingCodes, setSiblingCodes] = useState({}); // { [siblingIndex]: code }
   const [submitting, setSubmitting] = useState(false);
   const [reference, setReference] = useState(null);
   const [turnstileToken, setTurnstileToken] = useState("");
@@ -200,15 +207,41 @@ export default function EnrollForm() {
     supabase.from("settings").select("enrolment_fee_enabled, enrolment_fee_label, enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setFees({ primary: Number(data.enrolment_fee_primary), sibling: Number(data.enrolment_fee_sibling), enabled: data.enrolment_fee_enabled, label: data.enrolment_fee_label });
     });
-    // The reference is shown up front — it's what they need to actually make the
-    // payment with, not just a receipt after the fact — so generate it immediately
-    // rather than waiting for "I have paid" to be ticked.
-    setGeneratingReference(true);
-    supabase.rpc("peek_enrollment_reference").then(({ data, error }) => {
-      setGeneratingReference(false);
-      if (!error) setPaymentReference(data);
-    });
   }, []);
+
+  // Generates the primary student's code shortly after they stop typing a name —
+  // debounced so we're not hitting the database on every keystroke. Routed through
+  // check_code_available() (not a direct `students` query) so it also can't collide
+  // with a code another family's pending request has already been given.
+  useEffect(() => {
+    const trimmed = studentName.trim();
+    if (trimmed.length < 2) { setPrimaryCode(""); setGeneratingPrimaryCode(false); return; }
+    setGeneratingPrimaryCode(true);
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const code = await generateStudentCode(supabase, trimmed, null, true);
+      if (!cancelled) { setPrimaryCode(code); setGeneratingPrimaryCode(false); }
+    }, 600);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [studentName]);
+
+  // Same idea for additional students — one debounce covering all sibling name
+  // fields at once, keyed by their position in the `siblings` array.
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      siblings.forEach((sib, i) => {
+        const trimmed = sib.name.trim();
+        if (trimmed.length < 2) return;
+        generateStudentCode(supabase, trimmed, null, true).then((code) => {
+          if (cancelled) return;
+          setSiblingCodes((c) => ({ ...c, [i]: code }));
+        });
+      });
+    }, 600);
+    return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siblings.map((s) => s.name.trim()).join("|")]);
 
   const addSibling = () => {
     if (siblings.length >= MAX_SIBLINGS) return;
@@ -222,7 +255,10 @@ export default function EnrollForm() {
     if (!checked) setPaymentFile(null);
   };
 
-  const namedSiblings = siblings.filter((s) => s.name.trim());
+  // Keeps each named sibling's original position in `siblings` (as `_idx`) so its
+  // generated code can be looked up in siblingCodes even after an earlier, unnamed
+  // sibling row is filtered out.
+  const namedSiblings = siblings.map((s, i) => ({ ...s, _idx: i })).filter((s) => s.name.trim());
   const tierById = Object.fromEntries(packageTiers.map((t) => [t.id, t]));
   const siblingTierPrice = (tier) => (tier.sibling_price != null ? Number(tier.sibling_price) : Number(tier.price));
   const primaryTierPrice = packageTierId && tierById[packageTierId] ? Number(tierById[packageTierId].price) : 0;
@@ -283,10 +319,19 @@ export default function EnrollForm() {
         if (uploadErr) throw new Error("Couldn't upload the payment screenshot — please try again.");
       }
 
+      // Codes are generated in the background as names are typed, but submission
+      // shouldn't race that debounce — fall back to generating on the spot for
+      // anyone whose code isn't ready yet (e.g. submitted right after typing).
+      const finalPrimaryCode = primaryCode || await generateStudentCode(supabase, studentName.trim(), null, true);
+      const finalSiblingCodes = {};
+      for (const s of namedSiblings) {
+        finalSiblingCodes[s._idx] = siblingCodes[s._idx] || await generateStudentCode(supabase, s.name.trim(), null, true);
+      }
+
       const studentRows = [
-        { name: studentName.trim(), dob: studentDob || null, preferred_class_id: (preferredClassId && preferredClassId !== "none") ? preferredClassId : null, preferred_class_text: preferredClassText.trim() || null, selected_package_tier_id: packageTierId || null, is_sibling: false, sort_order: 0 },
+        { name: studentName.trim(), dob: studentDob || null, preferred_class_id: (preferredClassId && preferredClassId !== "none") ? preferredClassId : null, preferred_class_text: preferredClassText.trim() || null, selected_package_tier_id: packageTierId || null, is_sibling: false, sort_order: 0, code: finalPrimaryCode },
         ...namedSiblings.map((s, i) => ({
-          name: s.name.trim(), dob: s.dob || null, preferred_class_id: (s.classId && s.classId !== "none") ? s.classId : null, preferred_class_text: (s.classText || "").trim() || null, selected_package_tier_id: s.packageTierId || null, is_sibling: true, sort_order: i + 1,
+          name: s.name.trim(), dob: s.dob || null, preferred_class_id: (s.classId && s.classId !== "none") ? s.classId : null, preferred_class_text: (s.classText || "").trim() || null, selected_package_tier_id: s.packageTierId || null, is_sibling: true, sort_order: i + 1, code: finalSiblingCodes[s._idx],
         })),
       ];
 
@@ -309,7 +354,7 @@ export default function EnrollForm() {
             p_notes: notes.trim(),
             p_payment_claimed: paymentClaimed,
             p_payment_screenshot_path: screenshotPath,
-            p_reference: paymentReference,
+            p_reference: finalPrimaryCode,
             p_students: studentRows,
             p_referred_by_code: referredByCode || null,
           },
@@ -518,8 +563,9 @@ export default function EnrollForm() {
                 <div className="rounded-xl shadow-sm" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: "16px 18px", marginBottom: 10 }}>
                   <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 4, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>Pay with this reference</div>
                   <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>
-                    {generatingReference ? "Generating…" : paymentReference || "—"}
+                    {studentName.trim().length < 2 ? "Enter student's name above" : generatingPrimaryCode ? "Generating…" : primaryCode || "—"}
                   </div>
+                  <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>This is also {studentName.trim() || "your student"}'s access code, so it stays the same on their QR/parent page once we confirm enrolment.</p>
                 </div>
                 <p style={{ fontSize: 11.5, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
                   Bank transfers can take up to 24 hours to clear, so please allow a little time for your enrolment to be confirmed after paying.
