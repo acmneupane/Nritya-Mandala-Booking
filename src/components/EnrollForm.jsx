@@ -285,6 +285,14 @@ export default function EnrollForm() {
   // generated code can be looked up in siblingCodes even after an earlier, unnamed
   // sibling row is filtered out.
   const namedSiblings = siblings.map((s, i) => ({ ...s, _idx: i })).filter((s) => s.name.trim());
+  const siblingNames = namedSiblings.map((s) => s.name.trim());
+  // "Abhigya", "Abhigya and Ravi", "Abhigya, Ravi and Priya" — used wherever the
+  // payment section needs to speak for the whole family, not just the primary
+  // student, since the reference/code shown only belongs to the primary student.
+  const familyNamesLabel = [studentName.trim() || "your student", ...siblingNames].reduce((acc, name, i, arr) => {
+    if (i === 0) return name;
+    return i === arr.length - 1 ? `${acc} and ${name}` : `${acc}, ${name}`;
+  }, "");
   const tierById = Object.fromEntries(packageTiers.map((t) => [t.id, t]));
   const siblingTierPrice = (tier) => (tier.sibling_price != null ? Number(tier.sibling_price) : Number(tier.price));
   const primaryTierPrice = packageTierId && tierById[packageTierId] ? Number(tierById[packageTierId].price) : 0;
@@ -403,13 +411,18 @@ export default function EnrollForm() {
           <img src={logoUrl} alt="" style={{ width: 60, height: 60, borderRadius: "50%", margin: "0 auto 16px", display: "block" }} />
           <h1 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, color: T.maroonDark, marginBottom: 8, fontWeight: 600 }}>Thank you!</h1>
           <p style={{ fontSize: 14, color: T.inkSoft, lineHeight: 1.6, marginBottom: 20 }}>
-            We've received {studentName}'s enrolment request. We will contact you to confirm the enrolment.
+            We've received {familyNamesLabel}'s enrolment request. We will contact you to confirm the enrolment.
           </p>
           <div className="rounded-2xl" style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, padding: "16px 20px", marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 3, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.6 }}>Your payment reference</div>
             <div className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 24, letterSpacing: 1, fontWeight: 700, color: T.maroonDark }}>{reference}</div>
           </div>
           <p style={{ fontSize: 12, color: T.inkSoft, lineHeight: 1.5 }}>Please use this reference when making your payment, and keep it handy in case we need to follow up.</p>
+          {siblingNames.length > 0 && (
+            <p style={{ fontSize: 12, color: T.inkSoft, lineHeight: 1.5, marginTop: 8 }}>
+              This reference/code covers {studentName.trim() || "the first student"}. {siblingNames.join(" and ")} will each get their own access code once we confirm the enrolment.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -583,7 +596,7 @@ export default function EnrollForm() {
                 </div>
                 <div className="rounded-xl" style={{ background: `${T.gold}20`, border: `2px solid ${T.gold}`, padding: "14px 16px", marginBottom: 12 }}>
                   <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.5 }}>
-                    ⚠️ Please pay using the bank details above, with the reference below — this is what tells us the payment is for {studentName || "your student"}'s enrolment.
+                    ⚠️ Please pay using the bank details above, with the reference below — this is what tells us the payment is for {familyNamesLabel}'s enrolment.
                   </p>
                 </div>
                 <div className="rounded-xl shadow-sm" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: "16px 18px", marginBottom: 10 }}>
@@ -592,7 +605,11 @@ export default function EnrollForm() {
                     {studentName.trim().length < 2 ? "Enter student's name above" : generatingPrimaryCode ? "Generating…" : primaryCode || "—"}
                   </div>
                   <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>
-                    This is also {studentName.trim() || "your student"}'s access code, so it stays the same on their QR/parent page once we confirm enrolment.
+                    {siblingNames.length > 0 ? (
+                      <>This is also {studentName.trim() || "your student"}'s access code. {siblingNames.join(" and ")} will each get their own access code too — we'll send all of them once we confirm the enrolment.</>
+                    ) : (
+                      <>This is also {studentName.trim() || "your student"}'s access code, so it stays the same on their QR/parent page once we confirm enrolment.</>
+                    )}
                   </p>
                 </div>
                 <p style={{ fontSize: 11.5, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
