@@ -62,7 +62,7 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
 
   const load = async () => {
     setLoading(true);
-    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, skipsRes, familyPkgsRes, openClassesRes, settingsRes, noticesRes, attendedCountRes, streakRowsRes] = await Promise.all([
+    const [levelRes, allLevelsRes, enrollRes, historyRes, levelHistRes, pkgRes, skipsRes, familyPkgsRes, openClassesRes, settingsRes, referralSettingsRes, noticesRes, attendedCountRes, streakRowsRes] = await Promise.all([
       student.level_id ? supabase.from("levels").select("id, name").eq("id", student.level_id).maybeSingle() : Promise.resolve({ data: null }),
       supabase.from("levels").select("id, name, order_num").order("order_num"),
       supabase.from("enrollments").select("class_id, classes(id, label, day, time, end_time, start_date, end_date)").eq("student_id", student.id),
@@ -72,7 +72,8 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
       supabase.from("class_skips").select("class_id, date"),
       supabase.rpc("get_family_packages", { p_code: student.code }),
       fetchOpenClasses(),
-      supabase.from("admin_settings").select("due_threshold, referral_program_enabled, referrals_per_free_class, referred_student_gets_free_class").eq("id", 1).maybeSingle(),
+      supabase.from("admin_settings").select("due_threshold").eq("id", 1).maybeSingle(),
+      supabase.from("settings").select("referral_program_enabled, referrals_per_free_class, referred_student_gets_free_class").eq("id", 1).maybeSingle(),
       supabase.from("studio_notices").select("*").lte("start_date", localDateStr(new Date())).gte("end_date", localDateStr(new Date())).order("start_date"),
       // Milestones use their own dedicated queries rather than reusing `history`
       // (capped at 10 for the "recent attendance" list above) — a lifetime count
@@ -92,7 +93,7 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
     setFamilyPackages(familyPkgsRes.data || []);
     setOpenClasses(openClassesRes);
     setDueThreshold(settingsRes.data?.due_threshold ?? 2);
-    setReferralConfig(settingsRes.data || null);
+    setReferralConfig(referralSettingsRes.data || null);
     setActiveNotices(noticesRes.data || []);
     setLoading(false);
   };

@@ -58,7 +58,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
     (async () => {
       const [{ data: ref }, { data: settings }] = await Promise.all([
         supabase.from("students").select("id, name, code").eq("code", request.referred_by_code.toUpperCase()).eq("archived", false).maybeSingle(),
-        supabase.from("admin_settings").select("referral_program_enabled, referrals_per_free_class, referred_student_gets_free_class").eq("id", 1).maybeSingle(),
+        supabase.from("settings").select("referral_program_enabled, referrals_per_free_class, referred_student_gets_free_class").eq("id", 1).maybeSingle(),
       ]);
       setReferralSettings(settings || null);
       if (ref) {

@@ -550,70 +550,12 @@ function ScheduledRunsLog() {
   );
 }
 
-function ReferralRewardsConfig() {
-  const [enabled, setEnabled] = useState(false);
-  const [perFreeClass, setPerFreeClass] = useState("1");
-  const [referredGetsFree, setReferredGetsFree] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    supabase.from("admin_settings").select("referral_program_enabled, referrals_per_free_class, referred_student_gets_free_class").eq("id", 1).maybeSingle().then(({ data }) => {
-      if (data) {
-        setEnabled(data.referral_program_enabled);
-        setPerFreeClass(String(data.referrals_per_free_class));
-        setReferredGetsFree(data.referred_student_gets_free_class);
-      }
-      setLoading(false);
-    });
-  }, []);
-
-  const save = async () => {
-    setSaving(true);
-    setSaved(false);
-    await supabase.from("admin_settings").update({
-      referral_program_enabled: enabled,
-      referrals_per_free_class: Math.max(1, Number(perFreeClass) || 1),
-      referred_student_gets_free_class: referredGetsFree,
-    }).eq("id", 1);
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-  };
-
-  if (loading) return <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>;
-
-  return (
-    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginBottom: 16 }}>
-      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Referral rewards</h3>
-      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        A family's "Refer a friend" link carries their code — when someone enrols through it and their request is approved, the reward below is issued automatically as a free class (a $0 package row), not just noted for you to action manually. You can still edit or remove that package afterward like any other.
-      </p>
-      <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
-        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-        Referral program on
-      </label>
-      <Field label="Referrals needed for 1 free class">
-        <input style={{ ...inputStyle, maxWidth: 120 }} type="number" min={1} value={perFreeClass} onChange={(e) => setPerFreeClass(e.target.value)} />
-      </Field>
-      <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
-        <input type="checkbox" checked={referredGetsFree} onChange={(e) => setReferredGetsFree(e.target.checked)} />
-        The new (referred) family also gets 1 free class
-      </label>
-      {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
-      <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Btn>
-    </div>
-  );
-}
-
 export default function AdminConfigView() {
   const [section, setSection] = useState("capacity");
 
   const SECTIONS = [
     { id: "capacity", label: "Capacity" },
     { id: "renewals", label: "Renewal reminders" },
-    { id: "referrals", label: "Referral rewards" },
     { id: "emails", label: "Email templates" },
     { id: "data", label: "Data" },
     { id: "team", label: "Team" },
@@ -635,7 +577,6 @@ export default function AdminConfigView() {
 
       {section === "capacity" && <CapacityEditor />}
       {section === "renewals" && (<><RenewalReminderConfig /><ScheduledRunsLog /></>)}
-      {section === "referrals" && <ReferralRewardsConfig />}
       {section === "data" && (<><EmailLimitEditor /><CsvExport /><DataExport /></>)}
       {section === "emails" && (
         <>

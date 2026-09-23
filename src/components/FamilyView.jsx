@@ -27,15 +27,16 @@ export default function FamilyView({ students, usedCode, onSelectStudent }) {
   useEffect(() => {
     const load = async () => {
       const ids = students.map((s) => s.id);
-      const [levelsRes, enrollRes, skipsRes, pkgRes, settingsRes] = await Promise.all([
+      const [levelsRes, enrollRes, skipsRes, pkgRes, settingsRes, referralSettingsRes] = await Promise.all([
         supabase.from("levels").select("id, name"),
         supabase.from("enrollments").select("student_id, classes(id, label, day, time, end_time, start_date, end_date)").in("student_id", ids),
         supabase.from("class_skips").select("class_id, date"),
         supabase.from("student_package_summary").select("student_id, classes_total, classes_used").in("student_id", ids),
-        supabase.from("admin_settings").select("due_threshold, referral_program_enabled, referrals_per_free_class, referred_student_gets_free_class").eq("id", 1).maybeSingle(),
+        supabase.from("admin_settings").select("due_threshold").eq("id", 1).maybeSingle(),
+        supabase.from("settings").select("referral_program_enabled, referrals_per_free_class, referred_student_gets_free_class").eq("id", 1).maybeSingle(),
       ]);
       setLevels(levelsRes.data || []);
-      setReferralConfig(settingsRes.data || null);
+      setReferralConfig(referralSettingsRes.data || null);
       const dueThreshold = settingsRes.data?.due_threshold ?? 2;
       const skips = skipsRes.data || [];
       const classesByStudent = {};
