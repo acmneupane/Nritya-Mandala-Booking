@@ -212,13 +212,15 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-2 flex-wrap" style={{ marginTop: 20, marginBottom: 4, fontSize: 11.5, color: T.inkSoft }}>
-          <span>Enjoying your classes? Leave us a review:</span>
-          <a href="https://g.page/r/Cd0RBuUBpA3jEBM/review" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Google</a>
-          <span>·</span>
-          <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Facebook</a>
-          <span>·</span>
-          <a href="https://www.tiktok.com/@nritya.mandala" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>TikTok</a>
+        <div className="text-center" style={{ marginTop: 20, marginBottom: 4, fontSize: 11.5, color: T.inkSoft }}>
+          <div>Enjoying your classes? Leave us a review:</div>
+          <div className="flex items-center justify-center gap-2 flex-wrap" style={{ marginTop: 4 }}>
+            <a href="https://g.page/r/Cd0RBuUBpA3jEBM/review" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Google</a>
+            <span>·</span>
+            <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Facebook</a>
+            <span>·</span>
+            <a href="https://www.tiktok.com/@nritya.mandala" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, fontWeight: 600, textDecoration: "underline" }}>TikTok</a>
+          </div>
         </div>
 
         <div className="flex items-center justify-center gap-3 flex-wrap" style={{ marginTop: 14 }}>
@@ -247,7 +249,7 @@ export default function ParentView({ student, onBack, onSwitchStudent }) {
           ))}
 
           {hasActivePackage && overallNext && (
-            <div className="rounded-2xl flex items-center justify-between flex-wrap gap-3" style={{ background: "#f2f5f1", border: `1px solid ${T.sage}55`, padding: "14px 20px" }}>
+            <div className="rounded-2xl flex items-center justify-center flex-wrap gap-3 text-center" style={{ background: "#f2f5f1", border: `1px solid ${T.sage}55`, padding: "14px 20px" }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.sage }}>
                 Next class: {overallNext.occ.date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}, {formatTimeRange(overallNext.cls.time, overallNext.cls.end_time)}
               </div>
