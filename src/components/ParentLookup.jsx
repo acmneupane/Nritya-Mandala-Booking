@@ -1,12 +1,20 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { useLogoUrl } from "../lib/logo";
 import { Btn } from "./ui";
 import ParentView from "./ParentView";
 import FamilyView from "./FamilyView";
-import { isVerified, markVerified } from "../lib/parentVerify";
+import QrScanner from "./QrScanner";
+import { isVerified, markVerified, getRememberedCode, rememberCode, forgetRememberedCode } from "../lib/parentVerify";
 import { APP_ORIGIN } from "../lib/origins";
+
+// Inside the mobile app, the lookup screen only shows the first time (or after
+// "Look up a different code"): the verified code is remembered on the phone
+// and reopened on every launch, and there's a Scan QR code button. The website
+// behaves exactly as before.
+const isApp = Capacitor.isNativePlatform();
 
 // First name plus a last initial — enough for a parent to recognize their own
 // kid without a stranger who only has the code learning the full name.
@@ -77,12 +85,18 @@ export default function ParentLookup() {
   const [family, setFamily] = useState(null); // null = not loaded yet
   const [familyLoading, setFamilyLoading] = useState(false);
   const [activeStudent, setActiveStudent] = useState(null); // which child's full page is open, if any
+  // App only: true while checking for a remembered code at launch, so the
+  // code entry screen doesn't flash up before the family page opens.
+  const [restoring, setRestoring] = useState(() => isApp && !new URLSearchParams(window.location.search).get("code"));
+  const [showScanner, setShowScanner] = useState(false);
 
-  const selectStudent = (data) => {
+  // trusted: a code the app remembered after an earlier DOB check on this
+  // phone — no need to ask again.
+  const selectStudent = (data, trusted = false) => {
     setStudent(data);
     setFamily(null);
     setActiveStudent(null);
-    setVerified(isVerified(data.code));
+    setVerified(trusted || isVerified(data.code));
   };
 
   // Once verified, load who else shares this family (same guardians) — a
@@ -97,27 +111,38 @@ export default function ParentLookup() {
     supabase.rpc("get_family_students", { p_code: student.code }).then(({ data }) => {
       const members = data && data.length > 0 ? data : [student];
       members.forEach((m) => markVerified(m.code));
+      rememberCode(student.code);
       setFamily(members);
       setFamilyLoading(false);
     });
   }, [verified, student]);
 
-  const lookup = async (rawCode) => {
+  // fromMemory: the code the app remembered. If it's no longer valid it's
+  // forgotten, but a connection problem keeps it so the next launch retries.
+  const lookup = async (rawCode, { trusted = false, fromMemory = false } = {}) => {
     setError("");
     setArchived(false);
     setLoading(true);
-    const { data } = await supabase
+    const { data, error: lookupError } = await supabase
       .from("student_public")
       .select("id, code, name, level_id")
       .eq("code", rawCode.trim().toUpperCase())
       .maybeSingle();
     if (data) {
       setLoading(false);
-      selectStudent(data);
+      selectStudent(data, trusted);
       return;
     }
-    const { data: status } = await supabase.rpc("check_student_code", { p_code: rawCode.trim() });
+    const { data: status, error: statusError } = lookupError
+      ? { data: null, error: lookupError }
+      : await supabase.rpc("check_student_code", { p_code: rawCode.trim() });
     setLoading(false);
+    if (fromMemory) setCode(rawCode);
+    if (statusError) {
+      setError("Couldn't connect — check your internet connection and try again.");
+      return;
+    }
+    if (fromMemory) forgetRememberedCode();
     if (status === "archived") {
       setArchived(true);
     } else {
@@ -125,15 +150,35 @@ export default function ParentLookup() {
     }
   };
 
-  // A QR scan lands here with ?code=XXXX already filled in — skip the typing step.
+  // A QR scan lands here with ?code=XXXX already filled in — skip the typing
+  // step. Otherwise, in the app, reopen the code remembered on this phone.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const qCode = params.get("code");
-    if (qCode) { setCode(qCode); lookup(qCode); }
+    if (qCode) { setCode(qCode); lookup(qCode); return; }
+    if (!isApp) return;
+    getRememberedCode().then(async (saved) => {
+      if (saved) await lookup(saved, { trusted: true, fromMemory: true });
+      setRestoring(false);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const submit = () => lookup(code);
+
+  // Stable so the scanner doesn't restart the camera on every render; lookup
+  // only touches state setters and supabase, so the first render's copy is fine.
+  const onScanned = useCallback((scannedCode) => {
+    setShowScanner(false);
+    setCode(scannedCode);
+    lookup(scannedCode);
+    return { ok: true, message: "" };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (restoring) {
+    return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft }}>Loading…</div>;
+  }
 
   if (student && !verified) {
     return (
@@ -145,14 +190,14 @@ export default function ParentLookup() {
     );
   }
 
-  const resetToLookup = () => { setStudent(null); setVerified(false); setFamily(null); setActiveStudent(null); };
+  const resetToLookup = () => { forgetRememberedCode(); setStudent(null); setVerified(false); setFamily(null); setActiveStudent(null); };
 
   if (student && verified) {
     if (familyLoading || family === null) {
       return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: T.inkSoft }}>Loading…</div>;
     }
     if (family.length > 1 && !activeStudent) {
-      return <FamilyView students={family} usedCode={student.code} onSelectStudent={setActiveStudent} />;
+      return <FamilyView students={family} usedCode={student.code} onSelectStudent={setActiveStudent} onLookupDifferent={resetToLookup} />;
     }
     return (
       <ParentView
@@ -189,7 +234,22 @@ export default function ParentLookup() {
           </div>
         )}
         <Btn onClick={submit} size="lg" disabled={loading}>{loading ? "Looking up…" : "View"}</Btn>
+        {isApp && (
+          <div style={{ marginTop: 14 }}>
+            <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>or</p>
+            <Btn variant="ghost" size="lg" onClick={() => setShowScanner(true)} disabled={loading}>📷 Scan QR code</Btn>
+          </div>
+        )}
       </div>
+      {showScanner && (
+        <QrScanner
+          title="Scan your QR code"
+          hint="Point the camera at the QR code on your student card"
+          cameraErrorMessage="Couldn't open the camera — allow camera access for Nritya Mandala in your phone's Settings, or type the code instead."
+          onDetected={onScanned}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 }

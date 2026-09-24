@@ -16,7 +16,13 @@ function extractCode(decodedText) {
   return decodedText.trim().toUpperCase();
 }
 
-export default function QrScanner({ title, onDetected, onClose }) {
+export default function QrScanner({
+  title,
+  onDetected,
+  onClose,
+  hint = "Point the camera at a student's QR code",
+  cameraErrorMessage = "Couldn't access the camera — check browser permissions, or use a device with a camera.",
+}) {
   const videoRef = useRef(null);
   const canvasRef = useRef(document.createElement("canvas"));
   const rafRef = useRef(null);
@@ -35,7 +41,7 @@ export default function QrScanner({ title, onDetected, onClose }) {
           tick();
         }
       } catch (e) {
-        setCameraError("Couldn't access the camera — check browser permissions, or use a device with a camera.");
+        setCameraError(cameraErrorMessage);
       }
     };
 
@@ -66,7 +72,7 @@ export default function QrScanner({ title, onDetected, onClose }) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (stream) stream.getTracks().forEach((t) => t.stop());
     };
-  }, [onDetected]);
+  }, [onDetected, cameraErrorMessage]);
 
   return (
     <Modal title={title || "Scan to check in"} onClose={onClose}>
@@ -78,7 +84,7 @@ export default function QrScanner({ title, onDetected, onClose }) {
             <video ref={videoRef} playsInline muted style={{ width: "100%", display: "block" }} />
             <div style={{ position: "absolute", inset: "15% 22%", border: `3px solid ${T.gold}`, borderRadius: 12, pointerEvents: "none" }} />
           </div>
-          <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 10, textAlign: "center" }}>Point the camera at a student's QR code</p>
+          <p style={{ fontSize: 12, color: T.inkSoft, marginTop: 10, textAlign: "center" }}>{hint}</p>
           {lastResult && (
             <div style={{ marginTop: 10, textAlign: "center", padding: "8px 12px", borderRadius: 8, background: lastResult.ok ? `${T.sage}18` : `${T.terracotta}18`, color: lastResult.ok ? T.sage : T.terracotta, fontSize: 13, fontWeight: 600 }}>
               {lastResult.message}

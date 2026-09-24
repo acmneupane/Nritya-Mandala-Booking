@@ -13,7 +13,7 @@ import ReviewModal from "./ReviewModal";
 // whichever child's code was used. Each row is a quick glance (next class,
 // remaining classes or a renew-soon flag); tapping one opens that child's
 // full ParentView, which offers a "Back to family" link to return here.
-export default function FamilyView({ students, usedCode, onSelectStudent }) {
+export default function FamilyView({ students, usedCode, onSelectStudent, onLookupDifferent }) {
   const logoUrl = useLogoUrl();
   const [levels, setLevels] = useState([]);
   const [overviewByStudent, setOverviewByStudent] = useState({});
@@ -144,6 +144,12 @@ export default function FamilyView({ students, usedCode, onSelectStudent }) {
           <span style={{ fontSize: 11.5, color: T.inkSoft, margin: "0 6px" }}>·</span>
           <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: T.inkSoft, textDecoration: "underline" }}>Terms &amp; Conditions</a>
         </div>
+
+        {onLookupDifferent && (
+          <div className="text-center" style={{ paddingTop: 20, paddingBottom: 24 }}>
+            <button onClick={onLookupDifferent} style={{ fontSize: 13, color: T.inkSoft }} className="hover:underline hover:text-gray-800">← Look up a different code</button>
+          </div>
+        )}
       </div>
 
       {showMessageModal && (
