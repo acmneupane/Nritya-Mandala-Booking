@@ -50,6 +50,7 @@ export default function RenewForm() {
   const [preferredClassIds, setPreferredClassIds] = useState({}); // { [studentId]: classId | "none" }
   const [preferredClassTexts, setPreferredClassTexts] = useState({}); // { [studentId]: text } - used when there are no classes to pick from yet
   const [paymentClaimed, setPaymentClaimed] = useState(false);
+  const [agreedToPolicies, setAgreedToPolicies] = useState(false);
   const [paymentFile, setPaymentFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [confirmUnpaid, setConfirmUnpaid] = useState(false);
@@ -129,6 +130,7 @@ export default function RenewForm() {
     }
     const missingSiblingClass = includedSiblingList.find((s) => missingPreferredClass(s.id));
     if (missingSiblingClass) { setError(`Please select a preferred class for ${missingSiblingClass.name} — or choose "No preference" if any works.`); return; }
+    if (!agreedToPolicies) { setError("Please confirm you agree to the Privacy Policy, Terms & Conditions, and House Rules."); return; }
     setError("");
     if (!paymentClaimed || !paymentFile) {
       setConfirmUnpaid(true);
@@ -383,10 +385,21 @@ export default function RenewForm() {
           )}
 
           <div style={{ marginTop: 6, paddingTop: 18, borderTop: `1px solid ${T.gold}33` }}>
+            <label className="flex items-start gap-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
+              <input type="checkbox" checked={agreedToPolicies} onChange={(e) => setAgreedToPolicies(e.target.checked)} style={{ marginTop: 2 }} />
+              <span>
+                I agree to the{" "}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, textDecoration: "underline" }}>Privacy Policy</a>
+                {", "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, textDecoration: "underline" }}>Terms &amp; Conditions</a>
+                {", and "}
+                <a href="/house-rules" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, textDecoration: "underline" }}>House Rules</a>.
+              </span>
+            </label>
             {error && <p style={{ color: T.terracotta, fontSize: 16, fontWeight: 700, textAlign: "center", marginBottom: 10, lineHeight: 1.4 }}>{error}</p>}
             <TurnstileWidget onVerify={setTurnstileToken} />
             <div style={{ marginTop: 10, textAlign: "right" }}>
-              <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting || tiers.length === 0 || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+              <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting || tiers.length === 0 || !turnstileToken || !agreedToPolicies}>{submitting ? "Submitting…" : "Submit request"}</Btn>
             </div>
           </div>
         </div>

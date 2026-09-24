@@ -819,6 +819,74 @@ function LogoEditor() {
   );
 }
 
+// Privacy Policy and Terms & Conditions — full documents, shown at /privacy
+// and /terms and linked from the enrolment, renewal, and transfer forms
+// (which each require agreeing to them before submitting) plus the homepage
+// and parent page footers. Same site_content key/value shape as the rest of
+// this file, just two long-form fields instead of many short ones.
+const LEGAL_KEYS = ["privacy_policy_html", "terms_conditions_html"];
+
+function LegalPagesEditor() {
+  const [values, setValues] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("site_content").select("key, value").in("key", LEGAL_KEYS);
+    setValues(Object.fromEntries((data || []).map((r) => [r.key, r.value])));
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const setField = (key, value) => setValues((v) => ({ ...v, [key]: value }));
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    const rows = LEGAL_KEYS.map((key) => ({ key, value: values[key] || "", updated_at: new Date().toISOString() }));
+    await supabase.from("site_content").upsert(rows, { onConflict: "key" });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  if (loading) return <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>;
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Privacy Policy &amp; Terms</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        Shown at /privacy and /terms, and linked from the enrolment, renewal and transfer forms (each requires agreeing to them before submitting), plus the homepage and parent page footers. House Rules stay separate — see the Important Information panel on the enrolment form.
+      </p>
+
+      <div className="mb-4">
+        <RichTextEditor
+          label="Privacy Policy"
+          value={values.privacy_policy_html || ""}
+          onChange={(html) => setField("privacy_policy_html", html)}
+          placeholder="What we collect, why, and who we share it with…"
+          minHeight={260}
+        />
+      </div>
+      <div className="mb-3">
+        <RichTextEditor
+          label="Terms & Conditions"
+          value={values.terms_conditions_html || ""}
+          onChange={(html) => setField("terms_conditions_html", html)}
+          placeholder="Enrolment, payment, renewal and transfer terms…"
+          minHeight={260}
+        />
+      </div>
+
+      {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
+      <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Privacy Policy & Terms"}</Btn>
+    </div>
+  );
+}
+
 const SECTIONS = [
   { id: "homepage", label: "Homepage" },
   { id: "gallery", label: "Gallery" },
@@ -826,6 +894,7 @@ const SECTIONS = [
   { id: "instructors", label: "Instructors" },
   { id: "testimonials", label: "Testimonials" },
   { id: "faq", label: "FAQ" },
+  { id: "legal", label: "Legal" },
 ];
 
 export default function WebsiteContentView() {
@@ -853,6 +922,7 @@ export default function WebsiteContentView() {
       {section === "instructors" && <InstructorsEditor />}
       {section === "testimonials" && <TestimonialsEditor />}
       {section === "faq" && <FaqEditor />}
+      {section === "legal" && <LegalPagesEditor />}
     </div>
   );
 }

@@ -556,7 +556,12 @@ export default function HomePage() {
               <span style={{ color: "rgba(255,255,255,0.3)" }}>|</span>
               <a href={studioInfo.social_tiktok_url} target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>TikTok</a>
             </div>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 28 }}>© {new Date().getFullYear()} Nritya Mandala. All rights reserved.</p>
+            <div className="flex items-center justify-center gap-2" style={{ marginTop: 16 }}>
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Privacy Policy</a>
+              <span style={{ color: "rgba(255,255,255,0.25)" }}>|</span>
+              <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Terms &amp; Conditions</a>
+            </div>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 20 }}>© {new Date().getFullYear()} Nritya Mandala. All rights reserved.</p>
           </div>
         </footer>
       </div>

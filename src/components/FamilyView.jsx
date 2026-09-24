@@ -138,6 +138,12 @@ export default function FamilyView({ students, usedCode, onSelectStudent }) {
         </div>
 
         <p style={{ fontSize: 12, color: T.inkSoft, textAlign: "center", marginTop: 14 }}>Tap a child to see their full details</p>
+
+        <div className="text-center" style={{ marginTop: 14 }}>
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: T.inkSoft, textDecoration: "underline" }}>Privacy Policy</a>
+          <span style={{ fontSize: 11.5, color: T.inkSoft, margin: "0 6px" }}>·</span>
+          <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: T.inkSoft, textDecoration: "underline" }}>Terms &amp; Conditions</a>
+        </div>
       </div>
 
       {showMessageModal && (

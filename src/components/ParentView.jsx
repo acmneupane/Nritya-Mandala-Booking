@@ -488,6 +488,12 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
 
         </div>
 
+        <div className="text-center" style={{ marginTop: 6 }}>
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: T.inkSoft, textDecoration: "underline" }}>Privacy Policy</a>
+          <span style={{ fontSize: 11.5, color: T.inkSoft, margin: "0 6px" }}>·</span>
+          <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: T.inkSoft, textDecoration: "underline" }}>Terms &amp; Conditions</a>
+        </div>
+
         <div className="text-center" style={{ paddingTop: 20, paddingBottom: 24 }}>
           <button onClick={onBack} style={{ fontSize: 13, color: T.inkSoft }} className="hover:underline hover:text-gray-800">← Look up a different code</button>
         </div>

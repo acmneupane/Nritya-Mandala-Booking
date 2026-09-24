@@ -8,6 +8,8 @@ import TransferRequestForm from "./components/TransferRequestForm";
 import Dashboard from "./components/Dashboard";
 import ComingSoonPage from "./components/ComingSoonPage";
 import HomePage from "./components/HomePage";
+import HouseRulesPage from "./components/HouseRulesPage";
+import PolicyPage from "./components/PolicyPage";
 import { T } from "./lib/theme";
 
 // admin.nrityamandala.com is the same deployed app as app.nrityamandala.com — this
@@ -56,6 +58,9 @@ export default function App() {
     if (path === "/transfer") return <TransferRequestForm />;
     if (path === "/new") return <HomePage />;
     if (path === "/comingsoon") return <ComingSoonPage />;
+    if (path === "/house-rules") return <HouseRulesPage />;
+    if (path === "/privacy") return <PolicyPage contentKey="privacy_policy_html" title="Privacy Policy" />;
+    if (path === "/terms") return <PolicyPage contentKey="terms_conditions_html" title="Terms & Conditions" />;
     return <PublicHomeGate />;
   }
 

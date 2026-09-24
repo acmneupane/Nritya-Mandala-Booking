@@ -30,6 +30,7 @@ export default function TransferRequestForm() {
   const [newIsEmergency, setNewIsEmergency] = useState(null); // true/false, unanswered = null
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [agreedToPolicies, setAgreedToPolicies] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -66,6 +67,7 @@ export default function TransferRequestForm() {
     if (!requesterId) { setError("Please let us know who's requesting this."); return; }
     if (requesterId === "new" && (!newName.trim() || !newPhone.trim())) { setError("Please provide your name and phone number."); return; }
     if (requesterId === "new" && newIsEmergency === null) { setError("Please let us know if you're the emergency contact for this student."); return; }
+    if (!agreedToPolicies) { setError("Please confirm you agree to the Privacy Policy, Terms & Conditions, and House Rules."); return; }
 
     setSubmitting(true);
     setError("");
@@ -208,10 +210,21 @@ export default function TransferRequestForm() {
               <Field label="Anything else?"><textarea style={{ ...inputStyle, minHeight: 60 }} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
 
               <div style={{ marginTop: 20, paddingTop: 18, borderTop: `1px solid ${T.gold}33` }}>
+                <label className="flex items-start gap-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
+                  <input type="checkbox" checked={agreedToPolicies} onChange={(e) => setAgreedToPolicies(e.target.checked)} style={{ marginTop: 2 }} />
+                  <span>
+                    I agree to the{" "}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, textDecoration: "underline" }}>Privacy Policy</a>
+                    {", "}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, textDecoration: "underline" }}>Terms &amp; Conditions</a>
+                    {", and "}
+                    <a href="/house-rules" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, textDecoration: "underline" }}>House Rules</a>.
+                  </span>
+                </label>
                 {error && <p style={{ color: T.terracotta, fontSize: 16, fontWeight: 700, textAlign: "center", marginBottom: 10, lineHeight: 1.4 }}>{error}</p>}
                 <TurnstileWidget onVerify={setTurnstileToken} />
                 <div style={{ marginTop: 10, textAlign: "right" }}>
-                  <Btn variant="success" onClick={submit} size="lg" disabled={submitting || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+                  <Btn variant="success" onClick={submit} size="lg" disabled={submitting || !turnstileToken || !agreedToPolicies}>{submitting ? "Submitting…" : "Submit request"}</Btn>
                 </div>
               </div>
             </>
