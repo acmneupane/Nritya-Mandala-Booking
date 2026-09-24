@@ -10,11 +10,22 @@ import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
 import { fetchOpenClasses, classOptionLabel } from "../lib/classAvailability";
 import { localDateStr } from "../lib/dates";
 import { generateStudentCode } from "../lib/studentCode";
-import { HouseRulesSections } from "./HouseRules";
 
 const MAX_SIBLINGS = 2;
 
-function ImportantInfo({ preferredClass, studioAddress }) {
+// House Rules content is admin-edited (Website → Legal → House Rules) rather
+// than hardcoded, so it's fetched here directly. The "Requested time" line
+// stays dynamic (tied to whichever class is selected above) and is shown
+// separately, since it can't be spliced into admin-authored HTML.
+function ImportantInfo({ preferredClass }) {
+  const [houseRulesHtml, setHouseRulesHtml] = useState(null);
+
+  useEffect(() => {
+    supabase.from("site_content").select("value").eq("key", "house_rules_html").maybeSingle().then(({ data }) => {
+      setHouseRulesHtml(data?.value || "");
+    });
+  }, []);
+
   return (
     <div className="rounded-2xl shadow-[0_2px_10px_-4px_rgba(36,27,21,0.1)]" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: 18, marginTop: 20 }}>
       <div className="flex items-center gap-2.5" style={{ marginBottom: 6 }}>
@@ -22,16 +33,18 @@ function ImportantInfo({ preferredClass, studioAddress }) {
         <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, fontWeight: 600 }}>Important Information</h3>
       </div>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14 }}>Please read before submitting.</p>
-      <div>
-        <HouseRulesSections
-          studioAddress={studioAddress}
-          locationExtra={preferredClass ? (
-            <>Requested time: <strong>{formatTimeRange(preferredClass.time, preferredClass.end_time)}</strong></>
-          ) : (
-            <span style={{ color: T.inkSoft }}>Select a preferred class above to see its time here.</span>
-          )}
-        />
-      </div>
+      <p style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.6, marginBottom: 14 }}>
+        {preferredClass ? (
+          <>Requested time: <strong>{formatTimeRange(preferredClass.time, preferredClass.end_time)}</strong></>
+        ) : (
+          <span style={{ color: T.inkSoft }}>Select a preferred class above to see its time here.</span>
+        )}
+      </p>
+      {houseRulesHtml === null ? (
+        <p style={{ fontSize: 12, color: T.inkSoft }}>Loading…</p>
+      ) : (
+        <div className="rich-text-content" style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: houseRulesHtml }} />
+      )}
     </div>
   );
 }
@@ -144,7 +157,7 @@ export default function EnrollForm() {
     supabase.from("settings").select("enrolment_fee_enabled, enrolment_fee_label, enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setFees({ primary: Number(data.enrolment_fee_primary), sibling: Number(data.enrolment_fee_sibling), enabled: data.enrolment_fee_enabled, label: data.enrolment_fee_label });
     });
-    supabase.from("admin_settings").select("bank_name, bank_account_name, bank_bsb, bank_account_number, studio_address").eq("id", 1).maybeSingle().then(({ data }) => {
+    supabase.from("admin_settings").select("bank_name, bank_account_name, bank_bsb, bank_account_number").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setStudioSettings(data);
     });
   }, []);
@@ -580,7 +593,7 @@ export default function EnrollForm() {
             )}
           </div>
 
-          <ImportantInfo preferredClass={classes.find((c) => c.id === preferredClassId) || null} studioAddress={studioSettings?.studio_address || "72 Central Avenue, Oran Park, NSW 2570"} />
+          <ImportantInfo preferredClass={classes.find((c) => c.id === preferredClassId) || null} />
 
           <div style={{ marginTop: 22, paddingTop: 20, borderTop: `1px solid ${T.gold}33` }}>
             <label className="flex items-start gap-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>

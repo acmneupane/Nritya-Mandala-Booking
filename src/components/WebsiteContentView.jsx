@@ -819,35 +819,32 @@ function LogoEditor() {
   );
 }
 
-// Privacy Policy and Terms & Conditions — full documents, shown at /privacy
-// and /terms and linked from the enrolment, renewal, and transfer forms
-// (which each require agreeing to them before submitting) plus the homepage
-// and parent page footers. Same site_content key/value shape as the rest of
-// this file, just two long-form fields instead of many short ones.
-const LEGAL_KEYS = ["privacy_policy_html", "terms_conditions_html"];
-
-function LegalPagesEditor() {
-  const [values, setValues] = useState({});
+// A single long-form legal/policy document, stored as one site_content row.
+// Used for Privacy Policy, Terms & Conditions, and House Rules — each its own
+// tab, each editable independently rather than saved together.
+function LegalDocEditor({ contentKey, title, description, placeholder, pageHref }) {
+  const [value, setValue] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("site_content").select("key, value").in("key", LEGAL_KEYS);
-    setValues(Object.fromEntries((data || []).map((r) => [r.key, r.value])));
+    const { data } = await supabase.from("site_content").select("value").eq("key", contentKey).maybeSingle();
+    setValue(data?.value || "");
     setLoading(false);
   };
 
+  // contentKey is fixed for the lifetime of a mounted instance — each tab
+  // renders its own separately-keyed <LegalDocEditor>, so switching tabs
+  // remounts rather than reusing this instance with a new contentKey.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
-
-  const setField = (key, value) => setValues((v) => ({ ...v, [key]: value }));
 
   const save = async () => {
     setSaving(true);
     setSaved(false);
-    const rows = LEGAL_KEYS.map((key) => ({ key, value: values[key] || "", updated_at: new Date().toISOString() }));
-    await supabase.from("site_content").upsert(rows, { onConflict: "key" });
+    await supabase.from("site_content").upsert({ key: contentKey, value, updated_at: new Date().toISOString() }, { onConflict: "key" });
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -857,32 +854,17 @@ function LegalPagesEditor() {
 
   return (
     <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18 }}>
-      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Privacy Policy &amp; Terms</h3>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>{title}</h3>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        Shown at /privacy and /terms, and linked from the enrolment, renewal and transfer forms (each requires agreeing to them before submitting), plus the homepage and parent page footers. House Rules stay separate — see the Important Information panel on the enrolment form.
+        {description} Shown at <code style={{ background: T.paper, padding: "1px 5px", borderRadius: 4 }}>{pageHref}</code>.
       </p>
 
-      <div className="mb-4">
-        <RichTextEditor
-          label="Privacy Policy"
-          value={values.privacy_policy_html || ""}
-          onChange={(html) => setField("privacy_policy_html", html)}
-          placeholder="What we collect, why, and who we share it with…"
-          minHeight={260}
-        />
-      </div>
       <div className="mb-3">
-        <RichTextEditor
-          label="Terms & Conditions"
-          value={values.terms_conditions_html || ""}
-          onChange={(html) => setField("terms_conditions_html", html)}
-          placeholder="Enrolment, payment, renewal and transfer terms…"
-          minHeight={260}
-        />
+        <RichTextEditor value={value} onChange={setValue} placeholder={placeholder} minHeight={320} />
       </div>
 
       {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
-      <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Privacy Policy & Terms"}</Btn>
+      <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : `Save ${title}`}</Btn>
     </div>
   );
 }
@@ -894,7 +876,9 @@ const SECTIONS = [
   { id: "instructors", label: "Instructors" },
   { id: "testimonials", label: "Testimonials" },
   { id: "faq", label: "FAQ" },
-  { id: "legal", label: "Legal" },
+  { id: "privacy", label: "Privacy Policy" },
+  { id: "terms", label: "Terms & Conditions" },
+  { id: "house-rules", label: "House Rules" },
 ];
 
 export default function WebsiteContentView() {
@@ -922,7 +906,33 @@ export default function WebsiteContentView() {
       {section === "instructors" && <InstructorsEditor />}
       {section === "testimonials" && <TestimonialsEditor />}
       {section === "faq" && <FaqEditor />}
-      {section === "legal" && <LegalPagesEditor />}
+      {section === "privacy" && (
+        <LegalDocEditor
+          contentKey="privacy_policy_html"
+          title="Privacy Policy"
+          description="Linked from the enrolment, renewal and transfer forms (each requires agreeing to it before submitting), plus the homepage and parent page footers."
+          placeholder="What we collect, why, and who we share it with…"
+          pageHref="/privacy"
+        />
+      )}
+      {section === "terms" && (
+        <LegalDocEditor
+          contentKey="terms_conditions_html"
+          title="Terms & Conditions"
+          description="Linked from the enrolment, renewal and transfer forms (each requires agreeing to it before submitting), plus the homepage and parent page footers."
+          placeholder="Enrolment, payment, renewal and transfer terms…"
+          pageHref="/terms"
+        />
+      )}
+      {section === "house-rules" && (
+        <LegalDocEditor
+          contentKey="house_rules_html"
+          title="House Rules"
+          description="Shown inline on the enrolment form's Important Information panel, and linked from the renewal and transfer forms and from Terms & Conditions."
+          placeholder="Location, parking, attendance, illness policy, what to wear…"
+          pageHref="/house-rules"
+        />
+      )}
     </div>
   );
 }
