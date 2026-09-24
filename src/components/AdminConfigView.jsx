@@ -100,6 +100,66 @@ function BankDetailsConfig() {
   );
 }
 
+function StudioInfoConfig() {
+  const [address, setAddress] = useState("");
+  const [locationNote, setLocationNote] = useState("");
+  const [facebookUrl, setFacebookUrl] = useState("");
+  const [tiktokUrl, setTiktokUrl] = useState("");
+  const [googleReviewUrl, setGoogleReviewUrl] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    supabase.from("admin_settings").select("studio_address, studio_location_note, social_facebook_url, social_tiktok_url, social_google_review_url").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) {
+        setAddress(data.studio_address);
+        setLocationNote(data.studio_location_note);
+        setFacebookUrl(data.social_facebook_url);
+        setTiktokUrl(data.social_tiktok_url);
+        setGoogleReviewUrl(data.social_google_review_url);
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    await supabase.from("admin_settings").update({
+      studio_address: address.trim(), studio_location_note: locationNote.trim(),
+      social_facebook_url: facebookUrl.trim(), social_tiktok_url: tiktokUrl.trim(), social_google_review_url: googleReviewUrl.trim(),
+    }).eq("id", 1);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  if (loading) return <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>;
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Studio address</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        Shown on the enrolment form, the parent page's "Find us" card, and the public homepage footer — one place to keep it consistent everywhere.
+      </p>
+      <Field label="Address"><input style={inputStyle} value={address} onChange={(e) => setAddress(e.target.value)} /></Field>
+      <Field label="Location note (shown under the address on the parent page)"><input style={inputStyle} value={locationNote} onChange={(e) => setLocationNote(e.target.value)} /></Field>
+
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6, marginTop: 16 }}>Social &amp; review links</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        Used on the homepage footer, the parent page's "Leave us a review" popup, and the Facebook link automatically added to renewal/reminder emails.
+      </p>
+      <Field label="Facebook page URL"><input style={inputStyle} value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} /></Field>
+      <Field label="TikTok URL"><input style={inputStyle} value={tiktokUrl} onChange={(e) => setTiktokUrl(e.target.value)} /></Field>
+      <Field label="Google review link"><input style={inputStyle} value={googleReviewUrl} onChange={(e) => setGoogleReviewUrl(e.target.value)} /></Field>
+
+      {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
+      <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save studio info"}</Btn>
+    </div>
+  );
+}
+
 function CapacityEditor() {
   const [days, setDays] = useState("");
   const [dueThreshold, setDueThreshold] = useState("");
@@ -607,6 +667,7 @@ export default function AdminConfigView() {
 
   const SECTIONS = [
     { id: "capacity", label: "Capacity" },
+    { id: "studio", label: "Studio info" },
     { id: "bank", label: "Bank details" },
     { id: "renewals", label: "Renewal reminders" },
     { id: "emails", label: "Email templates" },
@@ -629,6 +690,7 @@ export default function AdminConfigView() {
       </div>
 
       {section === "capacity" && <CapacityEditor />}
+      {section === "studio" && <StudioInfoConfig />}
       {section === "bank" && <BankDetailsConfig />}
       {section === "renewals" && (<><RenewalReminderConfig /><ScheduledRunsLog /></>)}
       {section === "data" && (<><EmailLimitEditor /><CsvExport /><DataExport /></>)}

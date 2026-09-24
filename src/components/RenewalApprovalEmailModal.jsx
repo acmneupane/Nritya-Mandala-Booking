@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { classesLabel } from "../lib/format";
 import { Btn, Modal } from "./ui";
-import { EMAIL_FOOTER_HTML } from "../lib/emailFooter";
+import { emailFooterHtml } from "../lib/emailFooter";
 
 function fillTemplate(template, vars) {
   return template.replace(/{{\s*(\w+)\s*}}/g, (_, key) => vars[key] ?? "");
@@ -25,10 +25,13 @@ export default function RenewalApprovalEmailModal({ student, guardianEmails, tie
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [bodyText, setBodyText] = useState(null);
+  const [facebookUrl, setFacebookUrl] = useState(null);
 
   useEffect(() => {
     supabase.from("email_templates").select("subject, body").eq("key", "renewal_approved").maybeSingle()
       .then(({ data }) => setTemplate(data));
+    supabase.from("admin_settings").select("social_facebook_url").eq("id", 1).maybeSingle()
+      .then(({ data }) => setFacebookUrl(data?.social_facebook_url || null));
     supabase.functions.invoke("send-renewal-approval-email", { method: "GET" })
       .then(({ data }) => {
         setBccEmail(data?.bccEmail || null);
@@ -145,7 +148,7 @@ export default function RenewalApprovalEmailModal({ student, guardianEmails, tie
           />
           <div
             style={{ fontSize: 12, color: T.inkSoft, marginTop: 8 }}
-            dangerouslySetInnerHTML={{ __html: EMAIL_FOOTER_HTML }}
+            dangerouslySetInnerHTML={{ __html: emailFooterHtml(facebookUrl) }}
           />
           <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>The Facebook footer above is added automatically and can't be edited here.</div>
         </div>

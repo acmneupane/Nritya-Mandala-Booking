@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
 import { useLogoUrl } from "../lib/logo";
 
@@ -7,6 +9,14 @@ import { useLogoUrl } from "../lib/logo";
 // that already work today rather than being a dead end.
 export default function ComingSoonPage() {
   const logoUrl = useLogoUrl();
+  const [facebookUrl, setFacebookUrl] = useState("https://www.facebook.com/profile.php?id=100095383322004");
+
+  useEffect(() => {
+    supabase.from("admin_settings").select("social_facebook_url").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data?.social_facebook_url) setFacebookUrl(data.social_facebook_url);
+    });
+  }, []);
+
   return (
     <div style={{ minHeight: "100vh", background: T.maroon, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", padding: 16 }}>
       <div style={{ background: T.ivory, borderRadius: 14, padding: "44px 32px", width: "100%", maxWidth: 420, textAlign: "center", boxSizing: "border-box" }}>
@@ -28,7 +38,7 @@ export default function ComingSoonPage() {
           In the meantime, please refer to our Facebook page for updates and any messages.
         </p>
         <a
-          href="https://www.facebook.com/profile.php?id=100095383322004"
+          href={facebookUrl}
           style={{ display: "inline-block", marginTop: 10, background: "#1877F2", color: "#fff", padding: "10px 22px", borderRadius: 6, textDecoration: "none", fontWeight: 600, fontSize: 14 }}
         >
           Follow Nritya Mandala on Facebook

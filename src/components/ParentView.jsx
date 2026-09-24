@@ -43,6 +43,8 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
   const [loadingReceipt, setLoadingReceipt] = useState(null);
   const [openClasses, setOpenClasses] = useState([]);
   const [dueThreshold, setDueThreshold] = useState(2);
+  const [studioAddress, setStudioAddress] = useState("72 Central Avenue, Oran Park, NSW 2570");
+  const [studioLocationNote, setStudioLocationNote] = useState("Behind Oran Park Library — Sandown Room 1");
   const [referralConfig, setReferralConfig] = useState(null);
   const [activeNotices, setActiveNotices] = useState([]);
   const [skips, setSkips] = useState([]);
@@ -72,7 +74,7 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
       supabase.from("class_skips").select("class_id, date"),
       supabase.rpc("get_family_packages", { p_code: student.code }),
       fetchOpenClasses(),
-      supabase.from("admin_settings").select("due_threshold").eq("id", 1).maybeSingle(),
+      supabase.from("admin_settings").select("due_threshold, studio_address, studio_location_note").eq("id", 1).maybeSingle(),
       supabase.from("settings").select("referral_program_enabled, referrals_per_free_class, referred_student_gets_free_class").eq("id", 1).maybeSingle(),
       supabase.from("studio_notices").select("*").lte("start_date", localDateStr(new Date())).gte("end_date", localDateStr(new Date())).order("start_date"),
       // Milestones use their own dedicated queries rather than reusing `history`
@@ -93,6 +95,8 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
     setFamilyPackages(familyPkgsRes.data || []);
     setOpenClasses(openClassesRes);
     setDueThreshold(settingsRes.data?.due_threshold ?? 2);
+    if (settingsRes.data?.studio_address) setStudioAddress(settingsRes.data.studio_address);
+    if (settingsRes.data?.studio_location_note) setStudioLocationNote(settingsRes.data.studio_location_note);
     setReferralConfig(referralSettingsRes.data || null);
     setActiveNotices(noticesRes.data || []);
     setLoading(false);
@@ -470,9 +474,9 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
 
           <div className={`${CARD} text-center`} style={{ padding: 20 }}>
             <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 10 }}>Find us</h3>
-            <p style={{ fontSize: 13, color: T.ink, marginBottom: 4 }}>70 Central Avenue, Oran Park</p>
-            <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12 }}>Behind Oran Park Library — Sandown Room 1</p>
-            <a href="https://maps.google.com/?q=70+Central+Avenue+Oran+Park+NSW" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Get directions</a>
+            <p style={{ fontSize: 13, color: T.ink, marginBottom: 4 }}>{studioAddress}</p>
+            <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 12 }}>{studioLocationNote}</p>
+            <a href={`https://maps.google.com/?q=${encodeURIComponent(studioAddress)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Get directions</a>
 
             <div style={{ borderTop: `1px solid ${T.line}`, marginTop: 16, paddingTop: 16 }}>
               <h4 style={{ fontSize: 12, fontWeight: 700, color: T.maroonDark, marginBottom: 6, letterSpacing: 0.3 }}>CONTACT DETAILS</h4>

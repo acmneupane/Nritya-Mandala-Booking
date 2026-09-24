@@ -22,7 +22,7 @@ function InfoSection({ title, children }) {
   );
 }
 
-function ImportantInfo({ preferredClass }) {
+function ImportantInfo({ preferredClass, studioAddress }) {
   return (
     <div className="rounded-2xl shadow-[0_2px_10px_-4px_rgba(36,27,21,0.1)]" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: 18, marginTop: 20 }}>
       <div className="flex items-center gap-2.5" style={{ marginBottom: 6 }}>
@@ -32,7 +32,7 @@ function ImportantInfo({ preferredClass }) {
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14 }}>Please read before submitting.</p>
       <div>
         <InfoSection title="Location & Time">
-          72 Central Avenue, Oran Park, NSW 2570 — behind the Oran Park Library, in the Sandown Rooms. Enter from the side/rear of the library (the left-hand side as you face the building). Classes are usually held in Sandown Room 1, though this can occasionally change to Room 2 or 3 depending on room availability.<br /><br />
+          {studioAddress} — behind the Oran Park Library, in the Sandown Rooms. Enter from the side/rear of the library (the left-hand side as you face the building). Classes are usually held in Sandown Room 1, though this can occasionally change to Room 2 or 3 depending on room availability.<br /><br />
           {preferredClass ? (
             <>Requested time: <strong>{formatTimeRange(preferredClass.time, preferredClass.end_time)}</strong></>
           ) : (
@@ -169,7 +169,7 @@ export default function EnrollForm() {
   const [packageTierId, setPackageTierId] = useState("");
   const [packageTiers, setPackageTiers] = useState([]);
   const [fees, setFees] = useState({ primary: 20, sibling: 15, enabled: false, label: "One-off Enrolment fee" });
-  const [bankDetails, setBankDetails] = useState(null);
+  const [studioSettings, setStudioSettings] = useState(null);
   const [guardianName, setGuardianName] = useState("");
   const [guardianRelation, setGuardianRelation] = useState("");
   const [guardianRelationOther, setGuardianRelationOther] = useState("");
@@ -208,8 +208,8 @@ export default function EnrollForm() {
     supabase.from("settings").select("enrolment_fee_enabled, enrolment_fee_label, enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setFees({ primary: Number(data.enrolment_fee_primary), sibling: Number(data.enrolment_fee_sibling), enabled: data.enrolment_fee_enabled, label: data.enrolment_fee_label });
     });
-    supabase.from("admin_settings").select("bank_name, bank_account_name, bank_bsb, bank_account_number").eq("id", 1).maybeSingle().then(({ data }) => {
-      if (data) setBankDetails(data);
+    supabase.from("admin_settings").select("bank_name, bank_account_name, bank_bsb, bank_account_number, studio_address").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setStudioSettings(data);
     });
   }, []);
 
@@ -592,10 +592,10 @@ export default function EnrollForm() {
                 <div className="rounded-xl shadow-sm" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: "16px 18px", marginBottom: 14 }}>
                   <div style={{ fontSize: 11, color: T.maroonDark, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8 }}>Bank Account Details</div>
                   <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1" style={{ fontSize: 13, color: T.ink, lineHeight: 1.7 }}>
-                    <p><span style={{ fontWeight: 600 }}>Bank:</span> {bankDetails?.bank_name || "—"}</p>
-                    <p><span style={{ fontWeight: 600 }}>Account Name:</span> {bankDetails?.bank_account_name || "—"}</p>
-                    <p><span style={{ fontWeight: 600 }}>BSB:</span> {bankDetails?.bank_bsb || "—"}</p>
-                    <p><span style={{ fontWeight: 600 }}>Account Number:</span> {bankDetails?.bank_account_number || "—"}</p>
+                    <p><span style={{ fontWeight: 600 }}>Bank:</span> {studioSettings?.bank_name || "—"}</p>
+                    <p><span style={{ fontWeight: 600 }}>Account Name:</span> {studioSettings?.bank_account_name || "—"}</p>
+                    <p><span style={{ fontWeight: 600 }}>BSB:</span> {studioSettings?.bank_bsb || "—"}</p>
+                    <p><span style={{ fontWeight: 600 }}>Account Number:</span> {studioSettings?.bank_account_number || "—"}</p>
                   </div>
                 </div>
                 <div className="rounded-xl" style={{ background: `${T.gold}20`, border: `2px solid ${T.gold}`, padding: "14px 16px", marginBottom: 12 }}>
@@ -641,7 +641,7 @@ export default function EnrollForm() {
             )}
           </div>
 
-          <ImportantInfo preferredClass={classes.find((c) => c.id === preferredClassId) || null} />
+          <ImportantInfo preferredClass={classes.find((c) => c.id === preferredClassId) || null} studioAddress={studioSettings?.studio_address || "72 Central Avenue, Oran Park, NSW 2570"} />
 
           <div style={{ marginTop: 22, paddingTop: 20, borderTop: `1px solid ${T.gold}33` }}>
             <label className="flex items-start gap-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>

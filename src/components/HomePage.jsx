@@ -207,6 +207,11 @@ export default function HomePage() {
   const [faqs, setFaqs] = useState([]);
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [studioInfo, setStudioInfo] = useState({
+    studio_address: "72 Central Avenue, Oran Park, NSW 2570",
+    social_facebook_url: "https://www.facebook.com/profile.php?id=100095383322004",
+    social_tiktok_url: "https://www.tiktok.com/@nritya.mandala",
+  });
 
   const [classCounts, setClassCounts] = useState({}); // { [classId]: effective enrolled count }
 
@@ -224,7 +229,8 @@ export default function HomePage() {
       supabase.from("site_testimonials").select("*").order("sort_order"),
       supabase.from("site_faqs").select("*").order("sort_order"),
       supabase.from("site_videos").select("*").order("sort_order"),
-    ]).then(([contentRes, galleryRes, classesRes, countsRes, levelsRes, tiersRes, noticesRes, instructorsRes, testimonialsRes, faqsRes, videosRes]) => {
+      supabase.from("admin_settings").select("studio_address, social_facebook_url, social_tiktok_url").eq("id", 1).maybeSingle(),
+    ]).then(([contentRes, galleryRes, classesRes, countsRes, levelsRes, tiersRes, noticesRes, instructorsRes, testimonialsRes, faqsRes, videosRes, studioInfoRes]) => {
       setContent(Object.fromEntries((contentRes.data || []).map((r) => [r.key, r.value])));
       setGallery(galleryRes.data || []);
       // Show anything not yet ended — including a class that hasn't started yet,
@@ -238,6 +244,7 @@ export default function HomePage() {
       setTestimonials(testimonialsRes.data || []);
       setFaqs(faqsRes.data || []);
       setVideos(videosRes.data || []);
+      if (studioInfoRes.data) setStudioInfo((prev) => ({ ...prev, ...studioInfoRes.data }));
       setLoading(false);
     });
   }, []);
@@ -542,12 +549,12 @@ export default function HomePage() {
               <img src={logoUrl} alt="" className="w-full h-full object-cover" />
             </div>
             <h2 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 26, color: T.goldLight, fontWeight: 600, marginBottom: 20 }}>Find us</h2>
-            <p style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", marginBottom: 10 }}>📍 72 Central Avenue, Oran Park, NSW 2570</p>
-            <a href="https://maps.google.com/?q=72+Central+Avenue+Oran+Park+NSW" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.goldLight, fontWeight: 600, textDecoration: "underline", letterSpacing: 0.5 }}>GET DIRECTIONS</a>
+            <p style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", marginBottom: 10 }}>📍 {studioInfo.studio_address}</p>
+            <a href={`https://maps.google.com/?q=${encodeURIComponent(studioInfo.studio_address)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.goldLight, fontWeight: 600, textDecoration: "underline", letterSpacing: 0.5 }}>GET DIRECTIONS</a>
             <div className="w-full max-w-[320px] flex items-center justify-center gap-2 flex-wrap" style={{ marginTop: 32, paddingTop: 28, borderTop: "1px solid rgba(255,255,255,0.12)" }}>
-              <a href="https://www.facebook.com/profile.php?id=100095383322004" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>Facebook</a>
+              <a href={studioInfo.social_facebook_url} target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>Facebook</a>
               <span style={{ color: "rgba(255,255,255,0.3)" }}>|</span>
-              <a href="https://www.tiktok.com/@nritya.mandala" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>TikTok</a>
+              <a href={studioInfo.social_tiktok_url} target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>TikTok</a>
             </div>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 28 }}>© {new Date().getFullYear()} Nritya Mandala. All rights reserved.</p>
           </div>
