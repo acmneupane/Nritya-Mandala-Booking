@@ -1,5 +1,9 @@
 {
   "appId": "com.nrityamandala.app",
   "appName": "Nritya Mandala",
-  "webDir": "dist"
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#F7E6D8"
+  }
 }

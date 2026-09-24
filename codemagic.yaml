@@ -39,3 +39,46 @@ workflows:
           ./gradlew assembleDebug
     artifacts:
       - android/app/build/outputs/apk/debug/*.apk
+
+  ios-simulator:
+    name: iOS simulator build (unsigned, checks the app compiles)
+    # Runs without an Apple Developer account: builds for the iOS Simulator
+    # only, so it can't be installed on a real iPhone. Real-device builds
+    # (TestFlight) need the Apple Developer Program and signing, added later.
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      groups:
+        - supabase
+      node: 22
+      xcode: latest
+    scripts:
+      - name: Check Supabase settings are present
+        script: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are missing. Add them to the 'supabase' environment variable group in Codemagic."
+            exit 1
+          fi
+      - name: Install dependencies
+        script: npm ci
+      - name: Build web app
+        script: npm run build
+      - name: Copy web build into the iOS project
+        script: npx cap sync ios
+      - name: Build for the iOS Simulator
+        script: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/App/build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Zip the simulator app
+        script: |
+          cd ios/App/build/Build/Products/Debug-iphonesimulator
+          zip -r "$CM_BUILD_DIR/NrityaMandala-ios-simulator.zip" App.app
+    artifacts:
+      - NrityaMandala-ios-simulator.zip
