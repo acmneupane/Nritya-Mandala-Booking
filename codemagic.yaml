@@ -1,0 +1,30 @@
+# Mobile app builds (Capacitor). The website itself is still deployed by Render
+# and never reads this file or the android/ folder.
+#
+# No `triggering` section: builds only run when started manually from the
+# Codemagic dashboard, so pushes to main don't use build minutes.
+workflows:
+  android-debug:
+    name: Android test APK (unsigned debug build)
+    # mac_mini_m2 is the machine included in Codemagic's free tier; it has the
+    # Android SDK installed, so it builds Android as well as iOS.
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      node: 22
+      java: 21
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+      - name: Build web app
+        script: npm run build
+      - name: Copy web build into the Android project
+        script: npx cap sync android
+      - name: Point Gradle at the Android SDK
+        script: echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
+      - name: Build debug APK
+        script: |
+          cd android
+          ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/apk/debug/*.apk

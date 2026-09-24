@@ -427,7 +427,7 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
               })}
               {canTransfer && (
                 <a
-                  href={`${APP_ORIGIN}/transfer?code=${encodeURIComponent(student.code)}`}
+                  href={`/transfer?code=${encodeURIComponent(student.code)}`}
                   style={{ display: "block", textAlign: "center", fontSize: 13, color: T.gold, textDecoration: "underline", marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.line}` }}
                 >
                   Request a class change

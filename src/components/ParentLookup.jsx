@@ -6,6 +6,7 @@ import { Btn } from "./ui";
 import ParentView from "./ParentView";
 import FamilyView from "./FamilyView";
 import { isVerified, markVerified } from "../lib/parentVerify";
+import { APP_ORIGIN } from "../lib/origins";
 
 // First name plus a last initial — enough for a parent to recognize their own
 // kid without a stranger who only has the code learning the full name.
@@ -184,7 +185,7 @@ export default function ParentLookup() {
             <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, marginBottom: 8 }}>
               🪷 Looks like you've taken a break from dancing with us! We'd love to have you back — head over to re-enrol and we'll get you set up again.
             </p>
-            <a href="/enroll" style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Re-enrol here</a>
+            <a href={`${APP_ORIGIN}/enroll`} style={{ fontSize: 13, color: T.gold, fontWeight: 600, textDecoration: "underline" }}>Re-enrol here</a>
           </div>
         )}
         <Btn onClick={submit} size="lg" disabled={loading}>{loading ? "Looking up…" : "View"}</Btn>

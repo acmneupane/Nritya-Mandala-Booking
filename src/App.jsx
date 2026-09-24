@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { supabase } from "./lib/supabase";
 import Login from "./components/Login";
 import ParentLookup from "./components/ParentLookup";
@@ -43,6 +44,21 @@ export default function App() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  // The installed mobile app (Capacitor) is parent-facing only. Its WebView is
+  // served from "localhost", which the hostname check below would otherwise
+  // treat as the admin host, so this has to come first. Always false in a
+  // browser, so the website is unaffected. New enrolment deliberately has no
+  // in-app route — links to it use the full app.nrityamandala.com URL, which
+  // the app hands off to the phone's browser.
+  if (Capacitor.isNativePlatform()) {
+    if (path === "/renew" || path === "/renewal") return <RenewForm />;
+    if (path === "/transfer") return <TransferRequestForm />;
+    if (path === "/house-rules") return <PolicyPage contentKey="house_rules_html" title="House Rules" />;
+    if (path === "/privacy") return <PolicyPage contentKey="privacy_policy_html" title="Privacy Policy" />;
+    if (path === "/terms") return <PolicyPage contentKey="terms_conditions_html" title="Terms & Conditions" />;
+    return <ParentLookup />;
+  }
 
   if (!isAdminHost) {
     // Public-facing domain: the root (and anything unrecognised) is gated by the

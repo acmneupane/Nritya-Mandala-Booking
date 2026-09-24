@@ -8,7 +8,6 @@ import { classesLabel } from "../lib/format";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
 import { fetchOpenClasses, classOptionLabel } from "../lib/classAvailability";
 import { localDateStr } from "../lib/dates";
-import { APP_ORIGIN } from "../lib/origins";
 
 // Shown for a student who isn't currently booked into a class — same picker as the
 // enrolment form's "Preferred class" field, so a renewing student without a class
@@ -226,7 +225,7 @@ export default function RenewForm() {
           <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 6, fontWeight: 600 }}>Is this correct?</h3>
           <p style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 10 }}>Update the date of birth below if it isn't right.</p>
           <a
-            href={`${APP_ORIGIN}/parent?code=${encodeURIComponent(student.code)}`}
+            href={`/parent?code=${encodeURIComponent(student.code)}`}
             style={{ display: "inline-block", fontSize: 12.5, color: T.gold, textDecoration: "underline", marginBottom: 14, fontWeight: 600 }}
           >
             View {student.name}'s bookings & QR code →

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Nritya Mandala</string>
+    <string name="title_activity_main">Nritya Mandala</string>
+    <string name="package_name">com.nrityamandala.app</string>
+    <string name="custom_url_scheme">com.nrityamandala.app</string>
+</resources>
