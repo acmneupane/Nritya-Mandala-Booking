@@ -56,12 +56,17 @@ export default function RenewForm() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(null);
+  const [bankDetails, setBankDetails] = useState(null);
 
   useEffect(() => {
     if (!code) { setStudent(null); return; }
     const upperCode = code.trim().toUpperCase();
 
     supabase.from("package_tiers").select("*").eq("active", true).eq("available_for_renewal", true).order("sort_order").then(({ data }) => setTiers(data || []));
+
+    supabase.from("admin_settings").select("bank_name, bank_account_name, bank_bsb, bank_account_number").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setBankDetails(data);
+    });
 
     fetchOpenClasses().then((open) => setClasses(open.slice().sort(compareClassSchedule)));
 
@@ -345,10 +350,10 @@ export default function RenewForm() {
           <div className="rounded-xl shadow-sm" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: "16px 18px", marginBottom: 14 }}>
             <div style={{ fontSize: 11, color: T.maroonDark, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8 }}>Bank Account Details</div>
             <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1" style={{ fontSize: 13, color: T.ink, lineHeight: 1.7 }}>
-              <p><span style={{ fontWeight: 600 }}>Bank:</span> NAB</p>
-              <p><span style={{ fontWeight: 600 }}>Account Name:</span> Sarita Sigdel</p>
-              <p><span style={{ fontWeight: 600 }}>BSB:</span> 082 231</p>
-              <p><span style={{ fontWeight: 600 }}>Account Number:</span> 846746850</p>
+              <p><span style={{ fontWeight: 600 }}>Bank:</span> {bankDetails?.bank_name || "—"}</p>
+              <p><span style={{ fontWeight: 600 }}>Account Name:</span> {bankDetails?.bank_account_name || "—"}</p>
+              <p><span style={{ fontWeight: 600 }}>BSB:</span> {bankDetails?.bank_bsb || "—"}</p>
+              <p><span style={{ fontWeight: 600 }}>Account Number:</span> {bankDetails?.bank_account_number || "—"}</p>
             </div>
           </div>
 

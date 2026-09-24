@@ -169,6 +169,7 @@ export default function EnrollForm() {
   const [packageTierId, setPackageTierId] = useState("");
   const [packageTiers, setPackageTiers] = useState([]);
   const [fees, setFees] = useState({ primary: 20, sibling: 15, enabled: false, label: "One-off Enrolment fee" });
+  const [bankDetails, setBankDetails] = useState(null);
   const [guardianName, setGuardianName] = useState("");
   const [guardianRelation, setGuardianRelation] = useState("");
   const [guardianRelationOther, setGuardianRelationOther] = useState("");
@@ -206,6 +207,9 @@ export default function EnrollForm() {
     supabase.from("package_tiers").select("*").eq("active", true).eq("available_for_enrolment", true).order("sort_order").then(({ data }) => setPackageTiers(data || []));
     supabase.from("settings").select("enrolment_fee_enabled, enrolment_fee_label, enrolment_fee_primary, enrolment_fee_sibling").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setFees({ primary: Number(data.enrolment_fee_primary), sibling: Number(data.enrolment_fee_sibling), enabled: data.enrolment_fee_enabled, label: data.enrolment_fee_label });
+    });
+    supabase.from("admin_settings").select("bank_name, bank_account_name, bank_bsb, bank_account_number").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setBankDetails(data);
     });
   }, []);
 
@@ -588,10 +592,10 @@ export default function EnrollForm() {
                 <div className="rounded-xl shadow-sm" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: "16px 18px", marginBottom: 14 }}>
                   <div style={{ fontSize: 11, color: T.maroonDark, fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8 }}>Bank Account Details</div>
                   <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1" style={{ fontSize: 13, color: T.ink, lineHeight: 1.7 }}>
-                    <p><span style={{ fontWeight: 600 }}>Bank:</span> NAB</p>
-                    <p><span style={{ fontWeight: 600 }}>Account Name:</span> Sarita Sigdel</p>
-                    <p><span style={{ fontWeight: 600 }}>BSB:</span> 082 231</p>
-                    <p><span style={{ fontWeight: 600 }}>Account Number:</span> 846746850</p>
+                    <p><span style={{ fontWeight: 600 }}>Bank:</span> {bankDetails?.bank_name || "—"}</p>
+                    <p><span style={{ fontWeight: 600 }}>Account Name:</span> {bankDetails?.bank_account_name || "—"}</p>
+                    <p><span style={{ fontWeight: 600 }}>BSB:</span> {bankDetails?.bank_bsb || "—"}</p>
+                    <p><span style={{ fontWeight: 600 }}>Account Number:</span> {bankDetails?.bank_account_number || "—"}</p>
                   </div>
                 </div>
                 <div className="rounded-xl" style={{ background: `${T.gold}20`, border: `2px solid ${T.gold}`, padding: "14px 16px", marginBottom: 12 }}>

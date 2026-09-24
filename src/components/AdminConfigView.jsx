@@ -48,6 +48,58 @@ function EmailTemplateEditor({ templateKey, title, description, placeholders }) 
   );
 }
 
+function BankDetailsConfig() {
+  const [bankName, setBankName] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [bsb, setBsb] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    supabase.from("admin_settings").select("bank_name, bank_account_name, bank_bsb, bank_account_number").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) {
+        setBankName(data.bank_name);
+        setAccountName(data.bank_account_name);
+        setBsb(data.bank_bsb);
+        setAccountNumber(data.bank_account_number);
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    await supabase.from("admin_settings").update({
+      bank_name: bankName.trim(), bank_account_name: accountName.trim(), bank_bsb: bsb.trim(), bank_account_number: accountNumber.trim(),
+    }).eq("id", 1);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  if (loading) return <p style={{ fontSize: 13, color: T.inkSoft }}>Loading…</p>;
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
+      <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Bank account details</h3>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
+        Shown to parents on the enrolment and renewal payment screens, alongside their payment reference.
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Bank"><input style={inputStyle} value={bankName} onChange={(e) => setBankName(e.target.value)} /></Field>
+        <Field label="Account name"><input style={inputStyle} value={accountName} onChange={(e) => setAccountName(e.target.value)} /></Field>
+        <Field label="BSB"><input style={inputStyle} value={bsb} onChange={(e) => setBsb(e.target.value)} /></Field>
+        <Field label="Account number"><input style={inputStyle} value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} /></Field>
+      </div>
+      {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
+      <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save bank details"}</Btn>
+    </div>
+  );
+}
+
 function CapacityEditor() {
   const [days, setDays] = useState("");
   const [dueThreshold, setDueThreshold] = useState("");
@@ -555,6 +607,7 @@ export default function AdminConfigView() {
 
   const SECTIONS = [
     { id: "capacity", label: "Capacity" },
+    { id: "bank", label: "Bank details" },
     { id: "renewals", label: "Renewal reminders" },
     { id: "emails", label: "Email templates" },
     { id: "data", label: "Data" },
@@ -576,6 +629,7 @@ export default function AdminConfigView() {
       </div>
 
       {section === "capacity" && <CapacityEditor />}
+      {section === "bank" && <BankDetailsConfig />}
       {section === "renewals" && (<><RenewalReminderConfig /><ScheduledRunsLog /></>)}
       {section === "data" && (<><EmailLimitEditor /><CsvExport /><DataExport /></>)}
       {section === "emails" && (
