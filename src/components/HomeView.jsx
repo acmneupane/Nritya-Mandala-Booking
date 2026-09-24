@@ -21,6 +21,7 @@ export default function HomeView({ counts, onNavigate, access }) {
   const [upcoming, setUpcoming] = useState([]);
   const [notices, setNotices] = useState([]);
   const [quietChurn, setQuietChurn] = useState([]);
+  const [unconfirmedPackages, setUnconfirmedPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scanningClass, setScanningClass] = useState(null);
   const [bookingClass, setBookingClass] = useState(null);
@@ -56,7 +57,11 @@ export default function HomeView({ counts, onNavigate, access }) {
       supabase.from("students").select("id, name, code").eq("archived", false),
       supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
       supabase.from("attendance").select("student_id, date, status").gte("date", historyStartStr).lte("date", todayStr),
-    ]).then(([cRes, eRes, skRes, noticesRes, attRes, weekSkipsRes, weekAttRes, studentsRes, pkgRes, historyRes]) => {
+      // Packages entered but never actually ticked "payment confirmed" — easy to
+      // enter in a hurry and forget to come back to, so surface them rather than
+      // relying on someone noticing during a finance review.
+      supabase.from("packages").select("id, amount, classes_total, purchase_date, tier_name, notes, students(name, code)").eq("payment_confirmed", false).order("purchase_date"),
+    ]).then(([cRes, eRes, skRes, noticesRes, attRes, weekSkipsRes, weekAttRes, studentsRes, pkgRes, historyRes, unconfirmedRes]) => {
       const skippedIds = new Set((skRes.data || []).map((s) => s.class_id));
       const absenteesByClass = {};
       (attRes.data || []).forEach((a) => {
@@ -130,6 +135,8 @@ export default function HomeView({ counts, onNavigate, access }) {
         .sort((a, b) => (a.lastAttended || "").localeCompare(b.lastAttended || ""));
       setQuietChurn(quiet);
 
+      setUnconfirmedPackages(unconfirmedRes.data || []);
+
       setLoading(false);
     });
   };
@@ -193,6 +200,33 @@ export default function HomeView({ counts, onNavigate, access }) {
           );
         })}
       </div>
+
+      {!loading && unconfirmedPackages.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 4 }}>💳 Not marked as paid ({unconfirmedPackages.length})</h3>
+          <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>Packages on file where "Payment confirmed" was never ticked — easy to lose track of.</p>
+          <div className="grid gap-2">
+            {unconfirmedPackages.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => access.canAccessTab("students") && onNavigate("students")}
+                style={{ textAlign: "left", background: "#fff", border: `1px solid ${T.line}`, borderLeft: `4px solid ${T.terracotta}`, borderRadius: 8, padding: "10px 14px", cursor: access.canAccessTab("students") ? "pointer" : "default" }}
+                className="flex items-center justify-between gap-2"
+              >
+                <div>
+                  <span style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark }}>{p.students?.name || "Unknown student"}</span>
+                  <span style={{ fontSize: 12, color: T.gold, fontWeight: 700, marginLeft: 8 }}>{p.students?.code}</span>
+                  <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 2 }}>
+                    {p.tier_name ? `${p.tier_name} — ` : ""}{p.classes_total} class{p.classes_total === 1 ? "" : "es"} · {p.purchase_date}
+                    {p.notes && ` · ${p.notes}`}
+                  </div>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 700, color: T.terracotta }}>{p.amount != null ? `$${Number(p.amount).toFixed(2)}` : "—"}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!loading && quietChurn.length > 0 && (
         <div style={{ marginBottom: 24 }}>
