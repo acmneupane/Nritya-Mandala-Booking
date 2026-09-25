@@ -3,13 +3,16 @@ import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { classesLabel } from "../lib/format";
 import { useLogoUrl } from "../lib/logo";
-import { Btn, Field, Select, ConfirmModal } from "./ui";
+import { Btn, Field, Select } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import { RELATION_OPTIONS } from "../lib/relations";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
 import { fetchOpenClasses, classOptionLabel } from "../lib/classAvailability";
 import { localDateStr } from "../lib/dates";
 import { generateStudentCode } from "../lib/studentCode";
+import { FieldWrap, FormErrorBox } from "./Validation";
+import PaymentConfirmation from "./PaymentConfirmation";
+import { problemsMessage, scrollToFirstProblem, SECURITY_CHECK_PENDING } from "../lib/validation";
 
 const MAX_SIBLINGS = 2;
 
@@ -56,7 +59,7 @@ function ImportantInfo({ preferredClass }) {
   );
 }
 
-function SiblingCard({ sibling, index, classes, today, onChange, onRemove }) {
+function SiblingCard({ sibling, index, classes, today, onChange, onRemove, classProblem }) {
   return (
     <div className="rounded-xl shadow-[0_2px_8px_-3px_rgba(36,27,21,0.1)]" style={{ background: T.paper + "55", border: `1px solid ${T.gold}44`, padding: 16, marginBottom: 12 }}>
       <div className="flex items-center justify-between mb-3">
@@ -68,14 +71,16 @@ function SiblingCard({ sibling, index, classes, today, onChange, onRemove }) {
         <Field label="Date of birth"><input style={inputStyle} type="date" value={sibling.dob} onChange={(e) => onChange({ ...sibling, dob: e.target.value })} /></Field>
       </div>
       {classes.length > 0 ? (
-        <Field label="Preferred class">
-          <Select value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
-            <option value="" disabled>Select a class…</option>
-            {classes.map((c) => <option key={c.id} value={c.id}>{classOptionLabel(c, today)}</option>)}
-            <option value="none">No preference</option>
-          </Select>
-          <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
-        </Field>
+        <FieldWrap id={`sib-${index}-class`} problem={classProblem}>
+          <Field label="Preferred class *">
+            <Select value={sibling.classId} onChange={(e) => onChange({ ...sibling, classId: e.target.value })}>
+              <option value="" disabled>Select a class…</option>
+              {classes.map((c) => <option key={c.id} value={c.id}>{classOptionLabel(c, today)}</option>)}
+              <option value="none">No preference</option>
+            </Select>
+            <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
+          </Field>
+        </FieldWrap>
       ) : (
         <Field label="Preferred day/time (optional)">
           <input style={inputStyle} value={sibling.classText || ""} onChange={(e) => onChange({ ...sibling, classText: e.target.value })} placeholder="e.g. Saturday mornings, Tuesday evenings" />
@@ -138,8 +143,11 @@ export default function EnrollForm() {
   const [agreedToInfo, setAgreedToInfo] = useState(false);
   const [agreedToPolicies, setAgreedToPolicies] = useState(false);
   const [notes, setNotes] = useState("");
-  const [paymentClaimed, setPaymentClaimed] = useState(false);
+  const [paymentAnswer, setPaymentAnswer] = useState(""); // "" | "yes" | "no" — "Have you made the payment?"
   const [paymentFile, setPaymentFile] = useState(null);
+  // Set on the first Submit click; from then on every problem is highlighted
+  // live (and clears as it's fixed).
+  const [attempted, setAttempted] = useState(false);
   // The primary student's own access code — generated automatically as soon as
   // they've typed a name, the same way an admin's "Generate new" button works.
   // This becomes both their QR/parent-lookup code AND their payment reference,
@@ -236,9 +244,9 @@ export default function EnrollForm() {
     });
   };
 
-  const togglePaymentClaimed = (checked) => {
-    setPaymentClaimed(checked);
-    if (!checked) setPaymentFile(null);
+  const answerPayment = (answer) => {
+    setPaymentAnswer(answer);
+    if (answer !== "yes") setPaymentFile(null);
   };
 
   // Keeps each named sibling's original position in `siblings` (as `_idx`) so its
@@ -262,54 +270,48 @@ export default function EnrollForm() {
   const enrolmentFeeTotal = fees.enabled ? fees.primary + namedSiblings.length * fees.sibling : 0;
   const total = enrolmentFeeTotal + packageTotal;
 
-  const [confirmUnpaid, setConfirmUnpaid] = useState(false);
+  const somethingToPay = classes.length > 0 || fees.enabled;
 
+  // Every problem at once, keyed by field, in page order (see lib/validation.js).
   const validate = () => {
-    if (!studentName.trim() || !guardianName.trim()) {
-      return "Student name and your name are required.";
-    }
-    if (!emergencySame && (!emergencyName.trim() || !emergencyPhone.trim())) {
-      return "Please provide an emergency contact name and phone, or mark it the same as yours.";
-    }
-    if (!agreedToInfo) {
-      return "Please confirm you've read the Important Information above.";
-    }
-    if (!agreedToPolicies) {
-      return "Please confirm you agree to the Privacy Policy and Terms & Conditions.";
-    }
+    const p = {};
+    const who = studentName.trim() || "the student";
+    if (!studentName.trim()) p.studentName = "Please enter the student's name.";
+    if (classes.length > 0 && !preferredClassId) p.primaryClass = `Please choose a preferred class for ${who} — or “No preference” if any works.`;
+    if (!guardianName.trim()) p.guardianName = "Please enter your name.";
+    if (!emergencySame && !emergencyName.trim()) p.emergencyName = "Please enter the emergency contact's name.";
+    if (!emergencySame && !emergencyPhone.trim()) p.emergencyPhone = "Please enter the emergency contact's mobile.";
     if (classes.length > 0) {
-      if (!preferredClassId) return "Please select a preferred class for " + (studentName || "the student") + " — or choose \"No preference\" if any works.";
-      const missingSiblingClass = namedSiblings.find((s) => !s.classId);
-      if (missingSiblingClass) return `Please select a preferred class for ${missingSiblingClass.name} — or choose "No preference" if any works.`;
-      if (!packageTierId) return "Please select a package for " + (studentName || "the student") + ".";
-      const missingSiblingPackage = namedSiblings.find((s) => !s.packageTierId);
-      if (missingSiblingPackage) return `Please select a package for ${missingSiblingPackage.name}.`;
+      namedSiblings.forEach((s) => {
+        if (!s.classId) p[`sib-${s._idx}-class`] = `Please choose a preferred class for ${s.name.trim()} — or “No preference”.`;
+      });
+      if (!packageTierId) p.primaryPackage = `Please select a package for ${who}.`;
+      namedSiblings.forEach((s) => {
+        if (!s.packageTierId) p[`sib-${s._idx}-package`] = `Please select a package for ${s.name.trim()}.`;
+      });
     }
-    return null;
+    if (somethingToPay && !paymentAnswer) p.payment = "Please let us know whether you've made the payment.";
+    if (!agreedToInfo) p.agreedToInfo = "Please confirm you've read the Important Information above.";
+    if (!agreedToPolicies) p.agreedToPolicies = "Please confirm you agree to the Privacy Policy and Terms & Conditions.";
+    return p;
   };
+  const problems = attempted ? validate() : {};
 
   const handleSubmitClick = () => {
-    const validationError = validate();
-    if (validationError) { setError(validationError); return; }
+    setAttempted(true);
     setError("");
-    // Nothing to pay right now, or they've already claimed payment AND attached
-    // proof — go straight through. Otherwise, flag exactly what's missing before
-    // letting them submit anyway (delayed processing is their choice to accept).
-    const somethingToPay = classes.length > 0 || fees.enabled;
-    if (somethingToPay && (!paymentClaimed || !paymentFile)) {
-      setConfirmUnpaid(true);
-      return;
-    }
+    const found = validate();
+    if (Object.keys(found).length > 0) { scrollToFirstProblem(found); return; }
+    if (!turnstileToken) { setError(SECURITY_CHECK_PENDING); return; }
     submit();
   };
 
   const submit = async () => {
-    setConfirmUnpaid(false);
     setSubmitting(true);
     setError("");
     try {
       let screenshotPath = null;
-      if (paymentClaimed && paymentFile) {
+      if (paymentAnswer === "yes" && paymentFile) {
         const ext = paymentFile.name.split(".").pop() || "png";
         screenshotPath = `${crypto.randomUUID()}.${ext}`;
         const { error: uploadErr } = await supabase.storage.from("payment-screenshots").upload(screenshotPath, paymentFile);
@@ -349,7 +351,7 @@ export default function EnrollForm() {
             // student later (Students tab) if a parent contacts us to opt out.
             p_video_consent: true,
             p_notes: notes.trim(),
-            p_payment_claimed: paymentClaimed,
+            p_payment_claimed: paymentAnswer === "yes",
             p_payment_screenshot_path: screenshotPath,
             p_reference: finalPrimaryCode,
             p_students: studentRows,
@@ -411,18 +413,22 @@ export default function EnrollForm() {
           </div>
 
           <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 14, fontWeight: 600 }}>Student details</h3>
-          <Field label="Student's name *"><input style={inputStyle} value={studentName} onChange={(e) => setStudentName(e.target.value)} /></Field>
+          <FieldWrap id="studentName" problem={problems.studentName}>
+            <Field label="Student's name *"><input style={inputStyle} value={studentName} onChange={(e) => setStudentName(e.target.value)} /></Field>
+          </FieldWrap>
           {classes.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Date of birth"><input style={inputStyle} type="date" value={studentDob} onChange={(e) => setStudentDob(e.target.value)} /></Field>
-              <Field label="Preferred class">
-                <Select value={preferredClassId} onChange={(e) => setPreferredClassId(e.target.value)}>
-                  <option value="" disabled>Select a class…</option>
-                  {classes.map((c) => <option key={c.id} value={c.id}>{classOptionLabel(c, today)}</option>)}
-                  <option value="none">No preference</option>
-                </Select>
-                <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
-              </Field>
+              <FieldWrap id="primaryClass" problem={problems.primaryClass}>
+                <Field label="Preferred class *">
+                  <Select value={preferredClassId} onChange={(e) => setPreferredClassId(e.target.value)}>
+                    <option value="" disabled>Select a class…</option>
+                    {classes.map((c) => <option key={c.id} value={c.id}>{classOptionLabel(c, today)}</option>)}
+                    <option value="none">No preference</option>
+                  </Select>
+                  <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>We'll do our best to accommodate your preference, though the final class will be confirmed by the studio.</p>
+                </Field>
+              </FieldWrap>
             </div>
           ) : (
             <>
@@ -437,7 +443,9 @@ export default function EnrollForm() {
           )}
 
           <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, margin: "22px 0 14px", fontWeight: 600 }}>Who's filling this out?</h3>
-          <Field label="Your name *"><input style={inputStyle} value={guardianName} onChange={(e) => setGuardianName(e.target.value)} /></Field>
+          <FieldWrap id="guardianName" problem={problems.guardianName}>
+            <Field label="Your name *"><input style={inputStyle} value={guardianName} onChange={(e) => setGuardianName(e.target.value)} /></Field>
+          </FieldWrap>
           <Field label="Your relation to the student">
             <Select value={guardianRelation} onChange={(e) => setGuardianRelation(e.target.value)}>
               <option value="">Select…</option>
@@ -463,8 +471,12 @@ export default function EnrollForm() {
           </div>
           {!emergencySame && (
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Name"><input style={inputStyle} value={emergencyName} onChange={(e) => setEmergencyName(e.target.value)} /></Field>
-              <Field label="Mobile"><input style={inputStyle} value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} /></Field>
+              <FieldWrap id="emergencyName" problem={problems.emergencyName}>
+                <Field label="Name *"><input style={inputStyle} value={emergencyName} onChange={(e) => setEmergencyName(e.target.value)} /></Field>
+              </FieldWrap>
+              <FieldWrap id="emergencyPhone" problem={problems.emergencyPhone}>
+                <Field label="Mobile *"><input style={inputStyle} value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} /></Field>
+              </FieldWrap>
             </div>
           )}
 
@@ -482,7 +494,7 @@ export default function EnrollForm() {
             <>
               <button onClick={() => setWantsSiblings(false)} style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8, textDecoration: "underline" }}>Actually, no additional students</button>
               {siblings.map((s, i) => (
-                <SiblingCard key={i} sibling={s} index={i} classes={classes} today={today} onChange={(val) => updateSibling(i, val)} onRemove={() => removeSibling(i)} />
+                <SiblingCard key={i} sibling={s} index={i} classes={classes} today={today} onChange={(val) => updateSibling(i, val)} onRemove={() => removeSibling(i)} classProblem={problems[`sib-${i}-class`]} />
               ))}
               {siblings.length < MAX_SIBLINGS && (
                 <Btn size="sm" variant="ghost" onClick={addSibling}>+ Add additional student ({siblings.length}/{MAX_SIBLINGS})</Btn>
@@ -500,13 +512,15 @@ export default function EnrollForm() {
               <>
                 {classes.length > 0 && (
                   <div style={{ marginBottom: 16 }}>
-                    <h4 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 8 }}>Select a package for {studentName || "the student"}</h4>
-                    <PackageTierPicker tiers={packageTiers} selectedId={packageTierId} onSelect={setPackageTierId} />
+                    <FieldWrap id="primaryPackage" problem={problems.primaryPackage}>
+                      <h4 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 8 }}>Select a package for {studentName || "the student"} <span style={{ color: T.terracotta }}>*</span></h4>
+                      <PackageTierPicker tiers={packageTiers} selectedId={packageTierId} onSelect={setPackageTierId} />
+                    </FieldWrap>
                     {namedSiblings.map((s, i) => (
-                      <div key={i} style={{ marginTop: 14 }}>
-                        <h4 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 8 }}>Select a package for {s.name}</h4>
+                      <FieldWrap key={i} id={`sib-${s._idx}-package`} problem={problems[`sib-${s._idx}-package`]} style={{ marginTop: 14 }}>
+                        <h4 style={{ fontFamily: "Fraunces, serif", fontSize: 15, color: T.maroonDark, marginBottom: 8 }}>Select a package for {s.name} <span style={{ color: T.terracotta }}>*</span></h4>
                         <PackageTierPicker tiers={packageTiers} selectedId={s.packageTierId} onSelect={(id) => updateSibling(s._idx, { ...siblings[s._idx], packageTierId: id })} sibling />
-                      </div>
+                      </FieldWrap>
                     ))}
                   </div>
                 )}
@@ -578,20 +592,15 @@ export default function EnrollForm() {
                 <p style={{ fontSize: 11.5, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
                   Bank transfers can take up to 24 hours to clear, so please allow a little time for your enrolment to be confirmed after paying.
                 </p>
-                <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
-                  <input type="checkbox" checked={paymentClaimed} onChange={(e) => togglePaymentClaimed(e.target.checked)} />
-                  I have already paid
-                </label>
-                {paymentClaimed && (
-                  <Field label="Payment screenshot">
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={(e) => setPaymentFile(e.target.files?.[0] || null)}
-                      style={{ fontSize: 13 }}
-                    />
-                  </Field>
-                )}
+                <PaymentConfirmation
+                  total={total}
+                  answer={paymentAnswer}
+                  onAnswer={answerPayment}
+                  file={paymentFile}
+                  onFile={setPaymentFile}
+                  problem={problems.payment}
+                  kind="enrolment"
+                />
               </>
             ) : (
               <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.5 }}>
@@ -603,11 +612,14 @@ export default function EnrollForm() {
           <ImportantInfo preferredClass={classes.find((c) => c.id === preferredClassId) || null} />
 
           <div style={{ marginTop: 22, paddingTop: 20, borderTop: `1px solid ${T.gold}33` }}>
-            <label className="flex items-start gap-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
-              <input type="checkbox" checked={agreedToInfo} onChange={(e) => setAgreedToInfo(e.target.checked)} style={{ marginTop: 2 }} />
-              <span>I have read and agree to the Important Information above.</span>
-            </label>
-            <label className="flex items-start gap-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
+            <FieldWrap id="agreedToInfo" problem={problems.agreedToInfo} style={{ marginBottom: 6 }}>
+              <label className="flex items-start gap-2" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
+                <input type="checkbox" checked={agreedToInfo} onChange={(e) => setAgreedToInfo(e.target.checked)} style={{ marginTop: 2 }} />
+                <span>I have read and agree to the Important Information above.</span>
+              </label>
+            </FieldWrap>
+            <FieldWrap id="agreedToPolicies" problem={problems.agreedToPolicies} style={{ marginBottom: 6 }}>
+            <label className="flex items-start gap-2" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
               <input type="checkbox" checked={agreedToPolicies} onChange={(e) => setAgreedToPolicies(e.target.checked)} style={{ marginTop: 2 }} />
               <span>
                 I agree to the{" "}
@@ -616,46 +628,19 @@ export default function EnrollForm() {
                 <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, textDecoration: "underline" }}>Terms &amp; Conditions</a>.
               </span>
             </label>
+            </FieldWrap>
 
-            {error && <p style={{ color: T.terracotta, fontSize: 16, fontWeight: 700, textAlign: "center", marginTop: 6, marginBottom: 6, lineHeight: 1.4 }}>{error}</p>}
-            {agreedToInfo && agreedToPolicies && (
-              <>
-                <TurnstileWidget onVerify={setTurnstileToken} />
-                <div style={{ marginTop: 10, textAlign: "right" }}>
-                  <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting || !turnstileToken}>{submitting ? "Submitting…" : "Submit request"}</Btn>
-                </div>
-              </>
-            )}
+            <FormErrorBox message={error || problemsMessage(problems)} />
+            <TurnstileWidget onVerify={setTurnstileToken} />
+            <div style={{ marginTop: 10, textAlign: "right" }}>
+              <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+            </div>
             <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 14 }}>
               <a href="/parent" style={{ color: T.inkSoft, textDecoration: "underline" }}>Already enrolled? Look up bookings</a>
             </p>
           </div>
         </div>
       </div>
-      {confirmUnpaid && (
-        <ConfirmModal
-          title="Payment details incomplete"
-          message={
-            <div className="rounded-xl" style={{ background: `${T.gold}20`, border: `2px solid ${T.gold}`, padding: "14px 16px", textAlign: "left" }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.6, marginBottom: 10 }}>
-                ⚠️ You haven't {!paymentClaimed && !paymentFile ? "specified your payment details or attached a screenshot" : !paymentClaimed ? "marked your payment as made" : "attached a payment screenshot"}.
-              </p>
-              <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.6, marginBottom: 10 }}>
-                Without payment, there will be a delay in confirming this enrolment — and classes are filling up fast.
-              </p>
-              <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.6, marginBottom: 10 }}>
-                Please make payment to confirm the spot.
-              </p>
-              <p style={{ fontSize: 13, fontWeight: 500, color: T.ink, lineHeight: 1.6 }}>
-                If you'd like to submit anyway, we will reach out to you afterward regarding payment.
-              </p>
-            </div>
-          }
-          confirmLabel="Submit anyway"
-          onConfirm={submit}
-          onCancel={() => setConfirmUnpaid(false)}
-        />
-      )}
     </div>
   );
 }

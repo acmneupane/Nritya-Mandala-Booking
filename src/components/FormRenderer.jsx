@@ -5,6 +5,8 @@ import { useLogoUrl } from "../lib/logo";
 import { Select } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import SiteFooter from "./SiteFooter";
+import { FieldNote, FormErrorBox } from "./Validation";
+import { INVALID_BORDER, INVALID_BG, SECURITY_CHECK_PENDING } from "../lib/validation";
 import { DAYS, contactShown, isAnswered, functionErrorMessage } from "../lib/forms";
 
 // Renders one admin-built form (Admin → Forms) for filling in: the public
@@ -150,12 +152,6 @@ function QuestionInput({ question, value, onChange }) {
   }
 }
 
-const INVALID_BORDER = `2px solid ${T.terracotta}`;
-
-function FieldNote({ text }) {
-  return <div style={{ fontSize: 12.5, fontWeight: 600, color: T.terracotta, marginTop: 6 }}>{text}</div>;
-}
-
 function ContactField({ id, mode, label, type, value, onChange, invalid }) {
   if (mode === "hidden") return null;
   return (
@@ -222,7 +218,7 @@ export default function FormRenderer({ form, preview = false, source = null }) {
       return;
     }
     if (!preview && !turnstileToken) {
-      setError("Just a moment — the security check is still loading. Please try again in a few seconds.");
+      setError(SECURITY_CHECK_PENDING);
       return;
     }
     if (preview) {
@@ -296,7 +292,7 @@ export default function FormRenderer({ form, preview = false, source = null }) {
                 <div
                   key={q.id}
                   id={`field-q-${q.id}`}
-                  style={{ marginBottom: 12, padding: 10, marginLeft: -10, marginRight: -10, borderRadius: 10, border: problem ? INVALID_BORDER : "2px solid transparent", background: problem ? `${T.terracotta}08` : "transparent" }}
+                  style={{ marginBottom: 12, padding: 10, marginLeft: -10, marginRight: -10, borderRadius: 10, border: problem ? INVALID_BORDER : "2px solid transparent", background: problem ? INVALID_BG : "transparent" }}
                 >
                   <Label text={q.label || "Untitled question"} required={q.required} help={q.help_text} />
                   <QuestionInput question={q} value={answers[q.id]} onChange={(v) => setAnswer(q.id, v)} />
@@ -314,7 +310,7 @@ export default function FormRenderer({ form, preview = false, source = null }) {
                 <label
                   id="field-consent"
                   className="flex items-start gap-2"
-                  style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, marginTop: 4, padding: 8, marginLeft: -8, marginRight: -8, borderRadius: 8, border: invalid.consent ? INVALID_BORDER : "2px solid transparent", background: invalid.consent ? `${T.terracotta}08` : "transparent" }}
+                  style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, marginTop: 4, padding: 8, marginLeft: -8, marginRight: -8, borderRadius: 8, border: invalid.consent ? INVALID_BORDER : "2px solid transparent", background: invalid.consent ? INVALID_BG : "transparent" }}
                 >
                   <input type="checkbox" checked={consent} onChange={(e) => { setConsent(e.target.checked); clearInvalid("consent"); setError(""); }} style={{ marginTop: 3 }} />
                   <span>
@@ -327,11 +323,7 @@ export default function FormRenderer({ form, preview = false, source = null }) {
               </div>
             )}
 
-            {error && (
-              <div role="alert" style={{ marginTop: 16, border: INVALID_BORDER, background: `${T.terracotta}10`, borderRadius: 10, padding: "12px 14px", textAlign: "center", fontSize: 15.5, fontWeight: 600, color: T.terracotta, lineHeight: 1.45 }}>
-                {error}
-              </div>
-            )}
+            <FormErrorBox message={error} />
             {!preview && <TurnstileWidget onVerify={setTurnstileToken} />}
             <button
               onClick={submit}

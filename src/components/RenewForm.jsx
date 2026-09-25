@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { useLogoUrl } from "../lib/logo";
-import { Btn, Field, Select, ConfirmModal } from "./ui";
+import { Btn, Field, Select } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import { classesLabel } from "../lib/format";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
 import { fetchOpenClasses, classOptionLabel } from "../lib/classAvailability";
 import { localDateStr } from "../lib/dates";
+import { FieldWrap, FormErrorBox } from "./Validation";
+import PaymentConfirmation from "./PaymentConfirmation";
+import { problemsMessage, scrollToFirstProblem, SECURITY_CHECK_PENDING } from "../lib/validation";
 
 // Shown for a student who isn't currently booked into a class — same picker as the
 // enrolment form's "Preferred class" field, so a renewing student without a class
@@ -21,7 +24,7 @@ function PreferredClassField({ classes, today, classId, onChangeClassId, text, o
     );
   }
   return (
-    <Field label="Preferred class">
+    <Field label="Preferred class *">
       <Select value={classId} onChange={(e) => onChangeClassId(e.target.value)}>
         <option value="" disabled>Select a class…</option>
         {classes.map((c) => <option key={c.id} value={c.id}>{classOptionLabel(c, today)}</option>)}
@@ -48,11 +51,13 @@ export default function RenewForm() {
   const [currentClassesByStudent, setCurrentClassesByStudent] = useState({}); // { [studentId]: [{label, day, time, end_time}] } — their existing booking(s), if any
   const [preferredClassIds, setPreferredClassIds] = useState({}); // { [studentId]: classId | "none" }
   const [preferredClassTexts, setPreferredClassTexts] = useState({}); // { [studentId]: text } - used when there are no classes to pick from yet
-  const [paymentClaimed, setPaymentClaimed] = useState(false);
+  const [paymentAnswer, setPaymentAnswer] = useState(""); // "" | "yes" | "no" — "Have you made the payment?"
   const [agreedToPolicies, setAgreedToPolicies] = useState(false);
   const [paymentFile, setPaymentFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [confirmUnpaid, setConfirmUnpaid] = useState(false);
+  // Set on the first Submit click; from then on every problem is highlighted
+  // live (and clears as it's fixed).
+  const [attempted, setAttempted] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(null);
@@ -119,32 +124,42 @@ export default function RenewForm() {
   // the free-text fallback (no open classes) is optional, matching the enrolment form.
   const missingPreferredClass = (studentId) => needsPreferredClass(studentId) && classes.length > 0 && !preferredClassIds[studentId];
 
+  // Every problem at once, keyed by field, in page order (see lib/validation.js).
+  const validate = () => {
+    const p = {};
+    if (!student) return p;
+    if (missingPreferredClass(student.id)) p.primaryClass = `Please choose a preferred class for ${student.name} — or “No preference” if any works.`;
+    if (!selectedTierId) p.primaryPackage = `Please select a package for ${student.name}.`;
+    includedSiblingList.forEach((s) => {
+      if (missingPreferredClass(s.id)) p[`sib-${s.id}-class`] = `Please choose a preferred class for ${s.name} — or “No preference”.`;
+      if (!siblingTierIds[s.id]) p[`sib-${s.id}-package`] = `Please select a package for ${s.name}, or untick them.`;
+    });
+    if (!paymentAnswer) p.payment = "Please let us know whether you've made the payment.";
+    if (!agreedToPolicies) p.agreedToPolicies = "Please confirm you agree to the Privacy Policy, Terms & Conditions, and House Rules.";
+    return p;
+  };
+  const problems = attempted ? validate() : {};
+
+  const answerPayment = (answer) => {
+    setPaymentAnswer(answer);
+    if (answer !== "yes") setPaymentFile(null);
+  };
+
   const handleSubmitClick = () => {
-    if (!selectedTierId) { setError("Please select a package."); return; }
-    const missingSibling = includedSiblingList.find((s) => !siblingTierIds[s.id]);
-    if (missingSibling) { setError(`Please select a package for ${missingSibling.name}, or untick them.`); return; }
-    if (missingPreferredClass(student.id)) {
-      setError(`Please select a preferred class for ${student.name} — or choose "No preference" if any works.`);
-      return;
-    }
-    const missingSiblingClass = includedSiblingList.find((s) => missingPreferredClass(s.id));
-    if (missingSiblingClass) { setError(`Please select a preferred class for ${missingSiblingClass.name} — or choose "No preference" if any works.`); return; }
-    if (!agreedToPolicies) { setError("Please confirm you agree to the Privacy Policy, Terms & Conditions, and House Rules."); return; }
+    setAttempted(true);
     setError("");
-    if (!paymentClaimed || !paymentFile) {
-      setConfirmUnpaid(true);
-      return;
-    }
+    const found = validate();
+    if (Object.keys(found).length > 0) { scrollToFirstProblem(found); return; }
+    if (!turnstileToken) { setError(SECURITY_CHECK_PENDING); return; }
     submit();
   };
 
   const submit = async () => {
-    setConfirmUnpaid(false);
     setSubmitting(true);
     setError("");
     try {
       let screenshotPath = null;
-      if (paymentClaimed && paymentFile) {
+      if (paymentAnswer === "yes" && paymentFile) {
         const ext = paymentFile.name.split(".").pop() || "png";
         screenshotPath = `${crypto.randomUUID()}.${ext}`;
         const { error: uploadErr } = await supabase.storage.from("payment-screenshots").upload(screenshotPath, paymentFile);
@@ -169,7 +184,7 @@ export default function RenewForm() {
         body: {
           turnstileToken,
           formType: "renewal",
-          params: { p_selections: selections, p_payment_claimed: paymentClaimed, p_payment_screenshot_path: screenshotPath },
+          params: { p_selections: selections, p_payment_claimed: paymentAnswer === "yes", p_payment_screenshot_path: screenshotPath },
         },
       });
       if (fnErr || !fnData?.ok) throw new Error(fnData?.error || "Something went wrong submitting — please try again.");
@@ -246,18 +261,21 @@ export default function RenewForm() {
               <div style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12.5, color: T.ink, lineHeight: 1.5 }}>
                 {student.name} isn't currently booked into a class — let us know a preference and we'll get them scheduled.
               </div>
-              <PreferredClassField
-                classes={classes}
-                today={today}
-                classId={preferredClassIds[student.id] || ""}
-                onChangeClassId={(v) => setPreferredClassIds((m) => ({ ...m, [student.id]: v }))}
-                text={preferredClassTexts[student.id] || ""}
-                onChangeText={(v) => setPreferredClassTexts((m) => ({ ...m, [student.id]: v }))}
-              />
+              <FieldWrap id="primaryClass" problem={problems.primaryClass}>
+                <PreferredClassField
+                  classes={classes}
+                  today={today}
+                  classId={preferredClassIds[student.id] || ""}
+                  onChangeClassId={(v) => setPreferredClassIds((m) => ({ ...m, [student.id]: v }))}
+                  text={preferredClassTexts[student.id] || ""}
+                  onChangeText={(v) => setPreferredClassTexts((m) => ({ ...m, [student.id]: v }))}
+                />
+              </FieldWrap>
             </div>
           )}
 
-          <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 8, marginTop: 20, fontWeight: 600 }}>Select a package</h3>
+          <FieldWrap id="primaryPackage" problem={problems.primaryPackage} style={{ marginTop: 12, marginBottom: 12 }}>
+          <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 8, fontWeight: 600 }}>Select a package <span style={{ color: T.terracotta }}>*</span></h3>
           {tiers.length === 0 ? (
             <p style={{ fontSize: 13, color: T.inkSoft }}>No packages are available to select right now — please contact the studio directly.</p>
           ) : (
@@ -283,6 +301,7 @@ export default function RenewForm() {
               ))}
             </div>
           )}
+          </FieldWrap>
 
           {siblings.length > 0 && tiers.length > 0 && (
             <>
@@ -304,15 +323,18 @@ export default function RenewForm() {
                         </p>
                       )}
                       {needsPreferredClass(s.id) && (
-                        <PreferredClassField
-                          classes={classes}
-                          today={today}
-                          classId={preferredClassIds[s.id] || ""}
-                          onChangeClassId={(v) => setPreferredClassIds((m) => ({ ...m, [s.id]: v }))}
-                          text={preferredClassTexts[s.id] || ""}
-                          onChangeText={(v) => setPreferredClassTexts((m) => ({ ...m, [s.id]: v }))}
-                        />
+                        <FieldWrap id={`sib-${s.id}-class`} problem={problems[`sib-${s.id}-class`]}>
+                          <PreferredClassField
+                            classes={classes}
+                            today={today}
+                            classId={preferredClassIds[s.id] || ""}
+                            onChangeClassId={(v) => setPreferredClassIds((m) => ({ ...m, [s.id]: v }))}
+                            text={preferredClassTexts[s.id] || ""}
+                            onChangeText={(v) => setPreferredClassTexts((m) => ({ ...m, [s.id]: v }))}
+                          />
+                        </FieldWrap>
                       )}
+                      <FieldWrap id={`sib-${s.id}-package`} problem={problems[`sib-${s.id}-package`]}>
                       <div className="grid gap-2">
                       {tiers.map((t) => {
                         const p = siblingPrice(t);
@@ -334,6 +356,7 @@ export default function RenewForm() {
                         );
                       })}
                     </div>
+                    </FieldWrap>
                     </>
                   )}
                 </div>
@@ -360,7 +383,7 @@ export default function RenewForm() {
 
           <div className="rounded-xl" style={{ background: `${T.gold}20`, border: `2px solid ${T.gold}`, padding: "14px 18px", marginBottom: 14 }}>
             <p style={{ fontSize: 15, fontWeight: 700, color: T.maroonDark, lineHeight: 1.5, marginBottom: referenceCodes ? 10 : 0 }}>
-              ⚠️ Please pay using the bank details above, with the reference below. Once paid, tick the box and attach a screenshot so we can confirm it faster.
+              ⚠️ Please pay using the bank details above, with the reference below. Then let us know below whether you've paid — a screenshot of the payment helps us confirm it faster.
             </p>
             {referenceCodes && (
               <>
@@ -373,18 +396,19 @@ export default function RenewForm() {
             Bank transfers can take up to 24 hours to clear, so please allow a little time for your renewal to be confirmed after paying.
           </p>
 
-          <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
-            <input type="checkbox" checked={paymentClaimed} onChange={(e) => { setPaymentClaimed(e.target.checked); if (!e.target.checked) setPaymentFile(null); }} />
-            I have already paid
-          </label>
-          {paymentClaimed && (
-            <Field label="Payment screenshot">
-              <input type="file" accept="image/*,.pdf" onChange={(e) => setPaymentFile(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
-            </Field>
-          )}
+          <PaymentConfirmation
+            total={total}
+            answer={paymentAnswer}
+            onAnswer={answerPayment}
+            file={paymentFile}
+            onFile={setPaymentFile}
+            problem={problems.payment}
+            kind="renewal"
+          />
 
           <div style={{ marginTop: 6, paddingTop: 18, borderTop: `1px solid ${T.gold}33` }}>
-            <label className="flex items-start gap-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
+            <FieldWrap id="agreedToPolicies" problem={problems.agreedToPolicies} style={{ marginBottom: 6 }}>
+            <label className="flex items-start gap-2" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
               <input type="checkbox" checked={agreedToPolicies} onChange={(e) => setAgreedToPolicies(e.target.checked)} style={{ marginTop: 2 }} />
               <span>
                 I agree to the{" "}
@@ -395,23 +419,15 @@ export default function RenewForm() {
                 <a href="/house-rules" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, textDecoration: "underline" }}>House Rules</a>.
               </span>
             </label>
-            {error && <p style={{ color: T.terracotta, fontSize: 16, fontWeight: 700, textAlign: "center", marginBottom: 10, lineHeight: 1.4 }}>{error}</p>}
+            </FieldWrap>
+            <FormErrorBox message={error || problemsMessage(problems)} />
             <TurnstileWidget onVerify={setTurnstileToken} />
             <div style={{ marginTop: 10, textAlign: "right" }}>
-              <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting || tiers.length === 0 || !turnstileToken || !agreedToPolicies}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+              <Btn variant="success" onClick={handleSubmitClick} size="lg" disabled={submitting || tiers.length === 0}>{submitting ? "Submitting…" : "Submit request"}</Btn>
             </div>
           </div>
         </div>
       </div>
-      {confirmUnpaid && (
-        <ConfirmModal
-          title="Payment details incomplete"
-          message={`You haven't ${!paymentClaimed && !paymentFile ? "specified your payment details or attached a screenshot" : !paymentClaimed ? "marked your payment as made" : "attached a payment screenshot"}. Payment has not been confirmed above. A delay in confirming payment may result in a delay in processing this renewal. If you'd like to submit anyway, we will reach out to you afterward regarding payment.`}
-          confirmLabel="Submit anyway"
-          onConfirm={submit}
-          onCancel={() => setConfirmUnpaid(false)}
-        />
-      )}
     </div>
   );
 }

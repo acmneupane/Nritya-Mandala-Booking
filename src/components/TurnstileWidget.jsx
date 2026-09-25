@@ -38,6 +38,11 @@ export default function TurnstileWidget({ onVerify }) {
         "expired-callback": () => onVerify(""),
         "error-callback": () => onVerify(""),
       });
+    }).catch(() => {
+      // Script blocked or offline (e.g. an ad-blocker): no token arrives, so the
+      // form's Submit explains the security check hasn't loaded. Forget the
+      // failed load so the next page visit tries again.
+      scriptLoadPromise = null;
     });
     return () => {
       mounted = false;
