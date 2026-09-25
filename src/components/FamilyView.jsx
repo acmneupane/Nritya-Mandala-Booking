@@ -7,6 +7,7 @@ import { nextOccurrenceOf, formatTimeRange } from "../lib/scheduling";
 import { shareReferral, referralCopy } from "../lib/share";
 import MessageStudioModal from "./MessageStudioModal";
 import ReviewModal from "./ReviewModal";
+import FormBanners from "./FormBanners";
 
 // The family-summary landing screen for a multi-kid household — shown once,
 // right after identity verification, instead of dropping straight into
@@ -95,6 +96,8 @@ export default function FamilyView({ students, usedCode, onSelectStudent, onLook
         {referralConfig?.referral_program_enabled && (
           <p className="text-center" style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 8 }}>{referralCopy(referralConfig).detailLine}</p>
         )}
+
+        <FormBanners place="parent" style={{ marginTop: 18 }} />
 
         <div className="grid gap-2" style={{ marginTop: 18 }}>
           {loading ? (
