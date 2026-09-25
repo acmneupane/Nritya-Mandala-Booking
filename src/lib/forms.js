@@ -88,10 +88,10 @@ export const STATUS_INFO = {
   },
 };
 
-// "Adult Classes 2026" -> "ADULTCLASSES2026" (letters and digits, max 16).
+// "Adult Classes 2026" -> "ADULTCLASSES2026" (letters and digits, max 20).
 export function codeFromTitle(title) {
-  const base = String(title || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16);
-  return base.length >= 3 ? base : (base + "FORM").slice(0, 16);
+  const base = String(title || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20);
+  return base.length >= 3 ? base : (base + "FORM").slice(0, 20);
 }
 
 export function cleanCode(code) {

@@ -26,6 +26,7 @@ const TAB_PERMISSIONS = {
   finances: ["finance"],
   history: ["studio_settings"],
   website: ["website"],
+  forms: ["studio_settings"],
   "studio-settings": ["studio_settings"],
   // "ADMIN_ONLY" is a sentinel, not a permission name — no permission ever
   // satisfies it, only the is_admin flag. Capacity, email limits/templates,

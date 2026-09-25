@@ -17,6 +17,7 @@ import RenewalsView from "./RenewalsView";
 import FinancesView from "./FinancesView";
 import HomeView from "./HomeView";
 import AdminConfigView from "./AdminConfigView";
+import FormsView from "./FormsView";
 import { useMyAccess } from "../lib/permissions";
 
 const NAV = [
@@ -31,6 +32,7 @@ const NAV = [
   { id: "finances", label: "Finances" },
   { id: "history", label: "History" },
   { id: "website", label: "Website" },
+  { id: "forms", label: "Forms", countKey: "forms" },
   { id: "studio-settings", label: "Studio Settings" },
   { id: "admin-config", label: "Admin Config" },
   { id: "account", label: "Account" },
@@ -60,19 +62,22 @@ export default function Dashboard() {
   const focusRequestId = new URLSearchParams(window.location.search).get("request");
   const focusRenewalId = new URLSearchParams(window.location.search).get("renewal");
   const focusStudentCode = new URLSearchParams(window.location.search).get("student");
-  const [tab, setTab] = useState(focusRequestId ? "requests" : focusRenewalId ? "renewals" : focusStudentCode ? "students" : "home");
+  const focusFormId = new URLSearchParams(window.location.search).get("form");
+  const [tab, setTab] = useState(focusRequestId ? "requests" : focusRenewalId ? "renewals" : focusStudentCode ? "students" : focusFormId ? "forms" : "home");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [counts, setCounts] = useState({ students: 0, classes: 0, requests: 0, renewals: 0 });
+  const [counts, setCounts] = useState({ students: 0, classes: 0, requests: 0, renewals: 0, forms: 0 });
   const access = useMyAccess();
 
   const loadCounts = useCallback(async () => {
-    const [sRes, cRes, rRes, renRes, studentsRes, pkgRes] = await Promise.all([
+    const [sRes, cRes, rRes, renRes, studentsRes, pkgRes, formsRes] = await Promise.all([
       supabase.from("students").select("id", { count: "exact", head: true }).eq("archived", false),
       supabase.from("classes").select("id", { count: "exact", head: true }),
       supabase.from("enrollment_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
       supabase.from("package_renewal_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
       supabase.from("students").select("id").eq("archived", false),
       supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
+      // New form responses (0 for anyone without the Studio Settings permission).
+      supabase.from("form_responses").select("id", { count: "exact", head: true }).eq("status", "new"),
     ]);
     const pkgByStudent = Object.fromEntries((pkgRes.data || []).map((p) => [p.student_id, p]));
     const dueCount = (studentsRes.data || []).filter((s) => {
@@ -81,7 +86,7 @@ export default function Dashboard() {
       if (!hasPackage) return true; // no package at all — e.g. freshly reactivated
       return (pkg.classes_total - pkg.classes_used) <= 2;
     }).length;
-    setCounts({ students: sRes.count || 0, classes: cRes.count || 0, requests: rRes.count || 0, renewals: (renRes.count || 0) + dueCount });
+    setCounts({ students: sRes.count || 0, classes: cRes.count || 0, requests: rRes.count || 0, renewals: (renRes.count || 0) + dueCount, forms: formsRes.count || 0 });
   }, []);
 
   useEffect(() => { loadCounts(); }, [loadCounts]);
@@ -205,6 +210,7 @@ export default function Dashboard() {
         {access.canAccessTab(tab) && tab === "finances" && <FinancesView />}
         {access.canAccessTab(tab) && tab === "history" && <HistoryView />}
         {access.canAccessTab(tab) && tab === "website" && <WebsiteContentView />}
+        {access.canAccessTab(tab) && tab === "forms" && <FormsView focusFormId={focusFormId} />}
         {access.canAccessTab(tab) && tab === "studio-settings" && <StudioSettingsView />}
         {access.canAccessTab(tab) && tab === "admin-config" && <AdminConfigView />}
         {access.canAccessTab(tab) && tab === "account" && <AccountView />}
