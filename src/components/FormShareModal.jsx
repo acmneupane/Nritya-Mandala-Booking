@@ -42,7 +42,7 @@ export default function FormShareModal({ form, onClose }) {
       <span className="block text-xs font-medium mb-1" style={{ color: T.inkSoft }}>Where will you share it?</span>
       <Select value={channel} onChange={(e) => { setChannel(e.target.value); setCopied(false); }}>
         <option value="">Choose…</option>
-        {SHARE_CHANNELS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+        {[...SHARE_CHANNELS].sort((a, b) => a.label.localeCompare(b.label)).map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
         <option value="direct">Plain link (no source)</option>
       </Select>
 

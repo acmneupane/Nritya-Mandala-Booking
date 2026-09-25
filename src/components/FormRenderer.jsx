@@ -150,12 +150,25 @@ function QuestionInput({ question, value, onChange }) {
   }
 }
 
-function ContactField({ mode, label, type, value, onChange }) {
+const INVALID_BORDER = `2px solid ${T.terracotta}`;
+
+function FieldNote({ text }) {
+  return <div style={{ fontSize: 12.5, fontWeight: 600, color: T.terracotta, marginTop: 6 }}>{text}</div>;
+}
+
+function ContactField({ id, mode, label, type, value, onChange, invalid }) {
   if (mode === "hidden") return null;
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div id={id} style={{ marginBottom: 14 }}>
       <Label text={label} required={mode === "required"} />
-      <input style={inputStyle} type={type} value={value} maxLength={type === "email" ? 200 : 120} onChange={(e) => onChange(e.target.value)} />
+      <input
+        style={{ ...inputStyle, border: invalid ? INVALID_BORDER : inputStyle.border }}
+        type={type}
+        value={value}
+        maxLength={type === "email" ? 200 : 120}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {invalid && <FieldNote text={invalid} />}
     </div>
   );
 }
@@ -171,26 +184,47 @@ export default function FormRenderer({ form, preview = false, source = null }) {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  // Field id -> what's wrong with it ("q:<question id>", "name", "email", "phone", "consent").
+  const [invalid, setInvalid] = useState({});
   const [result, setResult] = useState(null); // { reference_code, thank_you_html }
 
   const showContact = contactShown(form);
-  const setAnswer = (id, value) => { setAnswers((cur) => ({ ...cur, [id]: value })); setError(""); };
+  // Fixing a field clears its red border straight away.
+  const clearInvalid = (key) => setInvalid((cur) => {
+    if (!cur[key]) return cur;
+    const next = { ...cur };
+    delete next[key];
+    return next;
+  });
+  const setAnswer = (id, value) => { setAnswers((cur) => ({ ...cur, [id]: value })); clearInvalid(`q:${id}`); setError(""); };
 
+  // Every problem at once, keyed by field, in page order.
   const validate = () => {
+    const problems = {};
     for (const q of questions) {
-      if (q.required && !isAnswered(answers[q.id])) return `Please answer: ${q.label}`;
+      if (q.required && !isAnswered(answers[q.id])) problems[`q:${q.id}`] = "Please answer this question.";
     }
-    if (form.contact_name_mode === "required" && !name.trim()) return "Please enter your name.";
-    if (form.contact_email_mode === "required" && !email.trim()) return "Please enter your email address.";
-    if (form.contact_phone_mode === "required" && !phone.trim()) return "Please enter your phone number.";
-    if (email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) return "Please enter a valid email address.";
-    if (showContact && !consent) return "Please agree to the Privacy Policy to continue.";
-    return "";
+    if (form.contact_name_mode === "required" && !name.trim()) problems.name = "Please enter your name.";
+    if (form.contact_email_mode === "required" && !email.trim()) problems.email = "Please enter your email address.";
+    else if (email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) problems.email = "Please enter a valid email address.";
+    if (form.contact_phone_mode === "required" && !phone.trim()) problems.phone = "Please enter your phone number.";
+    if (showContact && !consent) problems.consent = "Please tick this box to continue.";
+    return problems;
   };
 
   const submit = async () => {
-    const problem = validate();
-    if (problem) { setError(problem); return; }
+    const problems = validate();
+    const keys = Object.keys(problems);
+    setInvalid(problems);
+    if (keys.length > 0) {
+      setError(keys.length === 1 ? Object.values(problems)[0] : `Please fix the ${keys.length} highlighted fields above.`);
+      document.getElementById(`field-${keys[0].replace(":", "-")}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (!preview && !turnstileToken) {
+      setError("Just a moment — the security check is still loading. Please try again in a few seconds.");
+      return;
+    }
     if (preview) {
       setResult({ reference_code: "AB12CD", thank_you_html: form.thank_you_html });
       return;
@@ -256,40 +290,57 @@ export default function FormRenderer({ form, preview = false, source = null }) {
               <div className="rich-text-content" style={{ fontSize: 14, color: T.ink, lineHeight: 1.7, marginBottom: 22 }} dangerouslySetInnerHTML={{ __html: form.intro_html }} />
             )}
 
-            {questions.map((q) => (
-              <div key={q.id} style={{ marginBottom: 22 }}>
-                <Label text={q.label || "Untitled question"} required={q.required} help={q.help_text} />
-                <QuestionInput question={q} value={answers[q.id]} onChange={(v) => setAnswer(q.id, v)} />
-              </div>
-            ))}
+            {questions.map((q) => {
+              const problem = invalid[`q:${q.id}`];
+              return (
+                <div
+                  key={q.id}
+                  id={`field-q-${q.id}`}
+                  style={{ marginBottom: 12, padding: 10, marginLeft: -10, marginRight: -10, borderRadius: 10, border: problem ? INVALID_BORDER : "2px solid transparent", background: problem ? `${T.terracotta}08` : "transparent" }}
+                >
+                  <Label text={q.label || "Untitled question"} required={q.required} help={q.help_text} />
+                  <QuestionInput question={q} value={answers[q.id]} onChange={(v) => setAnswer(q.id, v)} />
+                  {problem && <FieldNote text={problem} />}
+                </div>
+              );
+            })}
 
             {showContact && (
               <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 18, marginTop: 6 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: T.gold, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 12 }}>Your details</div>
-                <ContactField mode={form.contact_name_mode} label="Name" type="text" value={name} onChange={setName} />
-                <ContactField mode={form.contact_email_mode} label="Email" type="email" value={email} onChange={setEmail} />
-                <ContactField mode={form.contact_phone_mode} label="Phone" type="tel" value={phone} onChange={setPhone} />
-                <label className="flex items-start gap-2" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, marginTop: 4 }}>
-                  <input type="checkbox" checked={consent} onChange={(e) => { setConsent(e.target.checked); setError(""); }} style={{ marginTop: 3 }} />
+                <ContactField id="field-name" mode={form.contact_name_mode} label="Name" type="text" value={name} onChange={(v) => { setName(v); clearInvalid("name"); }} invalid={invalid.name} />
+                <ContactField id="field-email" mode={form.contact_email_mode} label="Email" type="email" value={email} onChange={(v) => { setEmail(v); clearInvalid("email"); }} invalid={invalid.email} />
+                <ContactField id="field-phone" mode={form.contact_phone_mode} label="Phone" type="tel" value={phone} onChange={(v) => { setPhone(v); clearInvalid("phone"); }} invalid={invalid.phone} />
+                <label
+                  id="field-consent"
+                  className="flex items-start gap-2"
+                  style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, marginTop: 4, padding: 8, marginLeft: -8, marginRight: -8, borderRadius: 8, border: invalid.consent ? INVALID_BORDER : "2px solid transparent", background: invalid.consent ? `${T.terracotta}08` : "transparent" }}
+                >
+                  <input type="checkbox" checked={consent} onChange={(e) => { setConsent(e.target.checked); clearInvalid("consent"); setError(""); }} style={{ marginTop: 3 }} />
                   <span>
                     I agree to Nritya Mandala's{" "}
                     <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, textDecoration: "underline" }}>Privacy Policy</a>
                     , including how my details and answers are used.
                   </span>
                 </label>
+                {invalid.consent && <FieldNote text={invalid.consent} />}
               </div>
             )}
 
-            {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 14 }}>{error}</p>}
+            {error && (
+              <div role="alert" style={{ marginTop: 16, border: INVALID_BORDER, background: `${T.terracotta}10`, borderRadius: 10, padding: "12px 14px", textAlign: "center", fontSize: 15.5, fontWeight: 600, color: T.terracotta, lineHeight: 1.45 }}>
+                {error}
+              </div>
+            )}
             {!preview && <TurnstileWidget onVerify={setTurnstileToken} />}
             <button
               onClick={submit}
-              disabled={submitting || (!preview && !turnstileToken)}
+              disabled={submitting}
               className="hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
               style={{
                 marginTop: 12, background: T.maroon, color: "#fff", fontWeight: 700, padding: "12px 28px", borderRadius: 999, border: "none", fontSize: 14.5,
-                opacity: submitting || (!preview && !turnstileToken) ? 0.6 : 1,
-                cursor: submitting || (!preview && !turnstileToken) ? "default" : "pointer",
+                opacity: submitting ? 0.6 : 1,
+                cursor: submitting ? "default" : "pointer",
               }}
             >
               {submitting ? "Sending…" : "Submit"}
