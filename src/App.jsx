@@ -10,6 +10,7 @@ import Dashboard from "./components/Dashboard";
 import ComingSoonPage from "./components/ComingSoonPage";
 import HomePage from "./components/HomePage";
 import PolicyPage from "./components/PolicyPage";
+import PublicFormPage from "./components/PublicFormPage";
 import { T } from "./lib/theme";
 
 // admin.nrityamandala.com is the same deployed app as app.nrityamandala.com — this
@@ -57,6 +58,7 @@ export default function App() {
     if (path === "/house-rules") return <PolicyPage contentKey="house_rules_html" title="House Rules" />;
     if (path === "/privacy") return <PolicyPage contentKey="privacy_policy_html" title="Privacy Policy" />;
     if (path === "/terms") return <PolicyPage contentKey="terms_conditions_html" title="Terms & Conditions" />;
+    if (path === "/forms") return <PublicFormPage />;
     return <ParentLookup />;
   }
 
@@ -76,6 +78,7 @@ export default function App() {
     if (path === "/house-rules") return <PolicyPage contentKey="house_rules_html" title="House Rules" />;
     if (path === "/privacy") return <PolicyPage contentKey="privacy_policy_html" title="Privacy Policy" />;
     if (path === "/terms") return <PolicyPage contentKey="terms_conditions_html" title="Terms & Conditions" />;
+    if (path === "/forms") return <PublicFormPage />;
     return <PublicHomeGate />;
   }
 
