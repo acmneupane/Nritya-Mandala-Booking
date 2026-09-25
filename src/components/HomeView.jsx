@@ -6,6 +6,8 @@ import { isClassActiveOn, formatTimeRange, upcomingOccurrencesOf } from "../lib/
 import { isLowAttendanceRisk } from "../lib/attendance";
 import QrScanner from "./QrScanner";
 import { Modal } from "./ui";
+import NoticeMessage from "./NoticeMessage";
+import { noticeAudienceLabel } from "../lib/notices";
 import { RosterEditor } from "./CalendarView";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -172,8 +174,10 @@ export default function HomeView({ counts, onNavigate, access }) {
 
       {notices.map((n) => (
         <div key={n.id} style={{ background: `${T.gold}18`, border: `1px solid ${T.gold}55`, borderRadius: 10, padding: "10px 16px", marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.gold, letterSpacing: 0.4, marginBottom: 2, textTransform: "uppercase" }}>Current Announcement</div>
-          <div style={{ fontSize: 13, color: T.ink, lineHeight: 1.5 }}>{n.message}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: T.gold, letterSpacing: 0.4, marginBottom: 2, textTransform: "uppercase" }}>
+            Current Announcement <span style={{ fontWeight: 500, textTransform: "none", letterSpacing: 0, color: T.inkSoft }}>· {noticeAudienceLabel(n)}</span>
+          </div>
+          <NoticeMessage message={n.message} style={{ fontSize: 13, color: T.ink, lineHeight: 1.5 }} />
         </div>
       ))}
 

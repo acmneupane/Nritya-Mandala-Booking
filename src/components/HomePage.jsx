@@ -9,6 +9,7 @@ import { classStartsInFuture } from "../lib/classAvailability";
 import { publicMediaUrl } from "../lib/media";
 import { Field } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
+import NoticeMessage from "./NoticeMessage";
 
 // Shared "premium card" treatment — soft shadow at rest, a slightly deeper one
 // plus a small lift on hover. Colors stay inline (matching T.*, the app's theme
@@ -224,7 +225,7 @@ export default function HomePage() {
       supabase.rpc("get_effective_class_counts"),
       supabase.from("levels").select("*").order("order_num"),
       supabase.from("package_tiers").select("*").eq("active", true).order("sort_order"),
-      supabase.from("studio_notices").select("*").lte("start_date", today).gte("end_date", today).order("start_date"),
+      supabase.from("studio_notices").select("*").eq("show_on_public", true).lte("start_date", today).gte("end_date", today).order("start_date"),
       supabase.from("site_instructors").select("*").order("sort_order"),
       supabase.from("site_testimonials").select("*").order("sort_order"),
       supabase.from("site_faqs").select("*").order("sort_order"),
@@ -302,7 +303,7 @@ export default function HomePage() {
           {notices.map((n) => (
             <div key={n.id} className="max-w-[820px] mx-auto rounded-2xl" style={{ background: T.gold, padding: "16px 22px", marginBottom: 24, boxShadow: `0 8px 24px -6px ${T.gold}88` }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: T.maroonDark, letterSpacing: 0.6, marginBottom: 4, textTransform: "uppercase" }}>📣 Announcement</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: T.maroonDark, lineHeight: 1.4 }}>{n.message}</div>
+              <NoticeMessage message={n.message} style={{ fontSize: 16, fontWeight: 500, color: T.maroonDark, lineHeight: 1.5 }} />
             </div>
           ))}
         </div>

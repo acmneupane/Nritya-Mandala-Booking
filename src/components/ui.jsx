@@ -101,7 +101,17 @@ function ToolbarButton({ onClick, title, active, children }) {
 // (a <label>) — a contentEditable region nested inside a <label> loses focus
 // unreliably in WebKit, which is why the previous version of this editor
 // wasn't reliably editable.
+// Quick picks for the toolbar's emoji button — anything else can still be
+// typed with the device's own emoji keyboard (Win + . on Windows,
+// Ctrl + Cmd + Space on Mac).
+const QUICK_EMOJIS = [
+  "🇳🇵", "🇦🇺", "🪷", "💃", "🕺", "🎶", "✨", "🎉", "🎊", "🥳", "🪔", "🙏",
+  "❤️", "🌸", "🌺", "🏆", "🎂", "🎁", "📣", "📅", "⏰", "📍", "⚠️", "❌",
+  "✅", "☀️", "🌧️", "🎄", "👏", "😊", "😍", "👉",
+];
+
 export function RichTextEditor({ label, value, onChange, placeholder, minHeight = 160 }) {
+  const [showEmojis, setShowEmojis] = useState(false);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
@@ -159,10 +169,30 @@ export function RichTextEditor({ label, value, onChange, placeholder, minHeight 
         <ToolbarButton title="Align right" active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()}>R</ToolbarButton>
         <ToolbarButton title="Justify" active={editor.isActive({ textAlign: "justify" })} onClick={() => editor.chain().focus().setTextAlign("justify").run()}>J</ToolbarButton>
         <ToolbarButton title="Link" active={editor.isActive("link")} onClick={addLink}>🔗</ToolbarButton>
+        <ToolbarButton title="Emoji" active={showEmojis} onClick={() => setShowEmojis((v) => !v)}>😊</ToolbarButton>
         <ToolbarButton title="Clear formatting" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}>Clear</ToolbarButton>
         <ToolbarButton title="Undo" onClick={() => editor.chain().focus().undo().run()}>↺</ToolbarButton>
         <ToolbarButton title="Redo" onClick={() => editor.chain().focus().redo().run()}>↻</ToolbarButton>
       </div>
+      {showEmojis && (
+        <div style={{ border: `1px solid ${T.line}`, borderRadius: 6, background: "#fff", padding: 6, marginBottom: 6 }}>
+          <div className="flex flex-wrap gap-0.5">
+            {QUICK_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                title={`Insert ${emoji}`}
+                onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().insertContent(emoji).run(); }}
+                style={{ fontSize: 20, lineHeight: 1, padding: 5, borderRadius: 6 }}
+                className="hover:bg-black/5"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>More: press Win + . on Windows, or Ctrl + Cmd + Space on Mac.</p>
+        </div>
+      )}
       <EditorContent
         editor={editor}
         style={{ border: `1px solid ${T.line}`, borderRadius: 6, background: "#fff", cursor: "text", "--rte-min-height": `${minHeight}px` }}

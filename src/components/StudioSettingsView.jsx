@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
-import { Btn, Field } from "./ui";
+import { Btn, Field, RichTextEditor } from "./ui";
+import NoticeMessage from "./NoticeMessage";
+import { noticeHasText, noticeAudienceLabel } from "../lib/notices";
 import { localDateStr } from "../lib/dates";
 
 function EnrolmentFeesEditor() {
@@ -68,6 +70,8 @@ function NoticeBoardEditor() {
   const [message, setMessage] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [showOnPublic, setShowOnPublic] = useState(true);
+  const [showOnParent, setShowOnParent] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -80,15 +84,19 @@ function NoticeBoardEditor() {
   useEffect(() => { load(); }, []);
 
   const todayStr = localDateStr(new Date());
-  const resetForm = () => { setMessage(""); setStartDate(todayStr); setEndDate(todayStr); };
+  const resetForm = () => { setMessage(""); setStartDate(todayStr); setEndDate(todayStr); setShowOnPublic(true); setShowOnParent(true); };
 
   const startAdd = () => { resetForm(); setAdding(true); setEditingId(null); };
-  const startEdit = (n) => { setMessage(n.message); setStartDate(n.start_date); setEndDate(n.end_date); setEditingId(n.id); setAdding(false); };
+  const startEdit = (n) => {
+    setMessage(n.message); setStartDate(n.start_date); setEndDate(n.end_date);
+    setShowOnPublic(n.show_on_public !== false); setShowOnParent(n.show_on_parent !== false);
+    setEditingId(n.id); setAdding(false);
+  };
 
   const save = async () => {
-    if (!message.trim() || !startDate || !endDate) return;
+    if (!noticeHasText(message) || !startDate || !endDate) return;
     setSaving(true);
-    const payload = { message: message.trim(), start_date: startDate, end_date: endDate };
+    const payload = { message, start_date: startDate, end_date: endDate, show_on_public: showOnPublic, show_on_parent: showOnParent };
     if (editingId) {
       await supabase.from("studio_notices").update(payload).eq("id", editingId);
     } else {
@@ -107,11 +115,46 @@ function NoticeBoardEditor() {
 
   const isActive = (n) => n.start_date <= todayStr && todayStr <= n.end_date;
 
+  // Shared by "Add notice" and "Edit": message, dates, and where it shows.
+  const noticeForm = (onCancel, saveLabel) => (
+    <>
+      <RichTextEditor
+        label="Message"
+        value={message}
+        onChange={setMessage}
+        placeholder="e.g. No classes this Friday — public holiday"
+        minHeight={90}
+      />
+      <div className="grid grid-cols-2 gap-2" style={{ marginTop: 10 }}>
+        <Field label="From"><input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
+        <Field label="To"><input style={inputStyle} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></Field>
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <span className="block text-xs font-medium mb-1" style={{ color: T.inkSoft }}>Show on</span>
+        <label className="flex items-center gap-2" style={{ fontSize: 13, color: T.ink, marginBottom: 4 }}>
+          <input type="checkbox" checked={showOnPublic} onChange={(e) => setShowOnPublic(e.target.checked)} />
+          Public homepage
+        </label>
+        <label className="flex items-center gap-2" style={{ fontSize: 13, color: T.ink }}>
+          <input type="checkbox" checked={showOnParent} onChange={(e) => setShowOnParent(e.target.checked)} />
+          Parent page (website and mobile app)
+        </label>
+        <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>
+          {!showOnPublic && !showOnParent ? "Staff only — shows on the Home dashboard and nowhere else." : "Always shows on the staff Home dashboard too."}
+        </p>
+      </div>
+      <div className="flex justify-end gap-2 mt-1">
+        <Btn variant="ghost" size="sm" onClick={onCancel}>Cancel</Btn>
+        <Btn size="sm" onClick={save} disabled={saving || !noticeHasText(message)}>{saving ? "Saving…" : saveLabel}</Btn>
+      </div>
+    </>
+  );
+
   return (
     <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginTop: 20 }}>
       <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Notice board</h3>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        Shows on the Home dashboard and the parent page for any day within the date range you set — a single day, a whole week, whatever fits. Multiple notices can be active at once.
+        Shows for any day within the date range you set — a single day, a whole week, whatever fits — on the pages you tick: the public homepage and/or the parent page (website and app). Always shows on the Home dashboard. Multiple notices can be active at once.
       </p>
 
       {loading ? (
@@ -122,26 +165,19 @@ function NoticeBoardEditor() {
           {notices.map((n) => (
             editingId === n.id ? (
               <div key={n.id} style={{ border: `1px solid ${T.gold}`, borderRadius: 8, padding: 10 }}>
-                <Field label="Message"><input style={inputStyle} value={message} onChange={(e) => setMessage(e.target.value)} /></Field>
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="From"><input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
-                  <Field label="To"><input style={inputStyle} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></Field>
-                </div>
-                <div className="flex justify-end gap-2 mt-1">
-                  <Btn variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Btn>
-                  <Btn size="sm" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Btn>
-                </div>
+                {noticeForm(() => setEditingId(null), "Save changes")}
               </div>
             ) : (
-              <div key={n.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${T.line}`, borderLeft: `3px solid ${isActive(n) ? T.sage : T.line}`, borderRadius: 6, padding: "8px 12px", fontSize: 13 }}>
-                <div>
-                  <span style={{ color: T.ink }}>{n.message}</span>
+              <div key={n.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, border: `1px solid ${T.line}`, borderLeft: `3px solid ${isActive(n) ? T.sage : T.line}`, borderRadius: 6, padding: "8px 12px", fontSize: 13 }}>
+                <div style={{ minWidth: 0 }}>
+                  <NoticeMessage message={n.message} style={{ color: T.ink, fontSize: 13, lineHeight: 1.5 }} />
                   <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>
                     {n.start_date === n.end_date ? n.start_date : `${n.start_date} – ${n.end_date}`}
+                    {" · "}{noticeAudienceLabel(n)}
                     {isActive(n) && <span style={{ color: T.sage, fontWeight: 600 }}> · Active now</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button onClick={() => startEdit(n)} style={{ color: T.maroon, fontSize: 12 }}>Edit</button>
                   <button onClick={() => remove(n.id)} style={{ color: T.terracotta, fontSize: 12 }}>Delete</button>
                 </div>
@@ -153,15 +189,7 @@ function NoticeBoardEditor() {
 
       {adding ? (
         <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 10 }}>
-          <Field label="Message"><input style={inputStyle} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="e.g. No classes this Friday — public holiday" /></Field>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="From"><input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
-            <Field label="To"><input style={inputStyle} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></Field>
-          </div>
-          <div className="flex justify-end gap-2 mt-1">
-            <Btn variant="ghost" size="sm" onClick={() => setAdding(false)}>Cancel</Btn>
-            <Btn size="sm" onClick={save} disabled={saving}>{saving ? "Saving…" : "Add notice"}</Btn>
-          </div>
+          {noticeForm(() => setAdding(false), "Add notice")}
         </div>
       ) : (
         <Btn size="sm" variant="ghost" onClick={startAdd}>+ Add notice</Btn>

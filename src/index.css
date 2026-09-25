@@ -67,6 +67,28 @@ body {
   text-decoration: underline;
 }
 
+/* Studio notices sit on a gold banner: links, quotes and headings take the
+   banner's text colour instead of the usual gold, which would vanish. */
+.notice-content a,
+.notice-content h1,
+.notice-content h2,
+.notice-content h3 {
+  color: inherit;
+}
+.notice-content a {
+  font-weight: 700;
+}
+.notice-content blockquote {
+  border-left-color: currentColor;
+  color: inherit;
+}
+.notice-content > :first-child {
+  margin-top: 0;
+}
+.notice-content strong {
+  font-weight: 700;
+}
+
 /* The Tiptap/ProseMirror-managed contentEditable element itself (set via
    editorProps.attributes in RichTextEditor) — the wrapper <EditorContent>
    renders provides the border/background, this provides the text box's

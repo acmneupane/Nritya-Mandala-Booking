@@ -13,6 +13,7 @@ import { attendanceStatusInfo, isSelfMarkedAbsence } from "../lib/attendance";
 import MarkAbsentModal from "./MarkAbsentModal";
 import MessageStudioModal from "./MessageStudioModal";
 import ReviewModal from "./ReviewModal";
+import NoticeMessage from "./NoticeMessage";
 import { APP_ORIGIN } from "../lib/origins";
 import { shareReferral, referralCopy } from "../lib/share";
 
@@ -76,7 +77,7 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
       fetchOpenClasses(),
       supabase.from("admin_settings").select("due_threshold, studio_address, studio_location_note").eq("id", 1).maybeSingle(),
       supabase.from("settings").select("referral_program_enabled, referrals_per_free_class, referred_student_gets_free_class").eq("id", 1).maybeSingle(),
-      supabase.from("studio_notices").select("*").lte("start_date", localDateStr(new Date())).gte("end_date", localDateStr(new Date())).order("start_date"),
+      supabase.from("studio_notices").select("*").eq("show_on_parent", true).lte("start_date", localDateStr(new Date())).gte("end_date", localDateStr(new Date())).order("start_date"),
       // Milestones use their own dedicated queries rather than reusing `history`
       // (capped at 10 for the "recent attendance" list above) — a lifetime count
       // needs an exact aggregate, and a streak can run longer than 10 classes.
@@ -260,7 +261,7 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
           {activeNotices.map((n) => (
             <div key={n.id} className="rounded-2xl" style={{ background: T.gold, padding: "16px 20px", boxShadow: `0 8px 20px -6px ${T.gold}88` }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: T.maroonDark, letterSpacing: 0.6, marginBottom: 4, textTransform: "uppercase" }}>📣 Announcement</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: T.maroonDark, lineHeight: 1.4 }}>{n.message}</div>
+              <NoticeMessage message={n.message} style={{ fontSize: 16, fontWeight: 500, color: T.maroonDark, lineHeight: 1.5 }} />
             </div>
           ))}
 
