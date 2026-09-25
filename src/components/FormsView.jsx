@@ -5,7 +5,7 @@ import { Btn, ConfirmModal, Field, Modal, Select, TypeToConfirmModal } from "./u
 import FormBuilder from "./FormBuilder";
 import FormResponses from "./FormResponses";
 import FormShareModal from "./FormShareModal";
-import { STATUS_INFO, effectiveStatus, codeFromTitle, formLink } from "../lib/forms";
+import { STATUS_INFO, effectiveStatus, codeFromTitle } from "../lib/forms";
 import { formatSydneyDate } from "../lib/dates";
 
 // Admin → Forms: interest / survey forms with a public link
@@ -218,7 +218,6 @@ export default function FormsView({ focusFormId }) {
   const [creating, setCreating] = useState(false);
   const [sharing, setSharing] = useState(null);
   const [deleting, setDeleting] = useState(null);
-  const [copiedId, setCopiedId] = useState(null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -277,16 +276,6 @@ export default function FormsView({ focusFormId }) {
     const { error: err } = await supabase.from("forms").delete().eq("id", form.id);
     if (err) { setError(err.message); return; }
     load();
-  };
-
-  const copyLink = async (form) => {
-    try {
-      await navigator.clipboard.writeText(formLink(form.code));
-      setCopiedId(form.id);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch {
-      setSharing(form);
-    }
   };
 
   if (selectedId) {
@@ -352,10 +341,7 @@ export default function FormsView({ focusFormId }) {
                   <div className="flex gap-2 flex-wrap ml-auto">
                     <Btn size="sm" onClick={() => setSelectedId(f.id)}>Manage</Btn>
                     {effectiveStatus(f) === "open" ? (
-                      <>
-                        <Btn size="sm" variant="ghost" onClick={() => copyLink(f)}>{copiedId === f.id ? "Copied ✓" : "Copy link"}</Btn>
-                        <Btn size="sm" variant="ghost" onClick={() => setSharing(f)}>🔗 Share</Btn>
-                      </>
+                      <Btn size="sm" variant="ghost" onClick={() => setSharing(f)}>🔗 Share</Btn>
                     ) : (
                       <span style={{ fontSize: 12, color: T.inkSoft, alignSelf: "center" }}>
                         {effectiveStatus(f) === "draft" ? "Publish the form to share its link" : "Publish again to share its link"}
