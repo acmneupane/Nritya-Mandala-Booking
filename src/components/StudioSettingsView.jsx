@@ -126,9 +126,12 @@ function NoticeBoardEditor() {
         minHeight={90}
       />
       <div className="grid grid-cols-2 gap-2" style={{ marginTop: 10 }}>
-        <Field label="From"><input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
-        <Field label="To"><input style={inputStyle} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></Field>
+        <Field label="Show from"><input style={inputStyle} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
+        <Field label="Show until"><input style={inputStyle} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></Field>
       </div>
+      <p style={{ fontSize: 11, color: T.inkSoft, marginTop: -6, marginBottom: 10 }}>
+        The notice is only visible between these dates. For an upcoming event (e.g. a holiday closure), start showing it a week or two ahead.
+      </p>
       <div style={{ marginBottom: 10 }}>
         <span className="block text-xs font-medium mb-1" style={{ color: T.inkSoft }}>Show on</span>
         <label className="flex items-center gap-2" style={{ fontSize: 13, color: T.ink, marginBottom: 4 }}>
@@ -172,9 +175,10 @@ function NoticeBoardEditor() {
                 <div style={{ minWidth: 0 }}>
                   <NoticeMessage message={n.message} style={{ color: T.ink, fontSize: 13, lineHeight: 1.5 }} />
                   <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>
-                    {n.start_date === n.end_date ? n.start_date : `${n.start_date} – ${n.end_date}`}
+                    Showing {n.start_date === n.end_date ? `on ${n.start_date}` : `${n.start_date} – ${n.end_date}`}
                     {" · "}{noticeAudienceLabel(n)}
                     {isActive(n) && <span style={{ color: T.sage, fontWeight: 600 }}> · Active now</span>}
+                    {n.start_date > todayStr && <span style={{ color: T.gold, fontWeight: 600 }}> · Not showing yet</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

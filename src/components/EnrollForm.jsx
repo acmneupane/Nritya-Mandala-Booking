@@ -29,7 +29,14 @@ function ImportantInfo({ preferredClass }) {
   return (
     <div className="rounded-2xl shadow-[0_2px_10px_-4px_rgba(36,27,21,0.1)]" style={{ background: "#fff", border: `1px solid ${T.line}`, padding: 18, marginTop: 20 }}>
       <div className="flex items-center gap-2.5" style={{ marginBottom: 6 }}>
-        <span className="flex items-center justify-center shrink-0" style={{ width: 26, height: 26, borderRadius: 7, background: `${T.maroon}18`, color: T.maroon, fontSize: 13, fontWeight: 700 }}>i</span>
+        <span className="flex items-center justify-center shrink-0" style={{ width: 26, height: 26, borderRadius: 7, background: `${T.maroon}18`, color: T.maroon }} aria-hidden="true">
+          {/* Info icon (circle with an "i"), drawn so it doesn't read as a stray letter. */}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="11" x2="12" y2="16.5" />
+            <circle cx="12" cy="7.5" r="0.6" fill="currentColor" />
+          </svg>
+        </span>
         <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, fontWeight: 600 }}>Important Information</h3>
       </div>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14 }}>Please read before submitting.</p>

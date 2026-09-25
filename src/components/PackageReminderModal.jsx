@@ -5,12 +5,14 @@ import { classesLabel } from "../lib/format";
 import { Btn, Modal } from "./ui";
 import { emailFooterHtml } from "../lib/emailFooter";
 import { APP_ORIGIN } from "../lib/origins";
+import { reminderContext, reminderSubjectTemplate } from "../lib/renewalReminder";
 
 function fillTemplate(template, vars) {
   return template.replace(/{{\s*(\w+)\s*}}/g, (_, key) => vars[key] ?? "");
 }
 
-// Preview-then-confirm for the "package used up, payment required" reminder —
+// Preview-then-confirm for the renewal reminder (running low, used up, or no
+// package on file) —
 // same pattern as the booking confirmation email: nothing sends until the admin
 // explicitly confirms. guardianEmails is every distinct guardian email on file for
 // this student — all checked by default, any can be unchecked to skip a recipient.
@@ -29,7 +31,7 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
   const [facebookUrl, setFacebookUrl] = useState(null);
 
   useEffect(() => {
-    supabase.from("email_templates").select("subject, body").eq("key", "package_expired").maybeSingle()
+    supabase.from("email_templates").select("subject, subject_variants, body").eq("key", "package_expired").maybeSingle()
       .then(({ data }) => setTemplate(data));
     supabase.from("admin_settings").select("social_facebook_url").eq("id", 1).maybeSingle()
       .then(({ data }) => setFacebookUrl(data?.social_facebook_url || null));
@@ -54,16 +56,9 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
     (limitInfo.monthCount + plannedRecipientRows >= limitInfo.monthLimit * 0.8)
   );
 
-  const vars = { student_name: student.name, package_size: String(packageSize), classes_used: String(classesUsed) };
-  const remaining = packageSize - classesUsed;
-  vars.status_text = packageSize <= 0
-    ? "doesn't have an active package yet"
-    : remaining <= 0
-      ? "has now been fully used"
-      : `has only ${remaining} class${remaining === 1 ? "" : "es"} remaining`;
   const renewLink = student.code ? `${APP_ORIGIN}/renew?code=${encodeURIComponent(student.code)}` : "";
-  vars.renew_link = renewLink ? `<a href="${renewLink}">${renewLink}</a>` : "";
-  const subject = template ? fillTemplate(template.subject, vars) : "";
+  const { situation, vars } = reminderContext(student.name, student.code, packageSize, classesUsed, renewLink);
+  const subject = template ? fillTemplate(reminderSubjectTemplate(template, situation), vars) : "";
 
   useEffect(() => {
     if (template && bodyText === null) setBodyText(fillTemplate(template.body, vars));
@@ -101,7 +96,7 @@ export default function PackageReminderModal({ student, guardianEmails, packageS
   return (
     <Modal title="Confirm before sending" onClose={onCancel}>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10, lineHeight: 1.5 }}>
-        {packageSize > 0 ? `${student.name}'s package (${classesLabel(packageSize)}) ${vars.status_text}.` : `${student.name} ${vars.status_text}.`} Review before sending a payment reminder.
+        {packageSize > 0 ? `${student.name}'s package (${classesLabel(packageSize)}) ${vars.status_text}.` : `${student.name} ${vars.status_text}.`} Review before sending a renewal reminder.
       </p>
 
       <div style={{ marginBottom: 12 }}>

@@ -5,17 +5,22 @@ import { Btn, Field } from "./ui";
 import { localDateStr, formatSydneyDateTime } from "../lib/dates";
 import { toCsv, downloadCsv } from "../lib/csv";
 import TeamView from "./TeamView";
+import { REMINDER_SITUATIONS } from "../lib/renewalReminder";
 
-function EmailTemplateEditor({ templateKey, title, description, placeholders }) {
+// subjectVariants (optional): [{ key, label }] — one subject line per situation
+// instead of a single one (stored in email_templates.subject_variants; the plain
+// subject stays as the fallback for any situation left blank).
+function EmailTemplateEditor({ templateKey, title, description, placeholders, subjectVariants }) {
   const [subject, setSubject] = useState("");
+  const [variants, setVariants] = useState({});
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    supabase.from("email_templates").select("subject, body").eq("key", templateKey).maybeSingle().then(({ data }) => {
-      if (data) { setSubject(data.subject); setBody(data.body); }
+    supabase.from("email_templates").select("subject, subject_variants, body").eq("key", templateKey).maybeSingle().then(({ data }) => {
+      if (data) { setSubject(data.subject); setVariants(data.subject_variants || {}); setBody(data.body); }
       setLoading(false);
     });
   }, [templateKey]);
@@ -23,7 +28,9 @@ function EmailTemplateEditor({ templateKey, title, description, placeholders }) 
   const save = async () => {
     setSaving(true);
     setSaved(false);
-    await supabase.from("email_templates").update({ subject, body, updated_at: new Date().toISOString() }).eq("key", templateKey);
+    const update = { subject, body, updated_at: new Date().toISOString() };
+    if (subjectVariants) update.subject_variants = variants;
+    await supabase.from("email_templates").update(update).eq("key", templateKey);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -40,7 +47,15 @@ function EmailTemplateEditor({ templateKey, title, description, placeholders }) 
           <code key={p} style={{ background: T.paper, padding: "1px 5px", borderRadius: 4, marginRight: 4 }}>{`{{${p}}}`}</code>
         ))}
       </p>
-      <Field label="Subject"><input style={inputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
+      {subjectVariants ? (
+        subjectVariants.map((v) => (
+          <Field key={v.key} label={`Subject — ${v.label}`}>
+            <input style={inputStyle} value={variants[v.key] || ""} onChange={(e) => setVariants((cur) => ({ ...cur, [v.key]: e.target.value }))} placeholder={subject} />
+          </Field>
+        ))
+      ) : (
+        <Field label="Subject"><input style={inputStyle} value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
+      )}
       <Field label="Body"><textarea style={{ ...inputStyle, minHeight: 220, fontFamily: "monospace", fontSize: 13 }} value={body} onChange={(e) => setBody(e.target.value)} /></Field>
       {saved && <p style={{ color: T.sage, fontSize: 13, marginBottom: 10, fontWeight: 600 }}>Saved.</p>}
       <Btn variant="success" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save template"}</Btn>
@@ -542,7 +557,7 @@ function RenewalReminderConfig() {
     <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: 18, marginBottom: 16 }}>
       <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 16, color: T.maroonDark, marginBottom: 6 }}>Automated renewal reminders</h3>
       <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        On every run — on the schedule below, regardless of the checkbox — checks every active, booked student against the "Coming due" threshold (Capacity, above) and works out who has newly reached a checkpoint (coming due, half of coming due, or fully out) since their last reminder. The cycle resets whenever they buy a new package. Uses the same "Payment required" email template and shared Resend budget as manual reminders (prioritizing whoever's most overdue if the budget runs tight). A student can opt out from their own record in the Students tab.
+        On every run — on the schedule below, regardless of the checkbox — checks every active, booked student against the "Coming due" threshold (Capacity, above) and works out who has newly reached a checkpoint (coming due, half of coming due, or fully out) since their last reminder. The cycle resets whenever they buy a new package. Each step gets at most one email per package — a student already reminded at a step (automatically or by hand) isn't emailed again until they reach the next, more urgent one. Uses the same renewal reminder email template (with its subject for running low / used up / no package) and shared Resend budget as manual reminders (prioritizing whoever's most overdue if the budget runs tight). A student can opt out from their own record in the Students tab.
       </p>
       <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
@@ -578,6 +593,7 @@ const OUTCOME_LABEL = {
   would_send_coming_due: "Would send — coming due",
   skipped_opted_out: "Skipped — opted out",
   skipped_already_sent_this_cycle: "Skipped — already sent this cycle",
+  skipped_already_sent_this_step: "Skipped — already reminded at this step",
   skipped_no_guardian_email: "Skipped — no guardian email on file",
   skipped_email_limit_reached: "Skipped — email budget reached",
   skipped_send_error: "Skipped — send failed",
@@ -704,9 +720,10 @@ export default function AdminConfigView() {
           />
           <EmailTemplateEditor
             templateKey="package_expired"
-            title="Payment required (package expired) email"
-            description="Sent when you click 'Payment required' on a student whose package has run out, and by the automated renewal reminder above. This is the default — you can also tweak the wording for a single manual send from the preview screen right before it goes out. The Facebook footer (and, for automated sends, an opt-out line) is added automatically and isn't part of this text."
-            placeholders={["student_name", "package_size", "classes_used", "status_text", "renew_link"]}
+            title="Renewal reminder email"
+            description="Sent when you click 'Send renewal reminder' (Students tab, or Renewal Requests → Due for renewal), and by the automated renewal reminders. The subject depends on the situation: classes running low, package used up, or no package on file. This is the default — you can also tweak the body for a single manual send from the preview screen right before it goes out. The Facebook footer (and, for automated sends, an opt-out line) is added automatically and isn't part of this text."
+            placeholders={["student_name", "student_first_name", "student_code", "remaining", "remaining_text", "package_size", "classes_used", "package_summary", "status_text", "renew_link"]}
+            subjectVariants={REMINDER_SITUATIONS}
           />
           <EmailTemplateEditor
             templateKey="renewal_approved"

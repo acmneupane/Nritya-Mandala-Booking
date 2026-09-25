@@ -1385,7 +1385,7 @@ export default function StudentsView({ focusStudentCode }) {
                   <button onClick={() => setSendingConfirmation(s)} style={{ ...actionBtnStyle, color: T.gold, borderColor: `${T.gold}55` }}>↻ Resend confirmation</button>
                 )}
                 {!s.archived && pkg && pkg.classes_total > 0 && remaining <= 0 && (
-                  <button onClick={() => handlePaymentReminderClick(s, pkg)} style={{ ...actionBtnStyle, color: T.terracotta, borderColor: `${T.terracotta}55` }}>💳 Payment required</button>
+                  <button onClick={() => handlePaymentReminderClick(s, pkg)} style={{ ...actionBtnStyle, color: T.terracotta, borderColor: `${T.terracotta}55` }}>🔔 Send renewal reminder</button>
                 )}
                 {!s.archived && levels.length > 0 && (
                   <button onClick={() => setUpgradingLevel(s)} style={{ ...actionBtnStyle, color: T.sage, borderColor: `${T.sage}55` }}>⬆ Upgrade Level</button>

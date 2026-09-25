@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { T } from "../lib/theme";
+import { T, inputStyle } from "../lib/theme";
 import { Btn, Modal } from "./ui";
 import { QrCanvas } from "./QrCode";
 import { formatTimeRange } from "../lib/scheduling";
@@ -20,6 +20,31 @@ function fillTemplate(template, vars) {
   return template.replace(/{{\s*(\w+)\s*}}/g, (_, key) => vars[key] ?? "");
 }
 
+// Placeholder values for one student. The QR link and image are left as
+// placeholders: only the send-approval-email function can build the real QR
+// image (and it fills both in, in edited text too), so the editable text keeps
+// them as markers for where they go.
+function studentVars(s) {
+  return {
+    student_name: s.name,
+    day: s.day,
+    time: formatTimeRange(s.time, s.endTime),
+    start_date: formatDate(s.startDate),
+    access_code: s.code,
+    qr_link: "{{qr_link}}",
+    qr_code_image: "{{qr_code_image}}",
+  };
+}
+
+// Preview of the (possibly edited) text: the link shown as a link, the QR image
+// shown separately below the preview.
+function previewHtml(text, qrLink) {
+  return text
+    .replace(/{{\s*qr_link\s*}}/g, `<a href="${qrLink}">${qrLink}</a>`)
+    .replace(/{{\s*qr_code_image\s*}}/g, "")
+    .replace(/\n/g, "<br/>");
+}
+
 // Shows exactly what's about to be emailed — subject, recipients, body, and the QR
 // attachment — before it actually sends, so nothing goes out by accident (e.g. while
 // testing, or for a request where no email was actually given). guardianEmails is
@@ -36,6 +61,10 @@ export default function EmailPreviewModal({ guardianEmails, students, onCancel, 
   const [sent, setSent] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  // Per-student body text for this send only (keyed by code), and which ones
+  // have their editor open. Starts as the filled-in saved template.
+  const [bodies, setBodies] = useState({});
+  const [editing, setEditing] = useState(() => new Set());
 
   useEffect(() => {
     supabase.from("email_templates").select("subject, body").eq("key", "enrollment_approved").maybeSingle()
@@ -50,6 +79,14 @@ export default function EmailPreviewModal({ guardianEmails, students, onCancel, 
   }, []);
 
   const eligible = students.filter((s) => s.day && s.startDate && s.code);
+  const defaultBody = (s) => (template ? fillTemplate(template.body, studentVars(s)) : "");
+  const bodyFor = (s) => bodies[s.code] ?? defaultBody(s);
+  const toggleEditing = (code) => setEditing((cur) => {
+    const next = new Set(cur);
+    if (next.has(code)) next.delete(code);
+    else next.add(code);
+    return next;
+  });
   const skipped = students.filter((s) => !(s.day && s.startDate && s.code));
   const selectedEmails = (guardianEmails || []).filter((e) => checkedEmails.has(e));
   const toggleEmail = (email) => setCheckedEmails((s) => { const next = new Set(s); next.has(email) ? next.delete(email) : next.add(email); return next; });
@@ -66,8 +103,8 @@ export default function EmailPreviewModal({ guardianEmails, students, onCancel, 
   const copyContent = () => {
     if (!template) return;
     const text = eligible.map((s) => {
-      const vars = { student_name: s.name, day: s.day, time: formatTimeRange(s.time, s.endTime), start_date: formatDate(s.startDate), access_code: s.code, qr_link: `${APP_ORIGIN}/qr?code=${encodeURIComponent(s.code)}`, qr_code_image: "" };
-      return `To: ${selectedEmails.join(", ")}\nSubject: ${fillTemplate(template.subject, vars)}\n\n${fillTemplate(template.body, vars)}`;
+      const vars = { ...studentVars(s), qr_link: `${APP_ORIGIN}/qr?code=${encodeURIComponent(s.code)}`, qr_code_image: "" };
+      return `To: ${selectedEmails.join(", ")}\nSubject: ${fillTemplate(template.subject, vars)}\n\n${fillTemplate(bodyFor(s), vars)}`;
     }).join("\n\n---\n\n");
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -77,8 +114,14 @@ export default function EmailPreviewModal({ guardianEmails, students, onCancel, 
   const send = async () => {
     setSending(true);
     setError("");
+    // Only edited bodies are sent; the rest are filled from the saved template
+    // server-side exactly as before.
+    const bodyOverrides = {};
+    for (const s of eligible) {
+      if (bodies[s.code] !== undefined && bodies[s.code] !== defaultBody(s) && bodies[s.code].trim()) bodyOverrides[s.code] = bodies[s.code];
+    }
     const { error: fnErr } = await supabase.functions.invoke("send-approval-email", {
-      body: { guardianEmails: selectedEmails, students: eligible, includeBcc: bccChecked },
+      body: { guardianEmails: selectedEmails, students: eligible, includeBcc: bccChecked, bodyOverrides },
     });
     setSending(false);
     if (fnErr) { setError("Something went wrong sending — you can try again, or check with the parent directly."); return; }
@@ -156,17 +199,10 @@ export default function EmailPreviewModal({ guardianEmails, students, onCancel, 
         <div className="grid gap-4" style={{ maxHeight: 420, overflowY: "auto" }}>
           {eligible.map((s) => {
             const qrLink = `${APP_ORIGIN}/qr?code=${encodeURIComponent(s.code)}`;
-            const vars = {
-              student_name: s.name,
-              day: s.day,
-              time: formatTimeRange(s.time, s.endTime),
-              start_date: formatDate(s.startDate),
-              access_code: s.code,
-              qr_link: qrLink,
-              qr_code_image: "",
-            };
-            const subject = fillTemplate(template.subject, vars);
-            const body = fillTemplate(template.body, vars);
+            const subject = fillTemplate(template.subject, studentVars(s));
+            const body = bodyFor(s);
+            const isEditing = editing.has(s.code);
+            const edited = bodies[s.code] !== undefined && bodies[s.code] !== defaultBody(s);
             return (
               <div key={s.code} style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: 14 }}>
                 <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 6 }}>
@@ -174,9 +210,31 @@ export default function EmailPreviewModal({ guardianEmails, students, onCancel, 
                   {bccChecked && bccEmail && <div><strong>Bcc:</strong> {bccEmail}</div>}
                   <div><strong>Subject:</strong> {subject}</div>
                 </div>
+                <div className="flex items-center justify-between gap-2" style={{ marginBottom: 6 }}>
+                  <button type="button" onClick={() => toggleEditing(s.code)} style={{ fontSize: 12, fontWeight: 600, color: T.maroon }}>
+                    {isEditing ? "Done editing" : "✏️ Edit wording"}
+                  </button>
+                  {edited && (
+                    <button type="button" onClick={() => setBodies((cur) => { const next = { ...cur }; delete next[s.code]; return next; })} style={{ fontSize: 11.5, color: T.inkSoft, textDecoration: "underline" }}>
+                      Reset to saved template
+                    </button>
+                  )}
+                </div>
+                {isEditing && (
+                  <>
+                    <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 4 }}>
+                      Edit for this send only — the saved template in Admin Config doesn't change. Keep <code>{"{{qr_link}}"}</code> and <code>{"{{qr_code_image}}"}</code> where the link and QR code should go.
+                    </div>
+                    <textarea
+                      style={{ ...inputStyle, minHeight: 180, fontFamily: "monospace", fontSize: 12.5, lineHeight: 1.5, marginBottom: 8 }}
+                      value={body}
+                      onChange={(e) => setBodies((cur) => ({ ...cur, [s.code]: e.target.value }))}
+                    />
+                  </>
+                )}
                 <div
                   style={{ fontSize: 13, color: T.ink, lineHeight: 1.6, marginBottom: 10, background: T.paper, borderRadius: 6, padding: 10 }}
-                  dangerouslySetInnerHTML={{ __html: body.replace("{{qr_link}}", qrLink).replace(/\n/g, "<br/>") }}
+                  dangerouslySetInnerHTML={{ __html: previewHtml(body, qrLink) }}
                 />
                 <div className="flex items-center gap-2">
                   <div style={{ border: `1px solid ${T.line}`, borderRadius: 6, padding: 4 }}>
