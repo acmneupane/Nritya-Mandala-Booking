@@ -362,7 +362,7 @@ export default function FormBuilder({ form, questions, hasResponses, existingTag
         <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 4 }}>Sharing the form</div>
           <p style={{ ...HINT, marginBottom: 0 }}>
-            Once the form is <strong>Published</strong> (not while it's a Draft), use <strong>🔗 Share</strong> at the top to get a link for each place you'll post it — Facebook, WhatsApp, TikTok, a studio announcement, a flyer QR code… Each platform gets its own link, so the responses (and the CSV export) show where people came from.
+            Once the form is <strong>Published</strong> (not while it's a Draft), use <strong>🔗 Share</strong> at the top to get a link for each place you'll post it — Facebook, WhatsApp, TikTok, a Nritya Mandala notice, a flyer QR code… Each platform gets its own link, so the responses (and the CSV export) show where people came from.
           </p>
         </div>
       </div>

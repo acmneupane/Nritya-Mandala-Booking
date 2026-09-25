@@ -106,15 +106,10 @@ export const SHARE_CHANNELS = [
   { key: "instagram", label: "Instagram" },
   { key: "tiktok", label: "TikTok" },
   { key: "whatsapp", label: "WhatsApp" },
-  { key: "homepage", label: "Nritya Mandala home page (announcement)" },
-  { key: "parent-page", label: "Parent page / app (announcement)" },
+  { key: "notice", label: "Nritya Mandala notice" },
   { key: "email", label: "Email" },
   { key: "flyer", label: "Flyer / poster (QR code)" },
 ];
-
-export function sourceKey(text) {
-  return String(text || "").toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40);
-}
 
 export function sourceLabel(key) {
   if (!key) return "Direct link";

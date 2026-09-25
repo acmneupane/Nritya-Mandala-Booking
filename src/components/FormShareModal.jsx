@@ -3,7 +3,7 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, Modal, Select } from "./ui";
 import { QrCanvas } from "./QrCode";
 import { drawQrWithLogo } from "../lib/qrCard";
-import { SHARE_CHANNELS, formLink, sourceKey } from "../lib/forms";
+import { SHARE_CHANNELS, formLink } from "../lib/forms";
 
 // "Share" on a form: pick where the link is going (Facebook, WhatsApp, a
 // flyer…) and get that channel's own link and QR code. The channel is added to
@@ -12,11 +12,10 @@ import { SHARE_CHANNELS, formLink, sourceKey } from "../lib/forms";
 // Published forms (a Draft's link goes to the homepage).
 export default function FormShareModal({ form, onClose }) {
   const [channel, setChannel] = useState("");
-  const [otherText, setOtherText] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const source = channel === "other" ? sourceKey(otherText) : channel;
-  const ready = channel !== "" && (channel !== "other" || !!source);
+  const source = channel;
+  const ready = channel !== "";
   const link = ready ? formLink(form.code, source === "direct" ? null : source) : "";
 
   const copy = async () => {
@@ -44,18 +43,8 @@ export default function FormShareModal({ form, onClose }) {
       <Select value={channel} onChange={(e) => { setChannel(e.target.value); setCopied(false); }}>
         <option value="">Choose…</option>
         {SHARE_CHANNELS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-        <option value="other">Somewhere else…</option>
         <option value="direct">Plain link (no source)</option>
       </Select>
-      {channel === "other" && (
-        <input
-          style={{ ...inputStyle, marginTop: 8 }}
-          value={otherText}
-          onChange={(e) => { setOtherText(e.target.value); setCopied(false); }}
-          placeholder="e.g. Community newsletter"
-          autoFocus
-        />
-      )}
 
       {ready && (
         <div style={{ marginTop: 16 }}>
