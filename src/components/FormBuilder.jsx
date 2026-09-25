@@ -264,7 +264,7 @@ export default function FormBuilder({ form, questions, hasResponses, existingTag
     <div style={{ paddingBottom: dirty ? 70 : 0 }}>
       {form.status === "open" && (
         <p style={{ fontSize: 12.5, color: T.maroonDark, background: `${T.gold}1c`, border: `1px solid ${T.gold}55`, borderRadius: 8, padding: "8px 12px", marginBottom: 14, lineHeight: 1.5 }}>
-          This form is <strong>live</strong> — saved changes show to new visitors straight away.
+          This form is <strong>published</strong> — saved changes show to new visitors straight away.
         </p>
       )}
 
@@ -290,8 +290,8 @@ export default function FormBuilder({ form, questions, hasResponses, existingTag
         </Field>
         <p style={{ ...HINT, marginTop: -6 }}>
           {codeLocked
-            ? "🔒 Locked — this form has been opened, so its link may already be shared."
-            : "Letters and numbers only. You can change it while the form is a Draft; it locks once the form is opened."}
+            ? "🔒 Locked — this form has been published, so its link may already be shared."
+            : "Letters and numbers only. You can change it while the form is a Draft; it locks once the form is published."}
         </p>
       </div>
 
@@ -353,7 +353,7 @@ export default function FormBuilder({ form, questions, hasResponses, existingTag
             {fields.closes_on && <button type="button" onClick={() => set("closes_on", "")} style={{ fontSize: 12, color: T.inkSoft, textDecoration: "underline" }}>Clear</button>}
           </div>
         </Field>
-        <p style={{ ...HINT, marginTop: -6 }}>An open form stops accepting responses after this day (Sydney time).</p>
+        <p style={{ ...HINT, marginTop: -6 }}>A published form stops accepting responses after this day (Sydney time).</p>
         <label className="flex items-center gap-2" style={{ fontSize: 13.5, color: T.ink, marginBottom: 14 }}>
           <input type="checkbox" checked={!!fields.notify_on_response} onChange={(e) => set("notify_on_response", e.target.checked)} />
           Email the studio when someone responds
@@ -362,7 +362,7 @@ export default function FormBuilder({ form, questions, hasResponses, existingTag
         <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 4 }}>Sharing the form</div>
           <p style={{ ...HINT, marginBottom: 0 }}>
-            Once the form is <strong>Open</strong> (not while it's a Draft), use <strong>🔗 Share</strong> at the top to get a link for each place you'll post it — Facebook, WhatsApp, TikTok, a studio announcement, a flyer QR code… Each platform gets its own link, so the responses (and the CSV export) show where people came from.
+            Once the form is <strong>Published</strong> (not while it's a Draft), use <strong>🔗 Share</strong> at the top to get a link for each place you'll post it — Facebook, WhatsApp, TikTok, a studio announcement, a flyer QR code… Each platform gets its own link, so the responses (and the CSV export) show where people came from.
           </p>
         </div>
       </div>

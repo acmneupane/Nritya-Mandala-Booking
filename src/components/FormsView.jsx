@@ -144,12 +144,12 @@ function FormDetail({ formId, existingTags, onBack, onChanged }) {
           </div>
           <div className="flex gap-2 flex-wrap">
             {status === "open" && <Btn size="sm" variant="ghost" onClick={() => setSharing(true)}>🔗 Share</Btn>}
-            {status === "draft" && <Btn size="sm" onClick={guard(() => setConfirmOpen(true))}>Open form</Btn>}
-            {status === "open" && <Btn size="sm" variant="danger" onClick={guard(() => setStatus("closed"))}>Close form</Btn>}
+            {status === "draft" && <Btn size="sm" onClick={guard(() => setConfirmOpen(true))}>Publish form</Btn>}
+            {status === "open" && <Btn size="sm" variant="danger" onClick={guard(() => setStatus("closed"))}>Unpublish</Btn>}
             {status === "closed" && (
               form.status === "open"
-                ? <span style={{ fontSize: 12, color: T.inkSoft, maxWidth: 220 }}>To reopen, clear or move the close date in Build → Settings.</span>
-                : <Btn size="sm" onClick={guard(() => setStatus("open"))}>Reopen</Btn>
+                ? <span style={{ fontSize: 12, color: T.inkSoft, maxWidth: 220 }}>To publish again, clear or move the close date in Build → Settings.</span>
+                : <Btn size="sm" onClick={guard(() => setStatus("open"))}>Publish again</Btn>
             )}
           </div>
         </div>
@@ -189,9 +189,9 @@ function FormDetail({ formId, existingTags, onBack, onChanged }) {
 
       {confirmOpen && (
         <ConfirmModal
-          title="Open this form?"
-          message={<>The link goes live and starts accepting responses. <strong>The code ({form.code}) will be locked</strong>, and the form can't go back to Draft — you can close it at any time.</>}
-          confirmLabel="Open form"
+          title="Publish this form?"
+          message={<>The link goes live and starts accepting responses. <strong>The code ({form.code}) will be locked</strong>, and the form can't go back to Draft — you can unpublish it at any time.</>}
+          confirmLabel="Publish form"
           onConfirm={() => { setConfirmOpen(false); setStatus("open"); }}
           onCancel={() => setConfirmOpen(false)}
         />
@@ -309,7 +309,7 @@ export default function FormsView({ focusFormId }) {
         <Btn onClick={() => setCreating(true)}>+ New form</Btn>
       </div>
       <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 14, lineHeight: 1.5 }}>
-        Interest and survey forms with their own public link. ⚪ Draft = not live yet · 🟢 Open = accepting responses · 🟠 Closed = link shows “no longer accepting responses”.
+        Interest and survey forms with their own public link. ⚪ Draft = not published yet · 🟢 Published = accepting responses · 🟠 Unpublished = link shows “no longer accepting responses”.
       </p>
 
       {existingTags.length > 0 && (
@@ -358,7 +358,7 @@ export default function FormsView({ focusFormId }) {
                       </>
                     ) : (
                       <span style={{ fontSize: 12, color: T.inkSoft, alignSelf: "center" }}>
-                        {effectiveStatus(f) === "draft" ? "Open the form to share its link" : "Reopen to share its link"}
+                        {effectiveStatus(f) === "draft" ? "Publish the form to share its link" : "Publish again to share its link"}
                       </span>
                     )}
                     <Btn size="sm" variant="ghost" onClick={() => duplicate(f)}>⧉ Duplicate</Btn>

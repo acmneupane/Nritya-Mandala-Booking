@@ -60,8 +60,9 @@ function sydneyToday() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Sydney" }).format(new Date());
 }
 
-// Same rule as form_effective_status() in the database: an open form past its
-// close date counts as closed.
+// Same rule as form_effective_status() in the database: a published form past
+// its close date counts as unpublished. (Database values stay draft / open /
+// closed; admin shows them as Draft / Published / Unpublished.)
 export function effectiveStatus(form) {
   if (form.status === "open" && form.closes_on && form.closes_on < sydneyToday()) return "closed";
   return form.status;
@@ -72,19 +73,19 @@ export const STATUS_INFO = {
     label: "Draft",
     dot: "⚪",
     color: T.inkSoft,
-    explain: "Not live — the link goes to the homepage. You can still change the code.",
+    explain: "Not published yet — the link goes to the homepage. You can still change the code.",
   },
   open: {
-    label: "Open",
+    label: "Published",
     dot: "🟢",
     color: T.sage,
     explain: "Live — accepting responses.",
   },
   closed: {
-    label: "Closed",
+    label: "Unpublished",
     dot: "🟠",
     color: T.terracotta,
-    explain: "The link shows “no longer accepting responses”.",
+    explain: "The link shows “no longer accepting responses”. You can publish it again.",
   },
 };
 

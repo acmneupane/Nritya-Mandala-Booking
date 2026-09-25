@@ -8,8 +8,8 @@ import { SHARE_CHANNELS, formLink, sourceKey } from "../lib/forms";
 // "Share" on a form: pick where the link is going (Facebook, WhatsApp, a
 // flyer…) and get that channel's own link and QR code. The channel is added to
 // the link as &src=… and saved with every response that comes through it, so
-// the CSV export shows where each response came from. Only offered for Open
-// forms (a Draft's link goes to the homepage).
+// the CSV export shows where each response came from. Only offered for
+// Published forms (a Draft's link goes to the homepage).
 export default function FormShareModal({ form, onClose }) {
   const [channel, setChannel] = useState("");
   const [otherText, setOtherText] = useState("");
