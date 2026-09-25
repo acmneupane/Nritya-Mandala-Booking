@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -55,6 +55,45 @@ export function Select({ value, onChange, children, disabled, style }) {
       >
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
       </svg>
+    </div>
+  );
+}
+
+// A file picker that looks like a control rather than the browser's bare
+// "Choose file  No file chosen" text: a "📎 Choose file" button, the chosen
+// file's name, and ✕ to clear it. The real <input type="file"> stays hidden
+// and is opened by the button (a button, not a <label>, so it works inside
+// <Field>, which is itself a label). onChange receives the File or null.
+export function FileInput({ file, onChange, accept, buttonLabel = "Choose file", disabled }) {
+  const inputRef = useRef(null);
+  return (
+    <div
+      className="flex items-center gap-3"
+      style={{ border: `1px dashed ${file ? T.sage : T.gold}`, background: file ? `${T.sage}0d` : "#fff", borderRadius: 8, padding: "8px 10px", minWidth: 0 }}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        disabled={disabled}
+        onChange={(e) => { onChange(e.target.files?.[0] || null); e.target.value = ""; }}
+        style={{ display: "none" }}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={disabled}
+        className="shrink-0 hover:opacity-90 transition-opacity"
+        style={{ fontSize: 13, fontWeight: 700, color: T.maroonDark, background: T.goldLight, border: `1px solid ${T.gold}`, borderRadius: 999, padding: "7px 14px", opacity: disabled ? 0.5 : 1 }}
+      >
+        📎 {file ? "Change file" : buttonLabel}
+      </button>
+      <span style={{ fontSize: 13, color: file ? T.ink : T.inkSoft, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1 }}>
+        {file ? file.name : "No file chosen"}
+      </span>
+      {file && (
+        <button type="button" onClick={() => onChange(null)} disabled={disabled} aria-label="Remove file" title="Remove file" style={{ fontSize: 14, color: T.inkSoft, padding: "2px 6px" }}>✕</button>
+      )}
     </div>
   );
 }

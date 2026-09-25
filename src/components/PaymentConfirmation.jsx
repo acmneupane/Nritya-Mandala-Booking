@@ -1,5 +1,5 @@
 import { T } from "../lib/theme";
-import { Field } from "./ui";
+import { Field, FileInput } from "./ui";
 import { FieldWrap, YesNoChoice } from "./Validation";
 
 // "Have you made the payment?" — a required Yes / No on the enrolment and
@@ -26,9 +26,8 @@ export default function PaymentConfirmation({ total, answer, onAnswer, file, onF
             Thank you! Please upload a screenshot of your payment below — it helps us identify your payment quickly and fast-track your {requestWord} request.
           </p>
           <Field label="Payment screenshot">
-            <input type="file" accept="image/*,.pdf" onChange={(e) => onFile(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
+            <FileInput file={file} onChange={onFile} accept="image/*,.pdf" buttonLabel="Choose screenshot" />
           </Field>
-          {file && <p style={{ fontSize: 12, color: T.sage, fontWeight: 600, marginTop: -6 }}>✓ {file.name} attached</p>}
         </div>
       )}
 

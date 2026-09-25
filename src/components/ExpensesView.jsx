@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
-import { Btn, Field, Modal, TypeToConfirmModal } from "./ui";
+import { Btn, Field, Modal, TypeToConfirmModal, FileInput } from "./ui";
 
 const CATEGORIES = ["Rent", "Wages", "Utilities", "Equipment", "Marketing", "Refund", "Other"];
 const MAX_RECEIPT_SIZE = 5 * 1024 * 1024; // 5MB
@@ -118,7 +118,7 @@ function ExpenseModal({ initial, classes, adminUsers, onClose, onSaved }) {
 
       <Field label="Notes (optional)"><textarea style={{ ...inputStyle, minHeight: 60 }} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       <Field label="Receipt (optional, max 5MB)">
-        <input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
+        <FileInput file={receiptFile} onChange={setReceiptFile} accept="image/*,.pdf" />
         {initial?.receipt_path && !receiptFile && <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>A receipt is already attached — choosing a new file will replace it.</p>}
       </Field>
 

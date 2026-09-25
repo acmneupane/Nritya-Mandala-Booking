@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
-import { Btn, Field, Modal, TypeToConfirmModal, ConfirmModal } from "./ui";
+import { Btn, Field, Modal, TypeToConfirmModal, ConfirmModal, FileInput } from "./ui";
 import QrModal from "./QrCode";
 import { classesLabel } from "../lib/format";
 import { RELATION_OPTIONS } from "../lib/relations";
@@ -491,7 +491,7 @@ function PackagesSection({ studentId }) {
             </label>
             {paymentConfirmed && paymentMethodSelect}
             <Field label="Payment screenshot (optional)">
-              <input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] || null)} style={{ fontSize: 12 }} />
+              <FileInput file={receiptFile} onChange={setReceiptFile} accept="image/*,.pdf" />
               {receiptByPackage[p.id] && !receiptFile && <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>A screenshot is already attached — choosing a new file will replace it.</p>}
             </Field>
             <div className="flex justify-end gap-2 mt-1">
@@ -534,7 +534,7 @@ function PackagesSection({ studentId }) {
           </label>
           {paymentConfirmed && paymentMethodSelect}
           <Field label="Payment screenshot (optional)">
-            <input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] || null)} style={{ fontSize: 12 }} />
+            <FileInput file={receiptFile} onChange={setReceiptFile} accept="image/*,.pdf" />
           </Field>
           <div className="flex justify-end gap-2 mt-1">
             <Btn variant="ghost" size="sm" onClick={() => { setAdding(false); resetForm(); }}>Cancel</Btn>

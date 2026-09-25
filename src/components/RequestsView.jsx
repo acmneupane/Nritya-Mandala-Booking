@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
-import { Btn, Field, Modal, ConfirmModal } from "./ui";
+import { Btn, Field, Modal, ConfirmModal, FileInput } from "./ui";
 import { generateStudentCode } from "../lib/studentCode";
 import { formatTimeRange, nextOccurrenceOf } from "../lib/scheduling";
 import { localDateStr, relativeDaysAgo, formatSydneyDateTime } from "../lib/dates";
@@ -310,7 +310,7 @@ function ApproveModal({ request, levels, classes, classById, skips, tierById, on
           </Field>
         )}
         <Field label="Payment screenshot (optional — if the parent sent it separately, e.g. WhatsApp)">
-          <input type="file" accept="image/*,.pdf" onChange={(e) => setReceiptFile(e.target.files?.[0] || null)} style={{ fontSize: 12 }} />
+          <FileInput file={receiptFile} onChange={setReceiptFile} accept="image/*,.pdf" />
           {request.payment_screenshot_path && !receiptFile && <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>A screenshot was already attached to this request — only add one here if there's a different one to attach.</p>}
         </Field>
       </div>

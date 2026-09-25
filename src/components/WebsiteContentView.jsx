@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
-import { Btn, Field, RichTextEditor } from "./ui";
+import { Btn, Field, RichTextEditor, FileInput } from "./ui";
 import { publicMediaUrl } from "../lib/media";
 import { LOGO_DATA_URI } from "../lib/logo";
 
@@ -76,7 +76,7 @@ function HeroAboutEditor() {
       <Field label="Hero photo">
         {heroPreview && <img src={heroPreview} alt="" style={{ width: "100%", maxWidth: 320, borderRadius: 8, marginBottom: 8, display: "block" }} />}
         <div className="flex items-center gap-3 flex-wrap">
-          <input type="file" accept="image/*" onChange={(e) => setHeroFile(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
+          <div style={{ flex: 1, minWidth: 220 }}><FileInput file={heroFile} onChange={setHeroFile} accept="image/*" buttonLabel="Choose photo" /></div>
           {heroPreview && <button onClick={removeHeroPhoto} style={{ fontSize: 12, color: T.terracotta, fontWeight: 600 }}>Remove photo</button>}
         </div>
         {!heroPreview && <p style={{ fontSize: 11, color: T.inkSoft, marginTop: 4 }}>No photo set — the hero section will show a plain maroon background instead.</p>}
@@ -422,7 +422,7 @@ function InstructorsEditor() {
       <Field label="Bio (optional)"><textarea style={{ ...inputStyle, minHeight: 80 }} value={bio} onChange={(e) => setBio(e.target.value)} /></Field>
       <Field label="Photo (optional)">
         {photoPreview && <img src={photoPreview} alt="" style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", marginBottom: 8, display: "block" }} />}
-        <input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
+        <FileInput file={photoFile} onChange={setPhotoFile} accept="image/*" buttonLabel="Choose photo" />
       </Field>
       {error && <p style={{ color: T.terracotta, fontSize: 13, marginBottom: 8 }}>{error}</p>}
       <div className="flex justify-end gap-2 mt-1">
@@ -808,7 +808,7 @@ function LogoEditor() {
       <div style={{ flex: 1, minWidth: 220 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: T.maroonDark, marginBottom: 2 }}>Logo</div>
         <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8 }}>Used everywhere the studio mark appears — this changes it on every page at once.</p>
-        <input type="file" accept="image/*" onChange={(e) => setLogoFile(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
+        <FileInput file={logoFile} onChange={setLogoFile} accept="image/*" buttonLabel="Choose logo" />
         {error && <p style={{ color: T.terracotta, fontSize: 13, marginTop: 6 }}>{error}</p>}
         {saved && <p style={{ color: T.sage, fontSize: 13, marginTop: 6, fontWeight: 600 }}>Saved.</p>}
       </div>
