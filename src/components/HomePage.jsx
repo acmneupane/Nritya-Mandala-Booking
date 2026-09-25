@@ -10,6 +10,7 @@ import { publicMediaUrl } from "../lib/media";
 import { Field } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import NoticeMessage from "./NoticeMessage";
+import SiteFooter from "./SiteFooter";
 
 // Shared "premium card" treatment — soft shadow at rest, a slightly deeper one
 // plus a small lift on hover. Colors stay inline (matching T.*, the app's theme
@@ -543,28 +544,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="px-5 py-16 text-center" style={{ background: T.ink }}>
-          <div className="max-w-[600px] mx-auto flex flex-col items-center">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6 overflow-hidden" style={{ background: "#fff" }}>
-              <img src={logoUrl} alt="" className="w-full h-full object-cover" />
-            </div>
-            <h2 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 26, color: T.goldLight, fontWeight: 600, marginBottom: 20 }}>Find us</h2>
-            <p style={{ fontSize: 15, color: "rgba(255,255,255,0.85)", marginBottom: 10 }}>📍 {studioInfo.studio_address}</p>
-            <a href={`https://maps.google.com/?q=${encodeURIComponent(studioInfo.studio_address)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: T.goldLight, fontWeight: 600, textDecoration: "underline", letterSpacing: 0.5 }}>GET DIRECTIONS</a>
-            <div className="w-full max-w-[320px] flex items-center justify-center gap-2 flex-wrap" style={{ marginTop: 32, paddingTop: 28, borderTop: "1px solid rgba(255,255,255,0.12)" }}>
-              <a href={studioInfo.social_facebook_url} target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>Facebook</a>
-              <span style={{ color: "rgba(255,255,255,0.3)" }}>|</span>
-              <a href={studioInfo.social_tiktok_url} target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>TikTok</a>
-            </div>
-            <div className="flex items-center justify-center gap-2" style={{ marginTop: 16 }}>
-              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Privacy Policy</a>
-              <span style={{ color: "rgba(255,255,255,0.25)" }}>|</span>
-              <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:opacity-100 transition-opacity" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Terms &amp; Conditions</a>
-            </div>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 20 }}>© {new Date().getFullYear()} Nritya Mandala. All rights reserved.</p>
-          </div>
-        </footer>
+        <SiteFooter info={studioInfo} />
       </div>
     </div>
   );

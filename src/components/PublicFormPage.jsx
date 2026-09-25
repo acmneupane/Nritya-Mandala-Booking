@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
 import { useLogoUrl } from "../lib/logo";
 import FormRenderer from "./FormRenderer";
+import SiteFooter from "./SiteFooter";
 
 // /forms?code=CODE — a form built in Admin → Forms. get_public_form() returns
 // null for an unknown or Draft code (sent to the homepage), just the title for
@@ -46,6 +47,7 @@ export default function PublicFormPage() {
           <p style={{ fontSize: 15, color: T.ink, lineHeight: 1.6 }}>This form is no longer accepting responses. Thank you for your interest!</p>
           <a href="/" style={{ display: "inline-block", marginTop: 22, fontSize: 14, fontWeight: 600, color: T.gold }}>Visit Nritya Mandala →</a>
         </div>
+        <SiteFooter />
       </div>
     );
   }

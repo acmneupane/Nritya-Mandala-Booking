@@ -4,6 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { useLogoUrl } from "../lib/logo";
 import { Select } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
+import SiteFooter from "./SiteFooter";
 import { DAYS, contactShown, isAnswered, functionErrorMessage } from "../lib/forms";
 
 // Renders one admin-built form (Admin → Forms) for filling in: the public
@@ -295,11 +296,8 @@ export default function FormRenderer({ form, preview = false, source = null }) {
             </button>
           </div>
         )}
-
-        <div className="text-center" style={{ marginTop: 20 }}>
-          <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: T.inkSoft, textDecoration: "underline" }}>Privacy Policy</a>
-        </div>
       </div>
+      <SiteFooter />
     </div>
   );
 }
