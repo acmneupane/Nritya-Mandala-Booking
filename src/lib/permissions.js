@@ -24,7 +24,8 @@ const TAB_PERMISSIONS = {
   levels: ["students", "studio_settings"],
   packages: ["studio_settings"],
   finances: ["finance"],
-  history: ["studio_settings"],
+  // History (email log + audit log) is admin-only, like Admin Config.
+  history: "ADMIN_ONLY",
   website: ["website"],
   forms: ["studio_settings"],
   "studio-settings": ["studio_settings"],

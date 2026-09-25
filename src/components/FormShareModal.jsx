@@ -3,12 +3,13 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, Modal, Select } from "./ui";
 import { QrCanvas } from "./QrCode";
 import { drawQrWithLogo } from "../lib/qrCard";
-import { SHARE_CHANNELS, formLink, sourceKey, effectiveStatus } from "../lib/forms";
+import { SHARE_CHANNELS, formLink, sourceKey } from "../lib/forms";
 
 // "Share" on a form: pick where the link is going (Facebook, WhatsApp, a
 // flyer…) and get that channel's own link and QR code. The channel is added to
 // the link as &src=… and saved with every response that comes through it, so
-// the CSV export shows where each response came from.
+// the CSV export shows where each response came from. Only offered for Open
+// forms (a Draft's link goes to the homepage).
 export default function FormShareModal({ form, onClose }) {
   const [channel, setChannel] = useState("");
   const [otherText, setOtherText] = useState("");
@@ -17,7 +18,6 @@ export default function FormShareModal({ form, onClose }) {
   const source = channel === "other" ? sourceKey(otherText) : channel;
   const ready = channel !== "" && (channel !== "other" || !!source);
   const link = ready ? formLink(form.code, source === "direct" ? null : source) : "";
-  const status = effectiveStatus(form);
 
   const copy = async () => {
     try {
@@ -40,17 +40,6 @@ export default function FormShareModal({ form, onClose }) {
 
   return (
     <Modal title={`Share “${form.title}”`} onClose={onClose}>
-      {status === "draft" && (
-        <p style={{ fontSize: 12.5, color: T.terracotta, background: `${T.terracotta}12`, border: `1px solid ${T.terracotta}44`, borderRadius: 8, padding: "8px 12px", marginBottom: 12, lineHeight: 1.5 }}>
-          This form is still a <strong>Draft</strong> — the link goes to the homepage until you open it.
-        </p>
-      )}
-      {status === "closed" && (
-        <p style={{ fontSize: 12.5, color: T.inkSoft, background: T.paper, borderRadius: 8, padding: "8px 12px", marginBottom: 12, lineHeight: 1.5 }}>
-          This form is <strong>Closed</strong> — the link shows “no longer accepting responses”.
-        </p>
-      )}
-
       <span className="block text-xs font-medium mb-1" style={{ color: T.inkSoft }}>Where will you share it?</span>
       <Select value={channel} onChange={(e) => { setChannel(e.target.value); setCopied(false); }}>
         <option value="">Choose…</option>

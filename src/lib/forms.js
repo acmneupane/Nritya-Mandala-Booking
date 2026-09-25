@@ -105,8 +105,8 @@ export const SHARE_CHANNELS = [
   { key: "instagram", label: "Instagram" },
   { key: "tiktok", label: "TikTok" },
   { key: "whatsapp", label: "WhatsApp" },
-  { key: "homepage", label: "Nritya Mandala home page" },
-  { key: "parent-page", label: "Parent page / app" },
+  { key: "homepage", label: "Nritya Mandala home page (announcement)" },
+  { key: "parent-page", label: "Parent page / app (announcement)" },
   { key: "email", label: "Email" },
   { key: "flyer", label: "Flyer / poster (QR code)" },
 ];

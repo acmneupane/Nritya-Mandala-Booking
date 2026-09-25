@@ -21,14 +21,13 @@ const HINT = { fontSize: 12, color: T.inkSoft, marginBottom: 12, lineHeight: 1.5
 const EDITABLE_FIELDS = [
   "title", "internal_tag", "code", "intro_html", "thank_you_html",
   "contact_name_mode", "contact_email_mode", "contact_phone_mode",
-  "closes_on", "notify_on_response", "show_on_public", "show_on_parent", "banner_text",
+  "closes_on", "notify_on_response",
 ];
 
 function pickFields(form) {
   const out = {};
   for (const k of EDITABLE_FIELDS) out[k] = form[k] ?? (typeof form[k] === "boolean" ? false : "");
   out.internal_tag = form.internal_tag || "";
-  out.banner_text = form.banner_text || "";
   out.closes_on = form.closes_on || "";
   return out;
 }
@@ -218,9 +217,6 @@ export default function FormBuilder({ form, questions, hasResponses, existingTag
       contact_phone_mode: fields.contact_phone_mode,
       closes_on: fields.closes_on || null,
       notify_on_response: !!fields.notify_on_response,
-      show_on_public: !!fields.show_on_public,
-      show_on_parent: !!fields.show_on_parent,
-      banner_text: fields.banner_text.trim() || null,
     };
     if (!codeLocked) payload.code = cleanCode(fields.code);
 
@@ -364,21 +360,10 @@ export default function FormBuilder({ form, questions, hasResponses, existingTag
         </label>
 
         <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Show a banner linking to this form</div>
-          <p style={HINT}>Only while the form is open.</p>
-          <label className="flex items-center gap-2" style={{ fontSize: 13.5, color: T.ink, marginBottom: 6 }}>
-            <input type="checkbox" checked={!!fields.show_on_public} onChange={(e) => set("show_on_public", e.target.checked)} />
-            Public homepage
-          </label>
-          <label className="flex items-center gap-2" style={{ fontSize: 13.5, color: T.ink, marginBottom: 10 }}>
-            <input type="checkbox" checked={!!fields.show_on_parent} onChange={(e) => set("show_on_parent", e.target.checked)} />
-            Parent page (website and mobile app)
-          </label>
-          {(fields.show_on_public || fields.show_on_parent) && (
-            <Field label="Banner text (optional — defaults to the form's title)">
-              <input style={inputStyle} value={fields.banner_text} onChange={(e) => set("banner_text", e.target.value)} placeholder="e.g. Thinking of adult classes? Tell us what suits you!" maxLength={160} />
-            </Field>
-          )}
+          <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 4 }}>Sharing the form</div>
+          <p style={{ ...HINT, marginBottom: 0 }}>
+            Once the form is <strong>Open</strong> (not while it's a Draft), use <strong>🔗 Share</strong> at the top to get a link for each place you'll post it — Facebook, WhatsApp, TikTok, a studio announcement, a flyer QR code… Each platform gets its own link, so the responses (and the CSV export) show where people came from.
+          </p>
         </div>
       </div>
 

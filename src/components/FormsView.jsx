@@ -143,7 +143,7 @@ function FormDetail({ formId, existingTags, onBack, onChanged }) {
             <div style={{ marginTop: 8 }}><StatusBadge form={form} withExplanation /></div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Btn size="sm" variant="ghost" onClick={() => setSharing(true)}>🔗 Share</Btn>
+            {status === "open" && <Btn size="sm" variant="ghost" onClick={() => setSharing(true)}>🔗 Share</Btn>}
             {status === "draft" && <Btn size="sm" onClick={guard(() => setConfirmOpen(true))}>Open form</Btn>}
             {status === "open" && <Btn size="sm" variant="danger" onClick={guard(() => setStatus("closed"))}>Close form</Btn>}
             {status === "closed" && (
@@ -258,7 +258,6 @@ export default function FormsView({ focusFormId }) {
       contact_email_mode: form.contact_email_mode,
       contact_phone_mode: form.contact_phone_mode,
       notify_on_response: form.notify_on_response,
-      banner_text: form.banner_text,
     }).select("id").single();
     if (err) { setError(err.message); return; }
     if (qs?.length) {
@@ -351,9 +350,17 @@ export default function FormsView({ focusFormId }) {
                     {c.fresh > 0 && <span style={{ marginLeft: 6, fontSize: 10.5, fontWeight: 700, background: T.terracotta, color: "#fff", borderRadius: 999, padding: "1px 7px" }}>{c.fresh} new</span>}
                   </span>
                   <div className="flex gap-2 flex-wrap ml-auto">
-                    <Btn size="sm" onClick={() => setSelectedId(f.id)}>Open</Btn>
-                    <Btn size="sm" variant="ghost" onClick={() => copyLink(f)}>{copiedId === f.id ? "Copied ✓" : "Copy link"}</Btn>
-                    <Btn size="sm" variant="ghost" onClick={() => setSharing(f)}>🔗 Share</Btn>
+                    <Btn size="sm" onClick={() => setSelectedId(f.id)}>Manage</Btn>
+                    {effectiveStatus(f) === "open" ? (
+                      <>
+                        <Btn size="sm" variant="ghost" onClick={() => copyLink(f)}>{copiedId === f.id ? "Copied ✓" : "Copy link"}</Btn>
+                        <Btn size="sm" variant="ghost" onClick={() => setSharing(f)}>🔗 Share</Btn>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: 12, color: T.inkSoft, alignSelf: "center" }}>
+                        {effectiveStatus(f) === "draft" ? "Open the form to share its link" : "Reopen to share its link"}
+                      </span>
+                    )}
                     <Btn size="sm" variant="ghost" onClick={() => duplicate(f)}>⧉ Duplicate</Btn>
                     <Btn size="sm" variant="danger" onClick={() => setDeleting(f)}>Delete</Btn>
                   </div>

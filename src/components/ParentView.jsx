@@ -14,7 +14,6 @@ import MarkAbsentModal from "./MarkAbsentModal";
 import MessageStudioModal from "./MessageStudioModal";
 import ReviewModal from "./ReviewModal";
 import NoticeMessage from "./NoticeMessage";
-import FormBanners from "./FormBanners";
 import { APP_ORIGIN } from "../lib/origins";
 import { shareReferral, referralCopy } from "../lib/share";
 
@@ -265,8 +264,6 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
               <NoticeMessage message={n.message} style={{ fontSize: 16, fontWeight: 500, color: T.maroonDark, lineHeight: 1.5 }} />
             </div>
           ))}
-
-          <FormBanners place="parent" />
 
           {hasActivePackage && overallNext && (
             <div className="rounded-2xl flex items-center justify-center flex-wrap gap-3 text-center" style={{ background: "#f2f5f1", border: `1px solid ${T.sage}55`, padding: "14px 20px" }}>

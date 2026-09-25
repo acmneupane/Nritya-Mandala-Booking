@@ -10,7 +10,6 @@ import { publicMediaUrl } from "../lib/media";
 import { Field } from "./ui";
 import TurnstileWidget from "./TurnstileWidget";
 import NoticeMessage from "./NoticeMessage";
-import FormBanners from "./FormBanners";
 
 // Shared "premium card" treatment — soft shadow at rest, a slightly deeper one
 // plus a small lift on hover. Colors stay inline (matching T.*, the app's theme
@@ -307,9 +306,6 @@ export default function HomePage() {
               <NoticeMessage message={n.message} style={{ fontSize: 16, fontWeight: 500, color: T.maroonDark, lineHeight: 1.5 }} />
             </div>
           ))}
-          <div className="max-w-[820px] mx-auto">
-            <FormBanners place="public" style={{ marginBottom: 24 }} />
-          </div>
         </div>
 
         {content.about_blurb && (
