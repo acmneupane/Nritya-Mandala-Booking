@@ -3,14 +3,14 @@
 What's planned, what's waiting on a decision, and what's parked. Updated as
 work is agreed or finished. (Shipped work lives in the git history.)
 
-_Last updated: 26 Sep 2026 (weekly digest built; switch on in Admin Config)_
+_Last updated: 26 Sep 2026 (weekly digest tested; switch on in Admin Config)_
 
 ## Next up
 
-### Weekly digest email (staff) — built, waiting for you to switch it on
+### Weekly digest email (staff) — tested ✓, waiting for you to switch it on
+- Test send verified on 26 Sep 2026.
 - Admin Config → Weekly digest: tick "Send the weekly digest automatically"
   and pick team members. It's off until you do.
-- Try **Send a test now** first; it goes only to the studio email.
 - Default: Friday 8:00pm Sydney time, to the studio email plus the team
   members you pick. No money section, no roadmap section.
 
