@@ -416,8 +416,9 @@ function renderMessages(messages) {
   return html + muted("Mark them as read on the Dashboard once they've been dealt with.");
 }
 
-// Builds the email. test: null for the scheduled send, or { requestedBy,
-// studioEmail, scheduledRecipients: [emails] } for "Send a test now".
+// Builds the email. test: null for the scheduled send, truthy for "Send a
+// test now". The email can reach team members who aren't admins, so it never
+// mentions Admin Config, who's on the recipient list, or who sent a test.
 export function buildDigest(data, { todayStr, sections = null, test = null, adminOrigin = "" }) {
   const w = digestWindows(todayStr);
   const range = `${formatBirthdayDay(w.aheadFrom)} – ${formatBirthdayDay(w.aheadTo)}`;
@@ -426,9 +427,7 @@ export function buildDigest(data, { todayStr, sections = null, test = null, admi
   let body = "";
   if (test) {
     body += `<div style="background:#fff4d6;border:1px solid ${C.gold};border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:13px;line-height:1.5;color:${C.ink};">
-<strong>🧪 Test send</strong>, requested${test.requestedBy ? ` by ${esc(test.requestedBy)}` : ""} from Admin Config → Weekly digest.
-Test sends only ever go to the studio email (${esc(test.studioEmail)}).
-The scheduled digest goes to: ${[test.studioEmail, ...(test.scheduledRecipients || [])].map(esc).join(", ")}.</div>`;
+<strong>🧪 Test send.</strong> Test sends only go to the studio email, not to the rest of the team.</div>`;
   }
   body += p(`Here's the studio's week — looking ahead to <strong>${esc(range)}</strong>, and back at ${esc(formatBirthdayDay(w.pastFrom))} – ${esc(formatBirthdayDay(w.pastTo))}.`);
 
@@ -454,7 +453,7 @@ The scheduled digest goes to: ${[test.studioEmail, ...(test.scheduledRecipients 
 
   const footer = `<div style="margin-top:28px;padding-top:12px;border-top:1px solid ${C.line};font-size:12px;color:${C.soft};line-height:1.5;">
 ${adminOrigin ? `<a href="${esc(adminOrigin)}" style="color:${C.maroon};">Open the admin app</a><br/>` : ""}
-Sent weekly to the studio team. Recipients and sections are set in Admin Config → Weekly digest.</div>`;
+Sent weekly to the Nritya Mandala team.</div>`;
 
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;color:${C.ink};">
 <h1 style="font-family:Georgia,serif;font-size:22px;color:${C.maroon};margin:0 0 6px;">Nritya Mandala — weekly digest</h1>

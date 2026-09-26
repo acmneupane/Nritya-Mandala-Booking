@@ -13,6 +13,8 @@
 //  - An admin, { action: "test", sections }: "Send a test now". Goes ONLY to
 //    the studio email, whatever the recipient list says, with a [Test]
 //    subject and a banner saying so. Works while the digest is switched off.
+//    The email itself never mentions Admin Config, the recipient list or who
+//    asked for the test (team members who aren't admins can receive it).
 //  - An admin, { action: "info" }: the studio email and the scheduled
 //    recipients' emails, for the Admin Config screen.
 // Never emails parents. Every send is logged to email_log (History) and
@@ -115,7 +117,7 @@ async function createRun(status: string, checked: number, sent: number, error: s
 
 // Builds and sends to each recipient, logs everything. Returns a summary.
 async function sendDigest({ recipients, test, triggeredBy, sections, settings }: {
-  recipients: string[]; test: Record<string, unknown> | null; triggeredBy: string; sections: unknown; settings: Record<string, any>;
+  recipients: string[]; test: boolean; triggeredBy: string; sections: unknown; settings: Record<string, any>;
 }) {
   if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not set");
   const [dayCount, monthCount] = await Promise.all([sbRpc("get_email_count_today"), sbRpc("get_email_count_this_month")]);
@@ -157,7 +159,7 @@ Deno.serve(async (req: Request) => {
       // Mark first, so an overlapping run can't send it twice.
       await sbWrite("PATCH", "admin_settings?id=eq.1", { weekly_digest_last_sent_on: localDateStr(new Date()) });
       const recipients = uniqueEmails([STUDIO_EMAIL, ...(await recipientEmails(settings.weekly_digest_recipient_ids))]);
-      const result = await sendDigest({ recipients, test: null, triggeredBy: "system (weekly digest)", sections: settings.weekly_digest_sections, settings });
+      const result = await sendDigest({ recipients, test: false, triggeredBy: "system (weekly digest)", sections: settings.weekly_digest_sections, settings });
       return json(result);
     }
 
@@ -166,17 +168,16 @@ Deno.serve(async (req: Request) => {
     if (!caller) return json({ ok: false, error: "unauthorized" }, 401);
     const body = await req.json().catch(() => ({}));
     const settings = await loadSettings();
-    const scheduledRecipients = await recipientEmails(settings.weekly_digest_recipient_ids);
 
     if (body.action === "info") {
-      return json({ ok: true, studioEmail: STUDIO_EMAIL, scheduledRecipients });
+      return json({ ok: true, studioEmail: STUDIO_EMAIL, scheduledRecipients: await recipientEmails(settings.weekly_digest_recipient_ids) });
     }
     if (body.action === "test") {
       // Test sends only ever go to the studio email.
       const sections = body.sections && typeof body.sections === "object" ? body.sections : settings.weekly_digest_sections;
       const result = await sendDigest({
         recipients: [STUDIO_EMAIL],
-        test: { requestedBy: caller, studioEmail: STUDIO_EMAIL, scheduledRecipients: uniqueEmails(scheduledRecipients).filter((e) => e.toLowerCase() !== STUDIO_EMAIL.toLowerCase()) },
+        test: true,
         triggeredBy: caller,
         sections,
         settings,

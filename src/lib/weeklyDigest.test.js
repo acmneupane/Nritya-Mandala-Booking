@@ -178,8 +178,13 @@ test("buildDigest: subject, sections switch off, test banner, escaping, no money
 
   const t = buildDigest(fixture(), { todayStr: today, test: { requestedBy: "me@example.com", studioEmail: "studio@example.com", scheduledRecipients: ["staff@example.com"] } });
   assert.match(t.subject, /^\[Test\] /);
-  assert.ok(t.html.includes("Test sends only ever go to the studio email (studio@example.com)"));
-  assert.ok(t.html.includes("studio@example.com, staff@example.com"));
+  assert.ok(t.html.includes("Test sends only go to the studio email"));
+  // Never Admin Config details: not the settings screen, the recipient list or the requester.
+  for (const html of [t.html, full.html]) {
+    assert.ok(!html.includes("Admin Config"));
+    assert.ok(!html.includes("staff@example.com"));
+    assert.ok(!html.includes("me@example.com"));
+  }
 });
 
 test("helpers", () => {
