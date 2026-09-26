@@ -274,7 +274,8 @@ export function contactSummary(data, todayStr) {
 
 // ---- Rendering ----------------------------------------------------------------
 
-const C = { ink: "#2b211c", soft: "#6b6058", line: "#e6d3be", maroon: "#6d1f2b", paper: "#faf5ef", sage: "#5f7d5a", gold: "#a8781e", terracotta: "#b5553a" };
+// The admin app's theme colours (src/lib/theme.js), inlined for email clients.
+const C = { ink: "#241B15", soft: "#7A6A5C", line: "#E6D3BE", maroon: "#6E1D17", sage: "#5F7052", gold: "#C58D2E", terracotta: "#B8562F" };
 
 export function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));

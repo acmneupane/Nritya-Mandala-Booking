@@ -13,6 +13,8 @@ const EMAIL_TYPE_LABELS = {
   studio_notification_enrolment: "Studio notification (enrolment)",
   studio_notification_renewal: "Studio notification (renewal)",
   studio_notification_absence: "Studio notification (absence)",
+  weekly_digest: "Weekly digest",
+  weekly_digest_test: "Weekly digest (test)",
 };
 
 function timeAgo(dateStr) {

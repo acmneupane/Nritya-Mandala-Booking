@@ -5,6 +5,7 @@ import { Btn, Field } from "./ui";
 import { localDateStr, formatSydneyDateTime } from "../lib/dates";
 import { toCsv, downloadCsv } from "../lib/csv";
 import TeamView from "./TeamView";
+import WeeklyDigestConfig from "./WeeklyDigestConfig";
 import { REMINDER_SITUATIONS } from "../lib/renewalReminder";
 
 // subjectVariants (optional): [{ key, label }] — one subject line per situation
@@ -686,6 +687,7 @@ export default function AdminConfigView() {
     { id: "studio", label: "Studio info" },
     { id: "bank", label: "Bank details" },
     { id: "renewals", label: "Renewal reminders" },
+    { id: "digest", label: "Weekly digest" },
     { id: "emails", label: "Email templates" },
     { id: "data", label: "Data" },
     { id: "team", label: "Team" },
@@ -709,6 +711,7 @@ export default function AdminConfigView() {
       {section === "studio" && <StudioInfoConfig />}
       {section === "bank" && <BankDetailsConfig />}
       {section === "renewals" && (<><RenewalReminderConfig /><ScheduledRunsLog /></>)}
+      {section === "digest" && <WeeklyDigestConfig />}
       {section === "data" && (<><EmailLimitEditor /><CsvExport /><DataExport /></>)}
       {section === "emails" && (
         <>

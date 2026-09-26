@@ -3,25 +3,16 @@
 What's planned, what's waiting on a decision, and what's parked. Updated as
 work is agreed or finished. (Shipped work lives in the git history.)
 
-_Last updated: 26 Sep 2026 (weekly digest: building, no roadmap section)_
+_Last updated: 26 Sep 2026 (weekly digest built; switch on in Admin Config)_
 
 ## Next up
 
-### Weekly digest email (staff) — in progress
-- Sent **Friday 8:00pm** (Sydney time), once a week.
-- Recipients: the **studio email** always, plus **team members you pick**
-  (chosen by user, so it can later be sent by role).
-- Sections (each can be switched off):
-  - Week ahead — classes per day, booked counts, known absences, skipped/holiday dates, active announcements
-  - Birthdays — this coming week (and belated from the past week), with the class to wish them at
-  - Needs attention — pending enrolment and renewal requests, due for renewal / out of classes, packages not marked as paid, gone quiet
-  - Last week recap — attended / missed / excused and attendance rate, new students, renewals approved, automatic reminders sent
-  - Forms — forms created, and a responses summary per form
-  - New contact messages
-- No money section, no roadmap section (this file stays the roadmap).
-- Admin Config: on/off, recipients, section switches, and "Send a test now",
-  which goes **only to the studio email**.
-- Logged in History and the scheduled-runs log; never emails parents.
+### Weekly digest email (staff) — built, waiting for you to switch it on
+- Admin Config → Weekly digest: tick "Send the weekly digest automatically"
+  and pick team members. It's off until you do.
+- Try **Send a test now** first; it goes only to the studio email.
+- Default: Friday 8:00pm Sydney time, to the studio email plus the team
+  members you pick. No money section, no roadmap section.
 
 ## Waiting on you
 - **Mobile apps** (Android / iOS builds) — on hold until finance confirms the
