@@ -11,6 +11,7 @@ import { noticeAudienceLabel } from "../lib/notices";
 import { RosterEditor } from "./CalendarView";
 import { upcomingBirthdays, formatBirthdayDate, isBirthdayOn } from "../lib/birthdays";
 import { findQuietStudents, QUIET_CHURN_DAYS } from "../lib/quietChurn";
+import UnreadMessages from "./UnreadMessages";
 
 // The Dashboard's "Birthdays" section: everyone whose birthday is today, plus
 // the next few coming up however far away (a small studio can go weeks
@@ -208,6 +209,8 @@ export default function HomeView({ counts, onNavigate, access }) {
           );
         })}
       </div>
+
+      {access.has("website") && <UnreadMessages />}
 
       {!loading && unconfirmedPackages.length > 0 && (
         <div style={{ marginBottom: 24 }}>

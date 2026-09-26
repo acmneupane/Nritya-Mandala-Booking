@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   digestWindows, isDigestDue, isSectionOn, weekAhead, wishingClass, digestBirthdays, needsAttention,
-  lastWeekRecap, formsSummary, contactSummary, buildDigest, plainText, esc, formatHour, loadDigestData,
+  lastWeekRecap, formsSummary, unreadMessages, buildDigest, plainText, esc, formatHour, loadDigestData,
 } from "./weeklyDigest.js";
 
 // Digest sent Friday 2 Oct 2026: week ahead Sat 3 – Fri 9 Oct, past week Sat 26 Sep – Fri 2 Oct.
@@ -61,7 +61,8 @@ function fixture(overrides = {}) {
     ],
     contactMessages: [
       { name: "Ram", email: "ram@example.com", message: "Do you have <b>adult</b> classes?", created_at: "2026-09-30T00:00:00Z", read: false },
-      { name: "Old", email: "old@example.com", message: "Hi", created_at: "2026-08-01T00:00:00Z", read: false },
+      { name: "Old", email: "old@example.com", message: "Still waiting", created_at: "2026-08-01T00:00:00Z", read: false },
+      { name: "Done", email: "done@example.com", message: "Already handled", created_at: "2026-09-29T00:00:00Z", read: true },
     ],
     dueThreshold: 2,
     ...overrides,
@@ -150,19 +151,20 @@ test("lastWeekRecap counts only the past week (Sydney dates)", () => {
   assert.equal(lastWeekRecap(fixture({ attendance: [] }), today).rate, null);
 });
 
-test("formsSummary and contactSummary", () => {
+test("formsSummary and unreadMessages", () => {
   const f = formsSummary(fixture(), today);
   assert.deepEqual(f.created.map((x) => x.id), ["f1"]);
   assert.deepEqual(f.perForm.map((x) => [x.form.id, x.thisWeek, x.total, x.toReview]), [["f1", 1, 2, 1]]);
-  const c = contactSummary(fixture(), today);
-  assert.deepEqual(c.thisWeek.map((m) => m.name), ["Ram"]);
-  assert.equal(c.unread, 2);
+  // Every unread message, however old; read ones never.
+  assert.deepEqual(unreadMessages(fixture()).map((m) => m.name), ["Ram", "Old"]);
 });
 
 test("buildDigest: subject, sections switch off, test banner, escaping, no money", () => {
   const full = buildDigest(fixture(), { todayStr: today, adminOrigin: "https://admin.example.com" });
   assert.match(full.subject, /^Nritya Mandala weekly digest · Sat 3 Oct – Fri 9 Oct$/);
-  for (const heading of ["Week ahead", "Birthdays", "Needs attention", "Last week", "Forms", "Contact messages"]) assert.ok(full.html.includes(heading), heading);
+  for (const heading of ["Week ahead", "Birthdays", "Needs attention", "Last week", "Forms", "Unread messages (2)"]) assert.ok(full.html.includes(heading), heading);
+  assert.ok(full.html.includes("Still waiting"));
+  assert.ok(!full.html.includes("Already handled"));
   assert.ok(full.html.includes("Closed on 7 Oct &amp; back after"));
   assert.ok(full.html.includes("Do you have adult classes?"));
   assert.ok(!full.html.includes("<b>adult</b>"));
@@ -171,7 +173,7 @@ test("buildDigest: subject, sections switch off, test banner, escaping, no money
 
   const some = buildDigest(fixture(), { todayStr: today, sections: { forms: false, messages: false } });
   assert.ok(!some.html.includes("📝 Forms"));
-  assert.ok(!some.html.includes("Contact messages"));
+  assert.ok(!some.html.includes("Unread messages"));
   assert.ok(some.html.includes("Week ahead"));
 
   const t = buildDigest(fixture(), { todayStr: today, test: { requestedBy: "me@example.com", studioEmail: "studio@example.com", scheduledRecipients: ["staff@example.com"] } });
@@ -193,4 +195,5 @@ test("loadDigestData asks for the right windows and defaults the threshold", asy
   assert.equal(data.dueThreshold, 2);
   assert.ok(paths.includes("class_skips?select=class_id,date,reason&date=gte.2026-09-26&date=lte.2026-10-09"));
   assert.ok(paths.some((p) => p.startsWith("email_log?") && p.includes("sent_at=gte.2026-09-25T00:00:00Z")));
+  assert.ok(paths.some((p) => p.startsWith("contact_messages?") && p.includes("read=eq.false")));
 });

@@ -162,7 +162,7 @@ export default function WeeklyDigestConfig() {
       <div style={card}>
         <h3 style={h3}>Weekly digest</h3>
         <p style={{ ...note, marginBottom: 14 }}>
-          A summary email for the team: the week ahead (classes, who's away, cancellations, announcements), birthdays with the class to wish them at, what needs attention, last week's recap, forms and contact messages. No money figures, and never sent to parents.
+          A summary email for the team: the week ahead (classes, who's away, cancellations, announcements), birthdays with the class to wish them at, what needs attention, last week's recap, forms and unread messages. No money figures, and never sent to parents.
         </p>
 
         <label className="flex items-center gap-2 mb-3" style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>

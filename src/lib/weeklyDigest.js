@@ -1,5 +1,5 @@
 // The weekly digest email for staff: what's coming up next week, birthdays,
-// what needs attention, a recap of the past week, forms and contact messages.
+// what needs attention, a recap of the past week, forms and unread messages.
 // No money and no parent data beyond names.
 //
 // This file is the single source for the digest: the `weekly-digest` edge
@@ -24,7 +24,7 @@ export const DIGEST_SECTIONS = [
   { key: "attention", label: "Needs attention", description: "Pending enrolment and renewal requests, students due for renewal or out of classes, packages not marked as paid, and students who've gone quiet." },
   { key: "last_week", label: "Last week recap", description: "Attendance numbers and rate, new students, enrolments and renewals approved, automatic reminders sent." },
   { key: "forms", label: "Forms", description: "Forms created, and responses per form." },
-  { key: "messages", label: "Contact messages", description: "Messages sent through the website's contact form." },
+  { key: "messages", label: "Unread messages", description: "Messages from the website's \"Get in touch\" form that haven't been marked as read yet (whenever they came in)." },
 ];
 
 export const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -92,7 +92,7 @@ export async function loadDigestData(get, todayStr) {
     get(`email_log?select=sent_at,student_id&email_type=eq.renewal_reminder_auto&success=eq.true&sent_at=gte.${sinceIso}`),
     get("forms?select=id,code,title,status,created_at,closes_on&order=created_at"),
     get("form_responses?select=form_id,status,submitted_at"),
-    get("contact_messages?select=name,email,message,created_at,read&order=created_at.desc&limit=100"),
+    get("contact_messages?select=name,email,message,created_at&read=eq.false&order=created_at.desc&limit=100"),
     get("admin_settings?id=eq.1&select=due_threshold"),
   ]);
   return {
@@ -264,12 +264,11 @@ export function formsSummary(data, todayStr) {
   return { created, perForm };
 }
 
-export function contactSummary(data, todayStr) {
-  const { pastFrom, pastTo } = digestWindows(todayStr);
-  return {
-    thisWeek: data.contactMessages.filter((m) => inWindow(sydneyDateOf(m.created_at), pastFrom, pastTo)),
-    unread: data.contactMessages.filter((m) => !m.read).length,
-  };
+// Unread "Get in touch" messages, newest first — not limited to the past week,
+// so nothing unread drops out of the digest until someone marks it as read
+// (Dashboard). contactMessages is already only the unread ones.
+export function unreadMessages(data) {
+  return data.contactMessages.filter((m) => !m.read);
 }
 
 // ---- Rendering ----------------------------------------------------------------
@@ -409,15 +408,12 @@ function renderForms({ created, perForm }, adminOrigin) {
   return html;
 }
 
-function renderMessages({ thisWeek, unread }) {
-  let html = h2("✉️ Contact messages");
-  if (!thisWeek.length) html += muted("No new messages this week.");
-  else {
-    html += list(thisWeek.map((m) =>
-      `<strong>${esc(m.name || "Someone")}</strong>${m.email ? ` <span style="color:${C.soft};">(${esc(m.email)})</span>` : ""} — “${esc(plainText(m.message, 160))}”`));
-  }
-  if (unread) html += muted(`${plural(unread, "message")} still marked unread.`);
-  return html;
+function renderMessages(messages) {
+  let html = h2(`✉️ Unread messages${messages.length ? ` (${messages.length})` : ""}`);
+  if (!messages.length) return html + muted("No unread messages.");
+  html += list(messages.map((m) =>
+    `<strong>${esc(m.name || "Someone")}</strong>${m.email ? ` <span style="color:${C.soft};">(${esc(m.email)})</span>` : ""} — “${esc(plainText(m.message, 160))}” <span style="color:${C.soft};">· ${esc(shortDay(sydneyDateOf(m.created_at)))}</span>`));
+  return html + muted("Mark them as read on the Dashboard once they've been dealt with.");
 }
 
 // Builds the email. test: null for the scheduled send, or { requestedBy,
@@ -454,7 +450,7 @@ The scheduled digest goes to: ${[test.studioEmail, ...(test.scheduledRecipients 
   }
   if (isSectionOn(sections, "last_week")) body += renderLastWeek(lastWeekRecap(data, todayStr));
   if (isSectionOn(sections, "forms")) body += renderForms(formsSummary(data, todayStr), adminOrigin);
-  if (isSectionOn(sections, "messages")) body += renderMessages(contactSummary(data, todayStr));
+  if (isSectionOn(sections, "messages")) body += renderMessages(unreadMessages(data));
 
   const footer = `<div style="margin-top:28px;padding-top:12px;border-top:1px solid ${C.line};font-size:12px;color:${C.soft};line-height:1.5;">
 ${adminOrigin ? `<a href="${esc(adminOrigin)}" style="color:${C.maroon};">Open the admin app</a><br/>` : ""}
