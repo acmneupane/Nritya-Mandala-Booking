@@ -26,7 +26,7 @@ export default function PaymentConfirmation({ total, answer, onAnswer, file, onF
             Thank you! Please upload a screenshot of your payment below — it helps us identify your payment quickly and fast-track your {requestWord} request.
           </p>
           <Field label="Payment screenshot">
-            <FileInput file={file} onChange={onFile} accept="image/*,.pdf" buttonLabel="Choose screenshot" />
+            <FileInput file={file} onChange={onFile} accept="image/*,.pdf" />
           </Field>
         </div>
       )}
