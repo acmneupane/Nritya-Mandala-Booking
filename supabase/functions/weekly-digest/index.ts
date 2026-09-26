@@ -9,7 +9,8 @@
 //  - pg_cron, hourly, with x-webhook-secret: sends when it's the configured
 //    Sydney day + hour (Admin Config → Weekly digest, default Friday 8pm),
 //    the digest is switched on, and it hasn't already gone out today. Goes to
-//    the studio email plus the chosen team members, one email each.
+//    the studio email (unless unticked) plus the chosen team members, one
+//    email each.
 //  - An admin, { action: "test", sections }: "Send a test now". Goes ONLY to
 //    the studio email, whatever the recipient list says, with a [Test]
 //    subject and a banner saying so. Works while the digest is switched off.
@@ -79,7 +80,7 @@ async function adminCaller(authHeader: string | null): Promise<string | null> {
 }
 
 async function loadSettings() {
-  const rows = await sbGet("admin_settings?id=eq.1&select=weekly_digest_enabled,weekly_digest_day,weekly_digest_hour,weekly_digest_recipient_ids,weekly_digest_sections,weekly_digest_last_sent_on,resend_daily_limit,resend_monthly_limit");
+  const rows = await sbGet("admin_settings?id=eq.1&select=weekly_digest_enabled,weekly_digest_day,weekly_digest_hour,weekly_digest_include_studio,weekly_digest_recipient_ids,weekly_digest_sections,weekly_digest_last_sent_on,resend_daily_limit,resend_monthly_limit");
   return rows[0] || {};
 }
 
@@ -158,7 +159,12 @@ Deno.serve(async (req: Request) => {
       if (!due) return json({ ok: true, skipped: "not_due" });
       // Mark first, so an overlapping run can't send it twice.
       await sbWrite("PATCH", "admin_settings?id=eq.1", { weekly_digest_last_sent_on: localDateStr(new Date()) });
-      const recipients = uniqueEmails([STUDIO_EMAIL, ...(await recipientEmails(settings.weekly_digest_recipient_ids))]);
+      const studio = settings.weekly_digest_include_studio === false ? [] : [STUDIO_EMAIL];
+      const recipients = uniqueEmails([...studio, ...(await recipientEmails(settings.weekly_digest_recipient_ids))]);
+      if (recipients.length === 0) {
+        const runId = await createRun("error", 0, 0, "Nobody is ticked to receive the weekly digest — not sent.");
+        return json({ ok: false, error: "no recipients", runId });
+      }
       const result = await sendDigest({ recipients, test: false, triggeredBy: "system (weekly digest)", sections: settings.weekly_digest_sections, settings });
       return json(result);
     }

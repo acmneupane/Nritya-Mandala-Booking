@@ -82,6 +82,7 @@ export default function WeeklyDigestConfig() {
   const [enabled, setEnabled] = useState(false);
   const [day, setDay] = useState(DEFAULT_DIGEST_DAY);
   const [hour, setHour] = useState(DEFAULT_DIGEST_HOUR);
+  const [includeStudio, setIncludeStudio] = useState(true);
   const [recipientIds, setRecipientIds] = useState([]);
   const [sections, setSections] = useState({});
   const [lastSentOn, setLastSentOn] = useState(null);
@@ -96,7 +97,7 @@ export default function WeeklyDigestConfig() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from("admin_settings").select("weekly_digest_enabled, weekly_digest_day, weekly_digest_hour, weekly_digest_recipient_ids, weekly_digest_sections, weekly_digest_last_sent_on").eq("id", 1).maybeSingle(),
+      supabase.from("admin_settings").select("weekly_digest_enabled, weekly_digest_day, weekly_digest_hour, weekly_digest_include_studio, weekly_digest_recipient_ids, weekly_digest_sections, weekly_digest_last_sent_on").eq("id", 1).maybeSingle(),
       supabase.from("admin_users").select("id, email, is_admin").order("email"),
       supabase.from("user_permissions").select("user_id, permission"),
       supabase.rpc("list_admin_users"),
@@ -109,6 +110,7 @@ export default function WeeklyDigestConfig() {
         setHour(s.weekly_digest_hour ?? DEFAULT_DIGEST_HOUR);
         setRecipientIds(s.weekly_digest_recipient_ids || []);
         setSections(s.weekly_digest_sections || {});
+        setIncludeStudio(s.weekly_digest_include_studio ?? true);
         setLastSentOn(s.weekly_digest_last_sent_on);
       }
       const permsByUser = {};
@@ -133,6 +135,7 @@ export default function WeeklyDigestConfig() {
       weekly_digest_day: day,
       weekly_digest_hour: Number(hour),
       // Only people still on the team.
+      weekly_digest_include_studio: includeStudio,
       weekly_digest_recipient_ids: recipientIds.filter((id) => team.some((u) => u.id === id)),
       weekly_digest_sections: sections,
     }).eq("id", 1);
@@ -192,8 +195,8 @@ export default function WeeklyDigestConfig() {
         <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 14, marginBottom: 16 }}>
           <div style={subhead}>Who gets it</div>
           <label className="flex items-center gap-2 mb-2" style={{ fontSize: 13, color: T.ink }}>
-            <input type="checkbox" checked disabled />
-            <span>Studio email{studioEmail ? <> — <strong>{studioEmail}</strong></> : ""} <span style={{ color: T.inkSoft }}>(always)</span></span>
+            <input type="checkbox" checked={includeStudio} onChange={(e) => setIncludeStudio(e.target.checked)} />
+            <span>Studio email{studioEmail ? <> — <strong>{studioEmail}</strong></> : ""}</span>
           </label>
           {team.length === 0 ? (
             <p style={note}>No team members yet.</p>
@@ -207,6 +210,9 @@ export default function WeeklyDigestConfig() {
             </label>
           ))}
           <p style={note}>Each person gets their own copy. Picked by person, so it can later be sent by role.</p>
+          {!includeStudio && recipientIds.filter((id) => team.some((u) => u.id === id)).length === 0 && (
+            <p style={{ fontSize: 12, color: T.terracotta, fontWeight: 600, marginTop: 6 }}>Nobody is ticked — the weekly digest won't go to anyone.</p>
+          )}
         </div>
 
         <div style={{ borderTop: `1px solid ${T.line}`, paddingTop: 14, marginBottom: 16 }}>
@@ -230,7 +236,7 @@ export default function WeeklyDigestConfig() {
       <div style={card}>
         <h3 style={h3}>Send a test now</h3>
         <p style={{ ...note, marginBottom: 12 }}>
-          Sends this week's digest right now <strong style={{ color: T.ink }}>only to the studio email ({studioLabel})</strong> — never to the team members ticked above. It's marked <strong style={{ color: T.ink }}>[Test]</strong> in the subject and says so at the top. Uses the sections ticked above, even before you save. Works whether or not automatic sending is on.
+          Sends this week's digest right now <strong style={{ color: T.ink }}>only to the studio email ({studioLabel})</strong> — never to the team members ticked above, and even if the studio email is unticked there. It's marked <strong style={{ color: T.ink }}>[Test]</strong> in the subject and says so at the top. Uses the sections ticked above, even before you save. Works whether or not automatic sending is on.
         </p>
         <Btn variant="gold" onClick={sendTest} disabled={testing}>{testing ? "Sending…" : `Send a test to ${studioLabel}`}</Btn>
         {testResult && (

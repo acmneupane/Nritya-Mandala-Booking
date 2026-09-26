@@ -8,7 +8,7 @@ _Last updated: 26 Sep 2026 (weekly digest tested; switch on in Admin Config)_
 ## Next up
 
 ### Weekly digest email (staff) — tested ✓, waiting for you to switch it on
-- Test send verified on 26 Sep 2026.
+- Test send verified on 26 Sep 2026. The studio email can now be unticked too.
 - Admin Config → Weekly digest: tick "Send the weekly digest automatically"
   and pick team members. It's off until you do.
 - Default: Friday 8:00pm Sydney time, to the studio email plus the team
@@ -25,10 +25,22 @@ _Last updated: 26 Sep 2026 (weekly digest tested; switch on in Admin Config)_
   Data API access automatically; each new table needs explicit grants in the
   same migration (details in `CLAUDE.md`). Existing tables are unaffected.
 
-## Offered, not yet decided
-- Review older database functions that can be called without signing in
-  (e.g. an older enrolment-submit version that skips the anti-spam check).
-- Announcements: optional "start showing X days before" setting.
+## Waiting on your OK — anti-spam gaps (found 26 Sep 2026)
+Every public form goes through the anti-spam check (Turnstile) in the
+`submit-form` edge function. But some database functions can still be called
+directly with the public key, skipping that check:
+- **`submit_enrollment_request`** (the current enrolment/transfer one) —
+  anyone can call it directly and create enrolment requests with no anti-spam
+  check. Fix: only the `submit-form` function (service role) may call it.
+- **`submit_package_renewal`** — an old single-student renewal the app no
+  longer uses (renewals go through `submit_family_renewal`). Fix: remove it.
+- **`apply_referral_reward`** — not a form, but anyone can call it and link a
+  student to a referrer (which can award free classes). Fix: admins only.
+
+Fine as they are (by design or already protected): the parent-page functions
+that need a student code (absences, video consent, family lookup), and
+`admin_set_display_name` / `sync_renewal_reminder_cron`, which check for an
+admin inside.
 
 ## Next phases
 
