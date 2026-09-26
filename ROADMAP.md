@@ -20,6 +20,11 @@ _Last updated: 26 Sep 2026 (weekly digest built; switch on in Admin Config)_
 - **High-resolution logo** (1024×1024 or larger) — for app icons and store listings.
 - **Apple Developer ($99/yr) and Google Play ($25)** — only once the apps go ahead.
 
+## Dates to remember
+- **30 Oct 2026 — Supabase grants change.** New database tables no longer get
+  Data API access automatically; each new table needs explicit grants in the
+  same migration (details in `CLAUDE.md`). Existing tables are unaffected.
+
 ## Offered, not yet decided
 - Review older database functions that can be called without signing in
   (e.g. an older enrolment-submit version that skips the anti-spam check).
