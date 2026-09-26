@@ -4,6 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
 import { isClassActiveOn, formatTimeRange } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
+import { isBirthdayOn } from "../lib/birthdays";
 import { isLowAttendanceRisk } from "../lib/attendance";
 import QrScanner from "./QrScanner";
 
@@ -95,7 +96,7 @@ export function RosterEditor({ cls, onChanged }) {
       // "N booked" above, which is exactly the "1 booked but can't see anyone"
       // bug this is fixing. They're shown with a warning instead, so the admin can
       // actually remove them.
-      supabase.from("students").select("id, name, archived"),
+      supabase.from("students").select("id, name, archived, dob"),
       supabase.from("enrollments").select("id, student_id, start_date").eq("class_id", cls.id),
       supabase.from("attendance").select("id, student_id, status").eq("class_id", cls.id).eq("date", cls.dateStr),
     ]);
@@ -157,7 +158,7 @@ export function RosterEditor({ cls, onChanged }) {
     load();
   };
   const checkInByCode = async (code) => {
-    const { data: student } = await supabase.from("students").select("id, name").eq("code", code).eq("archived", false).maybeSingle();
+    const { data: student } = await supabase.from("students").select("id, name, dob").eq("code", code).eq("archived", false).maybeSingle();
     if (!student) return { ok: false, message: "Code not recognized" };
 
     const { data: existingEnrollment } = await supabase.from("enrollments").select("id").eq("student_id", student.id).eq("class_id", cls.id).maybeSingle();
@@ -172,7 +173,7 @@ export function RosterEditor({ cls, onChanged }) {
     }
     load();
     onChanged();
-    return { ok: true, message: `${student.name} checked in ✓` };
+    return { ok: true, message: `${student.name} checked in ✓${isBirthdayOn(student.dob, cls.dateStr) ? " — 🎂 it's their birthday today!" : ""}` };
   };
 
   if (loading) return <p style={{ color: T.inkSoft, fontSize: 13 }}>Loading…</p>;
@@ -207,6 +208,9 @@ export function RosterEditor({ cls, onChanged }) {
             <div key={r.id} style={{ border: `1px solid ${atRisk ? T.terracotta : T.line}`, borderRadius: 6, padding: "8px 10px" }}>
               <div className="flex items-center gap-2 mb-1.5">
                 <span style={{ fontSize: 13, color: T.ink }}>{student ? student.name : "Unknown student"}</span>
+                {student && isBirthdayOn(student.dob, cls.dateStr) && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: T.maroonDark, background: `${T.gold}33`, borderRadius: 999, padding: "1px 8px" }}>🎂 Birthday!</span>
+                )}
                 {remaining > 0 && <span style={{ fontSize: 11, color: T.sage }}>{remaining} left</span>}
               </div>
               {atRisk && (
@@ -299,17 +303,31 @@ function SkipModal({ cls, onClose, onSaved }) {
 
 // Full inline day view: every class scheduled that weekday, with its complete
 // roster and attendance controls right on the page — no click-through needed.
-function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged, utilCounts, recordedByClassDate, atRiskBookings, lowAttendanceRisk, canCancelSession }) {
+function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged, utilCounts, recordedByClassDate, atRiskBookings, lowAttendanceRisk, canCancelSession, students }) {
   const dateStr = localDateStr(date);
   const dayName = DAYS[(date.getDay() + 6) % 7];
   const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr)).sort((a, b) => a.time.localeCompare(b.time));
+  // Active students whose birthday falls on this date (whether or not they
+  // have a class today).
+  const birthdayStudents = (students || []).filter((s) => !s.archived && isBirthdayOn(s.dob, dateStr));
+  const birthdayBanner = birthdayStudents.length > 0 && (
+    <div style={{ background: `${T.gold}1f`, border: `1px solid ${T.gold}66`, borderRadius: 8, padding: "8px 12px", fontSize: 13.5, color: T.maroonDark, fontWeight: 600 }}>
+      🎂 Birthday{birthdayStudents.length > 1 ? "s" : ""} today: {birthdayStudents.map((s) => s.name).join(", ")}
+    </div>
+  );
 
   if (dayClasses.length === 0) {
-    return <p style={{ color: T.inkSoft, marginTop: 12 }}>No classes scheduled on {dayName}s.</p>;
+    return (
+      <div className="grid gap-3 mt-2">
+        {birthdayBanner}
+        <p style={{ color: T.inkSoft }}>No classes scheduled on {dayName}s.</p>
+      </div>
+    );
   }
 
   return (
     <div className="grid gap-4 mt-2">
+      {birthdayBanner}
       {utilCounts && (
         <div className="flex items-center gap-2">
           <span style={{ fontSize: 12, color: T.inkSoft, fontWeight: 600 }}>Today:</span>
@@ -389,6 +407,7 @@ export default function CalendarView({ access }) {
   const [loading, setLoading] = useState(true);
   const [studentArchived, setStudentArchived] = useState({}); // { [studentId]: boolean }
   const [remainingByStudent, setRemainingByStudent] = useState({}); // { [studentId]: classes left on their package }
+  const [students, setStudents] = useState([]); // for the day view's birthday banner
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -396,13 +415,14 @@ export default function CalendarView({ access }) {
       supabase.from("classes").select("*"),
       supabase.from("enrollments").select("id, class_id, student_id, start_date"),
       supabase.from("class_skips").select("*"),
-      supabase.from("students").select("id, archived"),
+      supabase.from("students").select("id, name, archived, dob"),
       supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
     ]);
     setClasses(cRes.data || []);
     setEnrollments(eRes.data || []);
     setSkips(skRes.data || []);
     setStudentArchived(Object.fromEntries((sRes.data || []).map((s) => [s.id, s.archived])));
+    setStudents(sRes.data || []);
     setRemainingByStudent(Object.fromEntries((pRes.data || []).map((p) => [p.student_id, p.classes_total - p.classes_used])));
     setLoading(false);
   }, []);
@@ -493,7 +513,7 @@ export default function CalendarView({ access }) {
       </div>
 
       {viewMode === "day" ? (
-        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} utilCounts={utilCounts[localDateStr(anchor)]} recordedByClassDate={recordedByClassDate} atRiskBookings={atRiskBookings} lowAttendanceRisk={lowAttendanceRisk} canCancelSession={canCancelSession} />
+        <DayView date={anchor} classes={classes} skips={skips} enrollments={enrollments} onSkip={setSkippingClass} onUnskip={setConfirmUnskip} onChanged={load} utilCounts={utilCounts[localDateStr(anchor)]} recordedByClassDate={recordedByClassDate} atRiskBookings={atRiskBookings} lowAttendanceRisk={lowAttendanceRisk} canCancelSession={canCancelSession} students={students} />
       ) : (
         <div className="grid gap-2 grid-cols-3 md:grid-cols-6">
           {dates.map(({ date, inMonth }, i) => {

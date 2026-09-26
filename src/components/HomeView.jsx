@@ -9,6 +9,7 @@ import { Modal } from "./ui";
 import NoticeMessage from "./NoticeMessage";
 import { noticeAudienceLabel } from "../lib/notices";
 import { RosterEditor } from "./CalendarView";
+import { upcomingBirthdays, formatBirthdayDate, isBirthdayOn } from "../lib/birthdays";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -18,12 +19,18 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 // staff member reaching out, rather than waiting for them to run out of classes.
 const QUIET_CHURN_DAYS = 14;
 
+// The Dashboard's "Birthdays" section: everyone whose birthday is today, plus
+// the next few coming up however far away (a small studio can go weeks
+// without one, so a fixed window would often leave the section empty).
+const BIRTHDAYS_SHOWN_AHEAD = 5;
+
 export default function HomeView({ counts, onNavigate, access }) {
   const [todayClasses, setTodayClasses] = useState([]);
   const [upcoming, setUpcoming] = useState([]);
   const [notices, setNotices] = useState([]);
   const [quietChurn, setQuietChurn] = useState([]);
   const [unconfirmedPackages, setUnconfirmedPackages] = useState([]);
+  const [birthdays, setBirthdays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scanningClass, setScanningClass] = useState(null);
   const [bookingClass, setBookingClass] = useState(null);
@@ -56,7 +63,7 @@ export default function HomeView({ counts, onNavigate, access }) {
       supabase.from("attendance").select("class_id, date, status, students(name)").gte("date", todayStr).lte("date", weekEndStr).in("status", ["skipped", "missed"]),
       // Quiet-churn detection inputs — active students, their package balance, and
       // recent attendance history (see below).
-      supabase.from("students").select("id, name, code").eq("archived", false),
+      supabase.from("students").select("id, name, code, dob").eq("archived", false),
       supabase.from("student_package_summary").select("student_id, classes_total, classes_used"),
       supabase.from("attendance").select("student_id, date, status").gte("date", historyStartStr).lte("date", todayStr),
       // Packages entered but never actually ticked "payment confirmed" — easy to
@@ -138,6 +145,11 @@ export default function HomeView({ counts, onNavigate, access }) {
       setQuietChurn(quiet);
 
       setUnconfirmedPackages(unconfirmedRes.data || []);
+      const allUpcoming = upcomingBirthdays(studentsRes.data || [], todayStr, 366);
+      setBirthdays([
+        ...allUpcoming.filter((b) => b.daysUntil === 0),
+        ...allUpcoming.filter((b) => b.daysUntil > 0).slice(0, BIRTHDAYS_SHOWN_AHEAD),
+      ]);
 
       setLoading(false);
     });
@@ -148,7 +160,7 @@ export default function HomeView({ counts, onNavigate, access }) {
   // Same check-in logic as the roster editor — looks up the scanned code, books the
   // student in if they weren't already (a walk-in), and marks them attended today.
   const checkInByCode = async (cls, code) => {
-    const { data: student } = await supabase.from("students").select("id, name").eq("code", code).eq("archived", false).maybeSingle();
+    const { data: student } = await supabase.from("students").select("id, name, dob").eq("code", code).eq("archived", false).maybeSingle();
     if (!student) return { ok: false, message: "Code not recognized" };
 
     const { data: existingEnrollment } = await supabase.from("enrollments").select("id").eq("student_id", student.id).eq("class_id", cls.id).maybeSingle();
@@ -162,7 +174,7 @@ export default function HomeView({ counts, onNavigate, access }) {
       await supabase.from("attendance").insert({ student_id: student.id, class_id: cls.id, date: todayStr, status: "attended" });
     }
     load();
-    return { ok: true, message: `${student.name} checked in ✓` };
+    return { ok: true, message: `${student.name} checked in ✓${isBirthdayOn(student.dob, todayStr) ? " — 🎂 it's their birthday today!" : ""}` };
   };
 
   return (
@@ -180,6 +192,32 @@ export default function HomeView({ counts, onNavigate, access }) {
           <NoticeMessage message={n.message} style={{ fontSize: 13, color: T.ink, lineHeight: 1.5 }} />
         </div>
       ))}
+
+      {!loading && birthdays.length > 0 && (() => {
+        const today = birthdays.filter((b) => b.daysUntil === 0);
+        const soon = birthdays.filter((b) => b.daysUntil > 0);
+        return (
+          <div style={{ background: "#fff", border: `1px solid ${T.gold}66`, borderLeft: `4px solid ${T.gold}`, borderRadius: 10, padding: "12px 16px", marginBottom: 18 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.gold, letterSpacing: 0.4, marginBottom: 6, textTransform: "uppercase" }}>🎂 Upcoming birthdays</div>
+            {today.map((b) => (
+              <div key={b.id} style={{ background: `${T.gold}1f`, borderRadius: 8, padding: "8px 12px", marginBottom: 8, fontSize: 14, color: T.maroonDark, fontWeight: 600 }}>
+                🎉 Today: {b.name} turns {b.age}!
+              </div>
+            ))}
+            {soon.length > 0 && (
+              <div className="grid gap-1">
+                {soon.map((b) => (
+                  <div key={b.id} className="flex items-baseline gap-2 flex-wrap" style={{ fontSize: 13, color: T.ink }}>
+                    <span style={{ fontWeight: 700, color: T.maroonDark, minWidth: 52 }}>{formatBirthdayDate(b.dateStr)}</span>
+                    <span>{b.name}</span>
+                    <span style={{ fontSize: 12, color: T.inkSoft }}>· turns {b.age} · {b.daysUntil === 1 ? "tomorrow" : `in ${b.daysUntil} days`}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
         {[
