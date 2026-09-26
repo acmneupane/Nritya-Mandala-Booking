@@ -3,7 +3,7 @@
 What's planned, what's waiting on a decision, and what's parked. Updated as
 work is agreed or finished. (Shipped work lives in the git history.)
 
-_Last updated: 26 Sep 2026_
+_Last updated: 26 Sep 2026 (weekly digest plan: roadmap reminders for admins)_
 
 ## Next up
 
@@ -18,9 +18,15 @@ _Last updated: 26 Sep 2026_
   - Last week recap — attended / missed / excused and attendance rate, new students, renewals approved, automatic reminders sent
   - Forms — forms created, and a responses summary per form
   - New contact messages
+- **Roadmap reminders — admins only** (never the studio email or non-admin
+  staff): phases with items due or waiting on you. Each recipient gets their
+  own copy, so only admins see this section.
 - No money section.
 - Admin Config: on/off, recipients, section switches, "Send me a preview now".
 - Logged in History and the scheduled-runs log; never emails parents.
+- Needs a place for roadmap items the email can read: an admin-only
+  **Admin Config → Roadmap** list (phase, item, status: Planned / Waiting on
+  you / On hold / Done, optional due date), seeded from this file.
 
 ## Waiting on you
 - **Mobile apps** (Android / iOS builds) — on hold until finance confirms the
