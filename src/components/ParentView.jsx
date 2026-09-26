@@ -6,7 +6,7 @@ import { Btn } from "./ui";
 import { localDateStr, formatShortDate } from "../lib/dates";
 import { buildQrCardDataUrl } from "../lib/qrCard";
 import { QrCanvas } from "./QrCode";
-import { nextOccurrenceOf, upcomingOccurrencesOf, formatTimeRange, isClassActiveOn } from "../lib/scheduling";
+import { nextOccurrenceOf, upcomingOccurrencesOf, formatTimeRange, classesOnDate } from "../lib/scheduling";
 import { classesLabel } from "../lib/format";
 import { fetchOpenClasses } from "../lib/classAvailability";
 import { attendanceStatusInfo, isSelfMarkedAbsence } from "../lib/attendance";
@@ -17,7 +17,6 @@ import NoticeMessage from "./NoticeMessage";
 import { APP_ORIGIN } from "../lib/origins";
 import { shareReferral, referralCopy } from "../lib/share";
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 // Shared card treatment for every white panel on the page — soft shadow instead
 // of a flat border-only look, matching the public homepage's card styling.
@@ -61,7 +60,6 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
 
   const today = new Date();
   const todayStr = localDateStr(today);
-  const todayDayName = DAYS[(today.getDay() + 6) % 7];
 
   const load = async () => {
     setLoading(true);
@@ -122,8 +120,8 @@ export default function ParentView({ student, onBack, onBackToFamily }) {
   }, [student.id, student.code, student.name, logoUrl]);
 
   const todaysClasses = useMemo(
-    () => classes.filter((c) => c.day === todayDayName && isClassActiveOn(c, todayStr) && !skips.some((s) => s.class_id === c.id && s.date === todayStr)),
-    [classes, todayDayName, todayStr, skips]
+    () => classesOnDate(classes, todayStr, skips),
+    [classes, todayStr, skips]
   );
   const classById = useMemo(() => Object.fromEntries(classes.map((c) => [c.id, c])), [classes]);
   const canTransfer = useMemo(() => openClasses.some((c) => !classes.some((cc) => cc.id === c.id)), [openClasses, classes]);

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { T } from "../lib/theme";
 import { localDateStr } from "../lib/dates";
-import { isClassActiveOn, formatTimeRange, upcomingOccurrencesOf } from "../lib/scheduling";
+import { formatTimeRange, upcomingOccurrencesOf, classesOnDate } from "../lib/scheduling";
 import { isLowAttendanceRisk } from "../lib/attendance";
 import QrScanner from "./QrScanner";
 import { Modal } from "./ui";
@@ -10,8 +10,6 @@ import NoticeMessage from "./NoticeMessage";
 import { noticeAudienceLabel } from "../lib/notices";
 import { RosterEditor } from "./CalendarView";
 import { upcomingBirthdays, formatBirthdayDate, isBirthdayOn } from "../lib/birthdays";
-
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 // A student "goes quiet" when they're still booked in, still have classes left on
 // their package (so it's not just a renewal-due situation, which is already
@@ -37,8 +35,6 @@ export default function HomeView({ counts, onNavigate, access }) {
   const todayStr = localDateStr(new Date());
 
   const load = () => {
-    const today = new Date();
-    const dayName = DAYS[(today.getDay() + 6) % 7];
     const weekEndStr = localDateStr(new Date(Date.now() + 6 * 86400000));
     const churnCutoffStr = localDateStr(new Date(Date.now() - QUIET_CHURN_DAYS * 86400000));
     // A wide-but-bounded lookback for "have they attended recently" — well past the
@@ -76,9 +72,8 @@ export default function HomeView({ counts, onNavigate, access }) {
       (attRes.data || []).forEach((a) => {
         if (a.status === "skipped" || a.status === "missed") (absenteesByClass[a.class_id] ||= []).push(a.students?.name);
       });
-      const classes = (cRes.data || [])
-        .filter((c) => c.day === dayName && isClassActiveOn(c, todayStr) && !skippedIds.has(c.id))
-        .sort((a, b) => a.time.localeCompare(b.time))
+      const classes = classesOnDate(cRes.data || [], todayStr)
+        .filter((c) => !skippedIds.has(c.id))
         .map((c) => {
           const bookedCount = (eRes.data || []).filter((e) => e.class_id === c.id && (!e.start_date || e.start_date <= todayStr)).length;
           const absentees = (absenteesByClass[c.id] || []).filter(Boolean);

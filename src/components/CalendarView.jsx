@@ -2,13 +2,12 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
-import { isClassActiveOn, formatTimeRange } from "../lib/scheduling";
+import { formatTimeRange, classesOnDate, weekdayOfDateStr } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
 import { isBirthdayOn, birthdayBeforeNextClass, formatBirthdayDay } from "../lib/birthdays";
 import { isLowAttendanceRisk } from "../lib/attendance";
 import QrScanner from "./QrScanner";
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const VIEW_MODES = [
   { id: "day", label: "Day" },
   { id: "week", label: "Week" },
@@ -81,9 +80,9 @@ export function RosterEditor({ cls, onChanged }) {
   const [roster, setRoster] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [remainingByStudent, setRemainingByStudent] = useState({});
-  // For "birthday before their next class": dates after this one when the
-  // class is cancelled, and dates each student has already said they'll miss.
-  const [laterSkipDates, setLaterSkipDates] = useState([]);
+  // For "birthday before their next class": later dates this class is
+  // cancelled, and dates each student has already said they'll miss.
+  const [laterSkips, setLaterSkips] = useState([]);
   const [laterAbsences, setLaterAbsences] = useState({}); // { [studentId]: [dateStr] }
   const [addingStudent, setAddingStudent] = useState("");
   const [addingStartDate, setAddingStartDate] = useState(cls.dateStr);
@@ -103,10 +102,10 @@ export function RosterEditor({ cls, onChanged }) {
       supabase.from("students").select("id, name, archived, dob"),
       supabase.from("enrollments").select("id, student_id, start_date").eq("class_id", cls.id),
       supabase.from("attendance").select("id, student_id, status").eq("class_id", cls.id).eq("date", cls.dateStr),
-      supabase.from("class_skips").select("date").eq("class_id", cls.id).gt("date", cls.dateStr),
+      supabase.from("class_skips").select("class_id, date").eq("class_id", cls.id).gt("date", cls.dateStr),
       supabase.from("attendance").select("student_id, date").eq("class_id", cls.id).gt("date", cls.dateStr).in("status", ["skipped", "missed"]),
     ]);
-    setLaterSkipDates((laterSkipsRes.data || []).map((r) => r.date));
+    setLaterSkips(laterSkipsRes.data || []);
     const absences = {};
     (laterAbsRes.data || []).forEach((r) => { (absences[r.student_id] ||= []).push(r.date); });
     setLaterAbsences(absences);
@@ -222,7 +221,7 @@ export function RosterEditor({ cls, onChanged }) {
                   <span style={{ fontSize: 11, fontWeight: 700, color: T.maroonDark, background: `${T.gold}33`, borderRadius: 999, padding: "1px 8px" }}>🎂 Birthday!</span>
                 )}
                 {student && !isBirthdayOn(student.dob, cls.dateStr) && (() => {
-                  const upcoming = birthdayBeforeNextClass(student.dob, cls, cls.dateStr, new Set([...laterSkipDates, ...(laterAbsences[student.id] || [])]));
+                  const upcoming = birthdayBeforeNextClass(student.dob, cls, cls.dateStr, { skips: laterSkips, excludeDates: new Set(laterAbsences[student.id] || []) });
                   return upcoming && (
                     <span title="Their birthday falls before their next class — wish them today!" style={{ fontSize: 11, fontWeight: 700, color: T.maroonDark, background: `${T.gold}22`, border: `1px dashed ${T.gold}`, borderRadius: 999, padding: "0 8px" }}>
                       🎂 Birthday {formatBirthdayDay(upcoming.dateStr)} — before next class
@@ -323,8 +322,8 @@ function SkipModal({ cls, onClose, onSaved }) {
 // roster and attendance controls right on the page — no click-through needed.
 function DayView({ date, classes, skips, enrollments, onSkip, onUnskip, onChanged, utilCounts, recordedByClassDate, atRiskBookings, lowAttendanceRisk, canCancelSession, students }) {
   const dateStr = localDateStr(date);
-  const dayName = DAYS[(date.getDay() + 6) % 7];
-  const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr)).sort((a, b) => a.time.localeCompare(b.time));
+  const dayName = weekdayOfDateStr(dateStr);
+  const dayClasses = classesOnDate(classes, dateStr);
   // Active students whose birthday falls on this date (whether or not they
   // have a class today).
   const birthdayStudents = (students || []).filter((s) => !s.archived && isBirthdayOn(s.dob, dateStr));
@@ -537,8 +536,8 @@ export default function CalendarView({ access }) {
           {dates.map(({ date, inMonth }, i) => {
             const dateStr = localDateStr(date);
             const isToday = dateStr === todayStr;
-            const dayName = DAYS[(date.getDay() + 6) % 7];
-            const dayClasses = classes.filter((c) => c.day === dayName && isClassActiveOn(c, dateStr));
+            const dayName = weekdayOfDateStr(dateStr);
+            const dayClasses = classesOnDate(classes, dateStr);
             const dimmed = viewMode === "month" && !inMonth;
             return (
               <div key={i} style={{ background: isToday ? `${T.gold}18` : "#fff", border: `1px solid ${isToday ? T.gold : T.line}`, borderRadius: 8, padding: 8, minHeight: 80, opacity: dimmed ? 0.4 : 1 }}>
