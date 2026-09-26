@@ -4,6 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, RichTextEditor, FileInput } from "./ui";
 import { publicMediaUrl } from "../lib/media";
 import { LOGO_DATA_URI } from "../lib/logo";
+import MessagesInbox from "./MessagesInbox";
 
 const SITE_CONTENT_KEYS = ["hero_tagline", "hero_photo_path", "about_blurb", "show_classes", "show_pricing", "show_levels", "classes_capacity_note"];
 
@@ -876,6 +877,7 @@ const SECTIONS = [
   { id: "instructors", label: "Instructors" },
   { id: "testimonials", label: "Testimonials" },
   { id: "faq", label: "FAQ" },
+  { id: "messages", label: "Messages" },
   { id: "privacy", label: "Privacy Policy" },
   { id: "terms", label: "Terms & Conditions" },
   { id: "house-rules", label: "House Rules" },
@@ -906,6 +908,7 @@ export default function WebsiteContentView() {
       {section === "instructors" && <InstructorsEditor />}
       {section === "testimonials" && <TestimonialsEditor />}
       {section === "faq" && <FaqEditor />}
+      {section === "messages" && <MessagesInbox />}
       {section === "privacy" && (
         <LegalDocEditor
           contentKey="privacy_policy_html"

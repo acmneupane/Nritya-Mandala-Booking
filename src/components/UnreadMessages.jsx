@@ -48,7 +48,7 @@ export default function UnreadMessages() {
   return (
     <div style={{ marginBottom: 24 }}>
       <h3 style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 4 }}>✉️ Unread messages ({messages.length})</h3>
-      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>From the website's "Get in touch" form — each was also emailed to the studio. Mark as read once it's been dealt with.</p>
+      <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>From the website's "Get in touch" form — each was also emailed to the studio. Mark as read once it's been dealt with; all messages, read or not, are under Website → Messages.</p>
       {error && <p style={{ fontSize: 13, color: T.terracotta, fontWeight: 600, marginBottom: 8 }}>{error}</p>}
       <div className="grid gap-2">
         {messages.map((m) => (
