@@ -7,6 +7,8 @@ import TurnstileWidget from "./TurnstileWidget";
 import { formatTimeRange, compareClassSchedule } from "../lib/scheduling";
 import { fetchOpenClasses, classOptionLabel } from "../lib/classAvailability";
 import { localDateStr } from "../lib/dates";
+import { FieldWrap, FormErrorBox } from "./Validation";
+import { problemsMessage, scrollToFirstProblem, SECURITY_CHECK_PENDING } from "../lib/validation";
 
 const RELATION_OPTIONS = ["Mother", "Father", "Guardian", "Grandparent", "Other"];
 
@@ -35,6 +37,9 @@ export default function TransferRequestForm() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // Set on the first Submit click; from then on every problem is highlighted
+  // live (and clears as it's fixed).
+  const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
     if (!code) { setStudent(null); return; }
@@ -61,13 +66,28 @@ export default function TransferRequestForm() {
   const availableClasses = openClasses.filter((c) => !currentClassIds.includes(c.id));
   const noAvailableClasses = loaded && availableClasses.length === 0;
 
+  // Every problem at once, keyed by field, in page order (see lib/validation.js).
+  const validate = () => {
+    const p = {};
+    if (!studentName.trim()) p.studentName = "Student's name can't be blank.";
+    if (!newClassId) p.newClass = "Please select which class to transfer to.";
+    if (!requesterId) p.requester = "Please let us know who's requesting this.";
+    if (requesterId === "new") {
+      if (!newName.trim()) p.newName = "Please enter your name.";
+      if (!newPhone.trim()) p.newPhone = "Please enter your phone number.";
+      if (newIsEmergency === null) p.newIsEmergency = "Please let us know if you're the emergency contact for this student.";
+    }
+    if (!agreedToPolicies) p.agreedToPolicies = "Please confirm you agree to the Privacy Policy, Terms & Conditions, and House Rules.";
+    return p;
+  };
+  const problems = attempted ? validate() : {};
+
   const submit = async () => {
-    if (!studentName.trim()) { setError("Student's name can't be blank."); return; }
-    if (!newClassId) { setError("Please select which class to transfer to."); return; }
-    if (!requesterId) { setError("Please let us know who's requesting this."); return; }
-    if (requesterId === "new" && (!newName.trim() || !newPhone.trim())) { setError("Please provide your name and phone number."); return; }
-    if (requesterId === "new" && newIsEmergency === null) { setError("Please let us know if you're the emergency contact for this student."); return; }
-    if (!agreedToPolicies) { setError("Please confirm you agree to the Privacy Policy, Terms & Conditions, and House Rules."); return; }
+    setAttempted(true);
+    setError("");
+    const found = validate();
+    if (Object.keys(found).length > 0) { scrollToFirstProblem(found); return; }
+    if (!turnstileToken) { setError(SECURITY_CHECK_PENDING); return; }
 
     setSubmitting(true);
     setError("");
@@ -154,7 +174,9 @@ export default function TransferRequestForm() {
           <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 6, fontWeight: 600 }}>Is this correct?</h3>
           <p style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 14 }}>Update anything below that isn't right.</p>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Student's name"><input style={inputStyle} value={studentName} onChange={(e) => setStudentName(e.target.value)} /></Field>
+            <FieldWrap id="studentName" problem={problems.studentName}>
+              <Field label="Student's name *"><input style={inputStyle} value={studentName} onChange={(e) => setStudentName(e.target.value)} /></Field>
+            </FieldWrap>
             <Field label="Date of birth"><input style={inputStyle} type="date" value={studentDob} onChange={(e) => setStudentDob(e.target.value)} /></Field>
           </div>
           {currentClassObjs.length > 0 && (
@@ -168,26 +190,34 @@ export default function TransferRequestForm() {
           ) : (
             <>
               <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 10, marginTop: 22, fontWeight: 600 }}>Transfer to</h3>
-              <Field label="New class">
-                <Select value={newClassId} onChange={(e) => setNewClassId(e.target.value)}>
-                  <option value="">Select a class…</option>
-                  {availableClasses.map((c) => <option key={c.id} value={c.id}>{c.label} — {classOptionLabel(c, today)}</option>)}
-                </Select>
-              </Field>
+              <FieldWrap id="newClass" problem={problems.newClass}>
+                <Field label="New class *">
+                  <Select value={newClassId} onChange={(e) => setNewClassId(e.target.value)}>
+                    <option value="">Select a class…</option>
+                    {availableClasses.map((c) => <option key={c.id} value={c.id}>{c.label} — {classOptionLabel(c, today)}</option>)}
+                  </Select>
+                </Field>
+              </FieldWrap>
 
               <h3 className="font-serif" style={{ fontFamily: "Fraunces, serif", fontSize: 17, color: T.maroonDark, marginBottom: 10, marginTop: 22, fontWeight: 600 }}>Who's requesting this?</h3>
-              <Field label="Requested by">
-                <Select value={requesterId} onChange={(e) => setRequesterId(e.target.value)}>
-                  <option value="">Select…</option>
-                  {guardians.map((g) => <option key={g.guardian_id} value={g.guardian_id}>{g.name}{g.relation ? ` (${g.relation})` : ""}{g.is_emergency ? " — Emergency Contact" : ""}</option>)}
-                  <option value="new">Someone else</option>
-                </Select>
-              </Field>
+              <FieldWrap id="requester" problem={problems.requester}>
+                <Field label="Requested by *">
+                  <Select value={requesterId} onChange={(e) => setRequesterId(e.target.value)}>
+                    <option value="">Select…</option>
+                    {guardians.map((g) => <option key={g.guardian_id} value={g.guardian_id}>{g.name}{g.relation ? ` (${g.relation})` : ""}{g.is_emergency ? " — Emergency Contact" : ""}</option>)}
+                    <option value="new">Someone else</option>
+                  </Select>
+                </Field>
+              </FieldWrap>
               {requesterId === "new" && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
-                    <Field label="Your name"><input style={inputStyle} value={newName} onChange={(e) => setNewName(e.target.value)} /></Field>
-                    <Field label="Your phone"><input style={inputStyle} value={newPhone} onChange={(e) => setNewPhone(e.target.value)} /></Field>
+                    <FieldWrap id="newName" problem={problems.newName}>
+                      <Field label="Your name *"><input style={inputStyle} value={newName} onChange={(e) => setNewName(e.target.value)} /></Field>
+                    </FieldWrap>
+                    <FieldWrap id="newPhone" problem={problems.newPhone}>
+                      <Field label="Your phone *"><input style={inputStyle} value={newPhone} onChange={(e) => setNewPhone(e.target.value)} /></Field>
+                    </FieldWrap>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Your email"><input style={inputStyle} type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} /></Field>
@@ -198,19 +228,22 @@ export default function TransferRequestForm() {
                       </Select>
                     </Field>
                   </div>
-                  <Field label={`Are you the emergency contact for ${studentName || "this student"}?`}>
-                    <div className="flex gap-4" style={{ fontSize: 13, color: T.ink }}>
-                      <label className="flex items-center gap-1.5"><input type="radio" checked={newIsEmergency === true} onChange={() => setNewIsEmergency(true)} /> Yes</label>
-                      <label className="flex items-center gap-1.5"><input type="radio" checked={newIsEmergency === false} onChange={() => setNewIsEmergency(false)} /> No</label>
-                    </div>
-                  </Field>
+                  <FieldWrap id="newIsEmergency" problem={problems.newIsEmergency}>
+                    <Field label={`Are you the emergency contact for ${studentName || "this student"}? *`}>
+                      <div className="flex gap-4" style={{ fontSize: 13, color: T.ink }}>
+                        <label className="flex items-center gap-1.5"><input type="radio" checked={newIsEmergency === true} onChange={() => setNewIsEmergency(true)} /> Yes</label>
+                        <label className="flex items-center gap-1.5"><input type="radio" checked={newIsEmergency === false} onChange={() => setNewIsEmergency(false)} /> No</label>
+                      </div>
+                    </Field>
+                  </FieldWrap>
                 </>
               )}
 
               <Field label="Anything else?"><textarea style={{ ...inputStyle, minHeight: 60 }} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
 
               <div style={{ marginTop: 20, paddingTop: 18, borderTop: `1px solid ${T.gold}33` }}>
-                <label className="flex items-start gap-2 mb-3" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
+                <FieldWrap id="agreedToPolicies" problem={problems.agreedToPolicies} style={{ marginBottom: 6 }}>
+                <label className="flex items-start gap-2" style={{ fontSize: 13, color: T.ink, lineHeight: 1.5, fontWeight: 500 }}>
                   <input type="checkbox" checked={agreedToPolicies} onChange={(e) => setAgreedToPolicies(e.target.checked)} style={{ marginTop: 2 }} />
                   <span>
                     I agree to the{" "}
@@ -221,10 +254,11 @@ export default function TransferRequestForm() {
                     <a href="/house-rules" target="_blank" rel="noopener noreferrer" style={{ color: T.gold, textDecoration: "underline" }}>House Rules</a>.
                   </span>
                 </label>
-                {error && <p style={{ color: T.terracotta, fontSize: 16, fontWeight: 700, textAlign: "center", marginBottom: 10, lineHeight: 1.4 }}>{error}</p>}
+                </FieldWrap>
+                <FormErrorBox message={error || problemsMessage(problems)} />
                 <TurnstileWidget onVerify={setTurnstileToken} />
                 <div style={{ marginTop: 10, textAlign: "right" }}>
-                  <Btn variant="success" onClick={submit} size="lg" disabled={submitting || !turnstileToken || !agreedToPolicies}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+                  <Btn variant="success" onClick={submit} size="lg" disabled={submitting}>{submitting ? "Submitting…" : "Submit request"}</Btn>
                 </div>
               </div>
             </>
