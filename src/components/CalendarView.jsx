@@ -4,7 +4,7 @@ import { T, inputStyle } from "../lib/theme";
 import { Btn, Field, Modal, ConfirmModal } from "./ui";
 import { isClassActiveOn, formatTimeRange } from "../lib/scheduling";
 import { localDateStr } from "../lib/dates";
-import { isBirthdayOn } from "../lib/birthdays";
+import { isBirthdayOn, birthdayBeforeNextClass, formatBirthdayDay } from "../lib/birthdays";
 import { isLowAttendanceRisk } from "../lib/attendance";
 import QrScanner from "./QrScanner";
 
@@ -81,6 +81,10 @@ export function RosterEditor({ cls, onChanged }) {
   const [roster, setRoster] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [remainingByStudent, setRemainingByStudent] = useState({});
+  // For "birthday before their next class": dates after this one when the
+  // class is cancelled, and dates each student has already said they'll miss.
+  const [laterSkipDates, setLaterSkipDates] = useState([]);
+  const [laterAbsences, setLaterAbsences] = useState({}); // { [studentId]: [dateStr] }
   const [addingStudent, setAddingStudent] = useState("");
   const [addingStartDate, setAddingStartDate] = useState(cls.dateStr);
   const [addingModalOpen, setAddingModalOpen] = useState(false);
@@ -89,7 +93,7 @@ export function RosterEditor({ cls, onChanged }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [sRes, eRes, aRes] = await Promise.all([
+    const [sRes, eRes, aRes, laterSkipsRes, laterAbsRes] = await Promise.all([
       // Fetch every student, not just active ones — a student who was archived (or
       // whose package lapsed) without being removed from this class first would
       // otherwise vanish from the roster below while still counting toward
@@ -99,7 +103,13 @@ export function RosterEditor({ cls, onChanged }) {
       supabase.from("students").select("id, name, archived, dob"),
       supabase.from("enrollments").select("id, student_id, start_date").eq("class_id", cls.id),
       supabase.from("attendance").select("id, student_id, status").eq("class_id", cls.id).eq("date", cls.dateStr),
+      supabase.from("class_skips").select("date").eq("class_id", cls.id).gt("date", cls.dateStr),
+      supabase.from("attendance").select("student_id, date").eq("class_id", cls.id).gt("date", cls.dateStr).in("status", ["skipped", "missed"]),
     ]);
+    setLaterSkipDates((laterSkipsRes.data || []).map((r) => r.date));
+    const absences = {};
+    (laterAbsRes.data || []).forEach((r) => { (absences[r.student_id] ||= []).push(r.date); });
+    setLaterAbsences(absences);
     setStudents(sRes.data || []);
     // Only show students whose booking had actually started by this date — a
     // student added today shouldn't retroactively show up in last week's roster.
@@ -211,6 +221,14 @@ export function RosterEditor({ cls, onChanged }) {
                 {student && isBirthdayOn(student.dob, cls.dateStr) && (
                   <span style={{ fontSize: 11, fontWeight: 700, color: T.maroonDark, background: `${T.gold}33`, borderRadius: 999, padding: "1px 8px" }}>🎂 Birthday!</span>
                 )}
+                {student && !isBirthdayOn(student.dob, cls.dateStr) && (() => {
+                  const upcoming = birthdayBeforeNextClass(student.dob, cls, cls.dateStr, new Set([...laterSkipDates, ...(laterAbsences[student.id] || [])]));
+                  return upcoming && (
+                    <span title="Their birthday falls before their next class — wish them today!" style={{ fontSize: 11, fontWeight: 700, color: T.maroonDark, background: `${T.gold}22`, border: `1px dashed ${T.gold}`, borderRadius: 999, padding: "0 8px" }}>
+                      🎂 Birthday {formatBirthdayDay(upcoming.dateStr)} — before next class
+                    </span>
+                  );
+                })()}
                 {remaining > 0 && <span style={{ fontSize: 11, color: T.sage }}>{remaining} left</span>}
               </div>
               {atRisk && (

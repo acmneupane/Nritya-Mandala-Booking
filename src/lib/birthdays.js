@@ -54,3 +54,50 @@ export function formatBirthdayDate(dateStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
 }
+
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function addDays(dateStr, n) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + n));
+  return dt.toISOString().slice(0, 10);
+}
+
+function isClassOn(cls, dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (WEEKDAY_NAMES[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] !== cls.day) return false;
+  if (cls.start_date && dateStr < cls.start_date) return false;
+  if (cls.end_date && dateStr > cls.end_date) return false;
+  return true;
+}
+
+// The date this student next actually attends this class after dateStr —
+// skipping dates the studio cancelled (class skips) and dates the student has
+// already said they'll miss. null if there isn't one in the next ~4 months
+// (e.g. the class ends).
+export function nextClassDateAfter(cls, dateStr, skippedDates = new Set(), lookaheadDays = 120) {
+  for (let i = 1; i <= lookaheadDays; i++) {
+    const d = addDays(dateStr, i);
+    if (isClassOn(cls, d) && !skippedDates.has(d)) return d;
+  }
+  return null;
+}
+
+// A birthday coming up after this class but before the student's next one —
+// so staff can wish them today rather than a week late. Returns the birthday
+// ({ dateStr, daysUntil, age }) or null. With no next class, looks a week ahead.
+// (A birthday on the class day itself is handled by isBirthdayOn.)
+export function birthdayBeforeNextClass(dob, cls, dateStr, skippedDates) {
+  if (!dob) return null;
+  const upcoming = nextBirthday(dob, addDays(dateStr, 1));
+  const nextClass = nextClassDateAfter(cls, dateStr, skippedDates);
+  const limit = nextClass || addDays(dateStr, 8);
+  return upcoming.dateStr < limit ? { ...upcoming, daysUntil: upcoming.daysUntil + 1 } : null;
+}
+
+// "Thu 1 Oct"
+export function formatBirthdayDay(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const weekday = new Date(y, m - 1, d).toLocaleDateString("en-AU", { weekday: "short" });
+  return `${weekday} ${formatBirthdayDate(dateStr)}`;
+}
